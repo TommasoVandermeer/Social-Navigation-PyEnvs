@@ -3,9 +3,9 @@ import math
 import numpy as np
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
-from src.utils import points_distance, vector_difference, normalized, bound_angle
+from src.utils import points_distance, vector_difference, normalized, bound_angle, vector_angle, points_unit_vector
 
-GOAL_RADIUS = 0.2
+GOAL_RADIUS = 0.3
 
 class Group:
     def __init__(self):
@@ -117,8 +117,24 @@ def update_positions(agents:list[HumanAgent], dt:float):
         if (np.linalg.norm(agent.linear_velocity) > agent.desired_speed): agent.linear_velocity = (agent.linear_velocity / np.linalg.norm(agent.linear_velocity)) * agent.desired_speed
         agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
         agent.position += agent.linear_velocity * dt
+        check_agents_collisions(agents)
         if ((agent.goals) and (points_distance(agent.goals[0], agent.position) < GOAL_RADIUS)):
             goal = agent.goals[0]
             agent.goals.remove(goal)
             agent.goals.append(goal)
+
+def check_agents_collisions(agents:list[HumanAgent]):
+        for i in range(len(agents)):
+            for j in range(len(agents)):
+                if (j == i) or (j < i): continue
+                agent1_position = np.array(agents[i].position)
+                agent2_position = np.array(agents[j].position)
+                if (np.linalg.norm(agent1_position - agent2_position) < agents[i].radius + agents[j].radius):
+                    direction = (agent1_position - agent2_position) / np.linalg.norm(agent1_position - agent2_position)
+                    angle = np.arctan2(direction[1], direction[0])
+                    mean_point = (agent1_position + agent2_position) / 2
+                    agents[i].position[0] = mean_point[0] + math.cos(angle) * (agents[i].radius)
+                    agents[i].position[1] = mean_point[1] + math.sin(angle) * (agents[i].radius)
+                    agents[j].position[0] = mean_point[0] - math.cos(angle) * (agents[j].radius)
+                    agents[j].position[1] = mean_point[1] - math.sin(angle) * (agents[j].radius)
 

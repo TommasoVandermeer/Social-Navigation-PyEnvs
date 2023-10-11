@@ -22,12 +22,12 @@ class HumanAgent(pygame.sprite.Sprite):
             # SFM Parameters
             self.goal_weight = 2.0
             self.obstacle_weight = 10.0
-            self.obstacle_sigma = 0.2
-            self.social_weight = 15.0
+            self.social_weight = 30.0
             self.group_gaze_weight = 3.0
             self.group_coh_weight = 2.0
             self.group_rep_weight = 1.0
             self.relaxation_time = 0.5
+            self.obstacle_sigma = 0.2
             self.agent_lambda = 2.0
             self.agent_gamma = 0.35
             self.agent_nPrime = 3.0

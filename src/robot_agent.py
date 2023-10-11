@@ -52,6 +52,11 @@ class RobotAgent():
                 self.position[0] = closest_point[0] + math.cos(angle) * (self.radius)
                 self.position[1] = closest_point[1] + math.sin(angle) * (self.radius)
                 self.move()
+        if self.position[0] + self.radius > self.real_size: self.position[0] = self.real_size - self.radius
+        if self.position[0] - self.radius < 0.0: self.position[0] = self.radius
+        if self.position[1] + self.radius > self.real_size: self.position[1] = self.real_size - self.radius
+        if self.position[1] - self.radius < 0.0: self.position[1] = self.radius
+        self.move()
 
     def move_with_keys(self, direction):    
         if direction == 'up':
