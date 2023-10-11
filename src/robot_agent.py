@@ -1,6 +1,7 @@
 import pygame
 import math
 from src.utils import bound_angle, points_distance, points_unit_vector, vector_angle
+import numpy as np
 
 class RobotAgent():
     def __init__(self, game):
@@ -18,6 +19,8 @@ class RobotAgent():
         # POSE must always be regarded in the real frame        
         self.position = [self.real_size / 2, self.real_size / 2]
         self.yaw = 0.0
+        self.linear_velocity = np.array([0.0,0.0])
+        self.angular_velocity = 0.0
 
         self.collisions = 0
 
@@ -30,8 +33,6 @@ class RobotAgent():
     def rotate(self):
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))
         self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
-        # self.position[0] = self.rect.centerx / self.ratio
-        # self.position[1] = self.real_size - (self.rect.centery / self.ratio)
 
     def move(self):
         self.rect.centerx = round(self.position[0] * self.ratio)
@@ -52,7 +53,7 @@ class RobotAgent():
                 self.position[1] = closest_point[1] + math.sin(angle) * (self.radius)
                 self.move()
 
-    def move_with_keys(self, direction, humans, walls):    
+    def move_with_keys(self, direction):    
         if direction == 'up':
             self.position[0] += math.cos(self.yaw) * 0.01
             self.position[1] += math.sin(self.yaw) * 0.01
@@ -65,10 +66,9 @@ class RobotAgent():
             self.yaw = bound_angle(self.yaw - 0.1)
         self.move()
         self.rotate()
-        self.check_collisions(humans, walls)
 
     def render(self, display):
         display.blit(self.image, self.rect)
 
-    def update(self):
-        pass
+    def update(self, humans, walls):
+        self.check_collisions(humans, walls)

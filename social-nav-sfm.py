@@ -24,19 +24,26 @@ class SfmGame:
         self.game_caption = 'Social Navigation SFM'
         self.motion_model = 'sfm'
 
+        self.font = pygame.font.Font('fonts/Roboto-Black.ttf', 50)
+        self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,0))
+        self.fps_text_rect = self.fps_text.get_rect(topleft = (DISPLAY_SIZE - DISPLAY_SIZE/4, DISPLAY_SIZE/30))
+
         pygame.display.set_caption('Social Navigation SFM')
-
-        # Humans
-        self.humans = pygame.sprite.Group()
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/1.5,REAL_SIZE/1.5], -math.pi))
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/4,REAL_SIZE/4], 0.0))
-
-        # Robot
-        self.robot = RobotAgent(self)
 
         # Obstacles
         self.walls = pygame.sprite.Group()
         self.walls.add(Obstacle(self, [1,1], [1.5,1], [1.5,3], [1,3]))
+        self.walls.add(Obstacle(self, [3,9], [6,9], [6,9.5], [3,9.5]))
+
+        # Humans
+        self.humans = pygame.sprite.Group()
+        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/1.5,REAL_SIZE/1.5], -math.pi, [[5,5],[8,2]]))
+        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/4,REAL_SIZE/4], 0.0, [[5,5],[8,2]]))
+        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/5,REAL_SIZE/2], -math.pi, [[3,7],[8,8]], group_id=1))
+        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/5,REAL_SIZE/3], 0.0, [[3,7],[8,8]], group_id=1))
+
+        # Robot
+        self.robot = RobotAgent(self)
 
     def render(self):
         self.display.fill((255,255,255))
@@ -44,12 +51,20 @@ class SfmGame:
         self.robot.render(self.display)
         self.walls.draw(self.display)
 
+        self.display.blit(self.fps_text,self.fps_text_rect)
+
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
         pygame.display.update()
 
     def update(self):
-        self.humans.update()
-        self.robot.update()
+        sfm.compute_forces(self.humans.sprites(), self.robot)
+        sfm.update_positions(self.humans.sprites(), 1/MAX_FPS)
+
+        humans, walls = self.get_entities()
+
+        self.humans.update(walls)
+        self.robot.update(humans, walls)
+        self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,0))
 
     def get_entities(self):
         humans = []
@@ -61,11 +76,10 @@ class SfmGame:
         return humans, walls
 
     def move_robot(self):
-        humans, walls = self.get_entities()
-        if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', humans, walls)
+        if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
+        if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
+        if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
+        if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
 
     def run(self):
         while True:
@@ -78,7 +92,6 @@ class SfmGame:
             self.update()
             self.render()
 
-            #print(self.clock.get_fps())
             self.clock.tick(MAX_FPS)
 
 SfmGame().run()
