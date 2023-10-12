@@ -4,7 +4,7 @@ import numpy as np
 from src.utils import points_distance, points_unit_vector, vector_angle
 
 class HumanAgent(pygame.sprite.Sprite):
-    def __init__(self, game, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=75, des_speed=0.9, group_id=-1):
+    def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=75, des_speed=0.9, group_id=-1):
         super().__init__()
         self.ratio = game.display_to_real_ratio
         self.real_size = game.real_size
@@ -22,7 +22,7 @@ class HumanAgent(pygame.sprite.Sprite):
             # SFM Parameters
             self.goal_weight = 2.0
             self.obstacle_weight = 10.0
-            self.social_weight = 30.0
+            self.social_weight = 15.0
             self.group_gaze_weight = 3.0
             self.group_coh_weight = 2.0
             self.group_rep_weight = 1.0
@@ -59,6 +59,9 @@ class HumanAgent(pygame.sprite.Sprite):
             self.k1 = 120000.0
             self.k2 = 240000.0
 
+        self.font = pygame.font.Font('fonts/Roboto-Black.ttf',25)
+        self.label = self.font.render(f"{label}", False, (0,0,0))
+
         self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
         #self.image.fill((0,0,0))
         pygame.draw.circle(self.image, self.color, (radius, radius), radius, int(0.05 * self.ratio))
@@ -71,6 +74,7 @@ class HumanAgent(pygame.sprite.Sprite):
 
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))
         self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
+        self.label_rect = self.label.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
 
     def get_rect(self):
         return self.rect
@@ -90,3 +94,8 @@ class HumanAgent(pygame.sprite.Sprite):
         self.obstacles.clear()
         for wall in walls:
             self.obstacles.append(np.array(wall.get_closest_point(self.position)))
+
+    def render_label(self, display):
+        self.label_rect.centerx = round(self.position[0] * self.ratio)
+        self.label_rect.centery = round((self.real_size - self.position[1]) * self.ratio)
+        display.blit(self.label, self.label_rect)

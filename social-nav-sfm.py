@@ -4,6 +4,7 @@ from random import randint
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
+from config.config import initialize
 from src import sfm
 import math
 
@@ -30,17 +31,33 @@ class SfmGame:
 
         pygame.display.set_caption('Social Navigation SFM')
 
+        walls, humans, random_setting = initialize()
+        self.setting = random_setting
         # Obstacles
         self.walls = pygame.sprite.Group()
-        self.walls.add(Obstacle(self, [1,1], [1.5,1], [1.5,3], [1,3]))
-        self.walls.add(Obstacle(self, [3,9], [6,9], [6,9.5], [3,9.5]))
-
         # Humans
         self.humans = pygame.sprite.Group()
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/1.5,REAL_SIZE/1.5], -math.pi, [[5,5],[8,2]]))
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/4,REAL_SIZE/4], 0.0, [[5,5],[8,2]]))
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/5,REAL_SIZE/2], -math.pi, [[3,7],[8,8]], group_id=1))
-        self.humans.add(HumanAgent(self, self.motion_model, [REAL_SIZE/5,REAL_SIZE/3], 0.0, [[3,7],[8,8]], group_id=1))
+        
+        if not self.setting:
+            for wall in walls:
+                self.walls.add(Obstacle(self, wall[0], wall[1], wall[2], wall[3]))
+
+            for key in humans:
+                model = humans[key]["model"]
+                init_position = humans[key]["pos"]
+                init_yaw = humans[key]["yaw"]
+                goals = humans[key]["goals"]
+                if "color" in humans[key]: color = humans[key]["color"]
+                else: color = (0,0,0)
+                if "radius" in humans[key]: radius = humans[key]["radius"]
+                else: radius = 0.3
+                if "mass" in humans[key]: mass = humans[key]["mass"]
+                else: mass = 75
+                if "des_speed" in humans[key]: des_speed = humans[key]["des_speed"]
+                else: des_speed = 0.9
+                if "group_id" in humans[key]: group_id = humans[key]["group_id"]
+                else: group_id = -1
+                self.humans.add(HumanAgent(self, key, model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
 
         # Robot
         self.robot = RobotAgent(self)
@@ -50,6 +67,9 @@ class SfmGame:
         self.humans.draw(self.display)
         self.robot.render(self.display)
         self.walls.draw(self.display)
+
+        for human in self.humans.sprites():
+            human.render_label(self.display)
 
         self.display.blit(self.fps_text,self.fps_text_rect)
 
