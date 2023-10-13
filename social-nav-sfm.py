@@ -4,9 +4,10 @@ from random import randint
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
-from config.config import initialize
-from src import sfm
+from config.config_sfm_roboticsupo import initialize
+from src import sfm_roboticsupo
 import math
+from timeit import default_timer as timer
 
 WINDOW_SIZE = 600
 DISPLAY_SIZE = 1000
@@ -22,45 +23,44 @@ class SfmGame:
         self.display_to_real_ratio = DISPLAY_SIZE / REAL_SIZE
         self.real_size = REAL_SIZE
         self.clock = pygame.time.Clock()
-        self.game_caption = 'Social Navigation SFM'
-        self.motion_model = 'sfm'
 
         self.font = pygame.font.Font('fonts/Roboto-Black.ttf', 50)
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,0))
         self.fps_text_rect = self.fps_text.get_rect(topleft = (DISPLAY_SIZE - DISPLAY_SIZE/4, DISPLAY_SIZE/30))
 
-        pygame.display.set_caption('Social Navigation SFM')
+        pygame.display.set_caption('Social Navigation')
 
-        walls, humans, random_setting = initialize()
-        self.setting = random_setting
+        walls, humans, motion_model = initialize()
+        self.motion_model = motion_model
         # Obstacles
         self.walls = pygame.sprite.Group()
         # Humans
         self.humans = pygame.sprite.Group()
         
-        if not self.setting:
-            for wall in walls:
-                self.walls.add(Obstacle(self, wall[0], wall[1], wall[2], wall[3]))
+        for wall in walls:
+            self.walls.add(Obstacle(self, wall[0], wall[1], wall[2], wall[3]))
 
-            for key in humans:
-                model = humans[key]["model"]
-                init_position = humans[key]["pos"]
-                init_yaw = humans[key]["yaw"]
-                goals = humans[key]["goals"]
-                if "color" in humans[key]: color = humans[key]["color"]
-                else: color = (0,0,0)
-                if "radius" in humans[key]: radius = humans[key]["radius"]
-                else: radius = 0.3
-                if "mass" in humans[key]: mass = humans[key]["mass"]
-                else: mass = 75
-                if "des_speed" in humans[key]: des_speed = humans[key]["des_speed"]
-                else: des_speed = 0.9
-                if "group_id" in humans[key]: group_id = humans[key]["group_id"]
-                else: group_id = -1
-                self.humans.add(HumanAgent(self, key, model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
+        for key in humans:
+            init_position = humans[key]["pos"]
+            init_yaw = humans[key]["yaw"]
+            goals = humans[key]["goals"]
+            if "color" in humans[key]: color = humans[key]["color"]
+            else: color = (0,0,0)
+            if "radius" in humans[key]: radius = humans[key]["radius"]
+            else: radius = 0.3
+            if "mass" in humans[key]: mass = humans[key]["mass"]
+            else: mass = 75
+            if "des_speed" in humans[key]: des_speed = humans[key]["des_speed"]
+            else: des_speed = 0.9
+            if "group_id" in humans[key]: group_id = humans[key]["group_id"]
+            else: group_id = -1
+            self.humans.add(HumanAgent(self, key, self.motion_model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
 
         # Robot
         self.robot = RobotAgent(self)
+
+        # Update time
+        self.last_update = timer()
 
     def render(self):
         self.display.fill((255,255,255))
@@ -77,8 +77,9 @@ class SfmGame:
         pygame.display.update()
 
     def update(self):
-        sfm.compute_forces(self.humans.sprites(), self.robot)
-        sfm.update_positions(self.humans.sprites(), 1/MAX_FPS)
+        sfm_roboticsupo.compute_forces(self.humans.sprites(), self.robot)
+        sfm_roboticsupo.update_positions(self.humans.sprites(), timer() - self.last_update)
+        self.last_update = timer()
 
         humans, walls = self.get_entities()
 

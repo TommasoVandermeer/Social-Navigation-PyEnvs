@@ -14,14 +14,15 @@ class Obstacle(pygame.sprite.Sprite):
         self.top_right = top_right
         self.top_left = top_left
 
-        if ((bottom_left[0] != bottom_right[0]) and (bottom_left[1] != bottom_right[1])):
-            raise Exception("Obstacle points given in the wrong order")
-        if ((bottom_right[0] != top_right[0]) and (bottom_right[1] != top_right[1])):
-            raise Exception("Obstacle points given in the wrong order")
-        if ((top_right[0] != top_left[0]) and (top_right[1] != top_left[1])):
-            raise Exception("Obstacle points given in the wrong order")
-        if ((top_left[0] != bottom_left[0]) and (top_left[1] != bottom_left[1])):
-            raise Exception("Obstacle points given in the wrong order")
+        ## Only if walls are not inclined
+        # if ((bottom_left[0] != bottom_right[0]) and (bottom_left[1] != bottom_right[1])):
+        #     raise Exception("Obstacle points given in the wrong order")
+        # if ((bottom_right[0] != top_right[0]) and (bottom_right[1] != top_right[1])):
+        #     raise Exception("Obstacle points given in the wrong order")
+        # if ((top_right[0] != top_left[0]) and (top_right[1] != top_left[1])):
+        #     raise Exception("Obstacle points given in the wrong order")
+        # if ((top_left[0] != bottom_left[0]) and (top_left[1] != bottom_left[1])):
+        #     raise Exception("Obstacle points given in the wrong order")
         
         self.segments = [[self.bottom_left,self.bottom_right],[self.bottom_right,self.top_right],[self.top_right,self.top_left],[self.top_left,self.bottom_left]]
 

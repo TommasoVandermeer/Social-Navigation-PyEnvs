@@ -63,9 +63,8 @@ class HumanAgent(pygame.sprite.Sprite):
         self.label = self.font.render(f"{label}", False, (0,0,0))
 
         self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        #self.image.fill((0,0,0))
         pygame.draw.circle(self.image, self.color, (radius, radius), radius, int(0.05 * self.ratio))
-        pygame.draw.circle(self.image, (0,0,255), (radius + math.cos(0.0) * radius, radius - math.sin(0.0) * radius), radius / 3)
+        if 'hsfm' in self.motion_model: pygame.draw.circle(self.image, (0,0,255), (radius + math.cos(0.0) * radius, radius - math.sin(0.0) * radius), radius / 3)
         self.original_image = self.image
 
         # POSE must always be regarded in the real frame  
