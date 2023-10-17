@@ -43,7 +43,7 @@ def main():
     if (model == 0): model_title = "sfm_helbing"
     elif (model == 1): model_title = "sfm_roboticsupo"
     if (not rand): title = f"config_circular_crossing_{model_title}_{n_actors}_{radius}m"
-    else: title = f"config_circular_crossing_{model_title}_{n_actors}_{radius}m"
+    else: title = f"config_circular_crossing_rand_{model_title}_{n_actors}_{radius}m"
     dist_center = radius - 0.5
 
     init_pos = []
