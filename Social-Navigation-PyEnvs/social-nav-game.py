@@ -5,8 +5,8 @@ from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
 from src.utils import round_time
-# from config.config import initialize
-from config.config_circular_crossing_sfm_helbing_5_7m import initialize
+from config.config import initialize
+# from config.config_circular_crossing_sfm_helbing_5_7m import initialize
 # from config.config_circular_crossing_sfm_roboticsupo_14_4m import initialize
 # from config.config_circular_crossing_sfm_helbing_14_4m import initialize
 # from config.config_circular_crossing_rand_sfm_helbing_14_7m import initialize

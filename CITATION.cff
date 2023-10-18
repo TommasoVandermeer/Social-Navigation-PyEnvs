@@ -1,0 +1,30 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Social-Navigation-PyEnvs
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Tommaso
+    family-names: Van Der Meer
+    email: tommaso.vandermeer@student.unisi.it
+    affiliation: University of Siena
+repository-code: >-
+  https://github.com/TommasoVandermeer/Social-Navigation-PyEnvs
+abstract: >-
+  This repository contains different social environments
+  based on the Social Force Model and the Headed Social
+  Force Model built with PyGame and OpenAI Gymnasium. These
+  two social navigation environments can be used to train
+  reinforcement learning agents for social navigation.
+keywords:
+  - social-navigation
+  - reinforcement-learning
+  - social-force-model
+  - headed-social-force-model
+  - open-ai-gym
+commit: 1c4b5a3d62538e5ad0374f9481ef18ff7a9ce339
+date-released: '2023-10-17'
