@@ -13,9 +13,13 @@ def bound_angle(angle):
 def write_config(model_title:str, init_pos:list, init_yaw:list, goal:list, n_actors:int, title:str):
     data = (f"motion_model = '{model_title}'\n" +
             "\n" +
+            "runge_kutta = False\n" +
+            "\n" +
             "insert_robot = False\n" +
             "\n" +
             "grid = True\n" +
+            "\n" +
+            "test = False\n" +
             "\n" +
             "walls = []\n" +
             "\n" +
@@ -28,7 +32,7 @@ def write_config(model_title:str, init_pos:list, init_yaw:list, goal:list, n_act
         else: data += f"          {i}: {ocb}'pos': [{init_pos[i][0]},{init_pos[i][1]}], 'yaw': {init_yaw[i]}, 'goals': [[{goal[i][0]},{goal[i][1]}],[{init_pos[i][0]},{init_pos[i][1]}]]{ccb}{ccb}\n"
     data += ("\n" + 
              "def initialize():\n" +
-             "  return walls, humans, motion_model, insert_robot, grid")
+             "  return walls, humans, motion_model, runge_kutta, insert_robot, grid, test")
     
     with open(f'{CONFIG_DIR}{title}.py', 'w') as file:
             file.write(data)

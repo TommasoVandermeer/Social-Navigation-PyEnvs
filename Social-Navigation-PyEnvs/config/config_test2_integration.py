@@ -1,8 +1,12 @@
 motion_model = 'sfm_helbing'
 
+runge_kutta = False
+
 insert_robot = False
 
 grid = True
+
+test = True
 
 walls = []
 
@@ -13,4 +17,4 @@ humans = {0: {'pos': [14.0,7.5], 'yaw': -3.1416, 'goals': [[1.0,7.5],[14.0,7.5]]
           4: {'pos': [9.5086,1.3181000000000003], 'yaw': 1.885, 'goals': [[5.4914000000000005,13.681899999999999],[9.5086,1.3181000000000003]]}}
 
 def initialize():
-  return walls, humans, motion_model, insert_robot, grid
+  return walls, humans, motion_model, runge_kutta, insert_robot, grid, test

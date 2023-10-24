@@ -5,22 +5,22 @@ from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
 from src.utils import round_time
-from config.config import initialize
-# from config.config_circular_crossing_sfm_helbing_5_7m import initialize
-# from config.config_circular_crossing_sfm_roboticsupo_14_4m import initialize
-# from config.config_circular_crossing_sfm_helbing_14_4m import initialize
-# from config.config_circular_crossing_rand_sfm_helbing_14_7m import initialize
-# from config.config_circular_crossing_sfm_helbing_21_7m import initialize
-# from config.config_circular_crossing_sfm_helbing_28_7m import initialize
-# from config.config_circular_crossing_sfm_helbing_35_7m import initialize
-# from config.config_circular_crossing_sfm_helbing_42_7m import initialize
-# from config.config_circular_crossing_sfm_helbing_49_7m import initialize
+import numpy as np
+import matplotlib.pyplot as plt
+#from config.config import initialize
+# from config.config_test1_integration import initialize
+# from config.config_test2_integration import initialize
+from config.config_test3_integration import initialize
 
+### GLOBAL VARIABLES
 WINDOW_SIZE = 700
 DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
+### TEST VARIABLES
+FINAL_T = 40
+N_UPDATES = int(FINAL_T / SAMPLING_TIME)
 
 class SfmGame:
     def __init__(self):
@@ -48,10 +48,12 @@ class SfmGame:
 
         pygame.display.set_caption('Social Navigation')
 
-        walls, humans, motion_model, insert_robot, grid = initialize()
+        walls, humans, motion_model, runge_kutta, insert_robot, grid, test = initialize()
         self.motion_model = motion_model
+        self.runge_kutta = runge_kutta
         self.insert_robot = insert_robot
         self.grid = grid
+        self.test = test
 
         # Grid
         if self.grid: 
@@ -97,7 +99,6 @@ class SfmGame:
         self.real_t = 0.0
         self.sim_t = 0.0
 
-
     def render(self):
         self.display.fill((255,255,255))
         if self.grid: self.display.blit(self.grid_surface, (0,0))
@@ -107,9 +108,6 @@ class SfmGame:
             human.render_label(self.display)
         if self.insert_robot: self.robot.render(self.display)
         self.walls.draw(self.display)
-
-        self.real_t = round_time(pygame.time.get_ticks() / 1000)
-        self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
@@ -131,11 +129,16 @@ class SfmGame:
         if self.motion_model == "sfm_roboticsupo":
             if self.insert_robot: sfm_roboticsupo.compute_forces(self.humans, self.robot)
             else: sfm_roboticsupo.compute_forces_no_robot(self.humans)
-            sfm_roboticsupo.update_positions(self.humans, SAMPLING_TIME)
+            if self.runge_kutta: sfm_roboticsupo.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
+            else: sfm_roboticsupo.update_positions(self.humans, SAMPLING_TIME)
         elif self.motion_model == "sfm_helbing":
             if self.insert_robot: sfm_helbing.compute_forces(self.humans, self.robot)
             else: sfm_helbing.compute_forces_no_robot(self.humans)
-            sfm_helbing.update_positions(self.humans, SAMPLING_TIME)
+            if self.runge_kutta: sfm_helbing.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
+            else: sfm_helbing.update_positions(self.humans, SAMPLING_TIME)
+
+        self.real_t = round_time(pygame.time.get_ticks() / 1000)
+        self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
         for human in self.humans:
             human.update(self.walls.sprites())
@@ -160,5 +163,58 @@ class SfmGame:
             self.render()
 
             self.clock.tick(MAX_FPS)
+    
+    def run_test(self):
+        ## Euler
+        self.runge_kutta = False
+        x_pose_humans_euler = {}
+        y_pose_humans_euler = {}
+        for step in range(N_UPDATES+1):
+            if step != 0: self.update()
+            for i in range(len(self.humans)):
+                if step == 0:
+                    x_pose_humans_euler[i] = [self.humans[i].position[0]]
+                    y_pose_humans_euler[i] = [self.humans[i].position[1]]
+                else:
+                    x_pose_humans_euler[i].append(self.humans[i].position[0])
+                    y_pose_humans_euler[i].append(self.humans[i].position[1])
+        # ## Runge kutta
+        walls, humans, motion_model, runge_kutta, insert_robot, grid, test = initialize()
+        for i in range(len(self.humans)):
+            self.humans[i].position = np.array(humans[i]["pos"],dtype=np.float64)
+        self.sim_t = 0.0
+        self.runge_kutta = True
+        x_pose_humans_rk45 = {}
+        y_pose_humans_rk45 = {}
+        for step in range(N_UPDATES+1):
+            if step != 0: self.update()
+            for i in range(len(self.humans)):
+                if step == 0:
+                    x_pose_humans_rk45[i] = [self.humans[i].position[0]]
+                    y_pose_humans_rk45[i] = [self.humans[i].position[1]]
+                else:
+                    x_pose_humans_rk45[i].append(self.humans[i].position[0])
+                    y_pose_humans_rk45[i].append(self.humans[i].position[1])
+        ## Print
+        figure, axs = plt.subplots(1, 2)
+        figure.suptitle('Human agents position over simulation')
+        axs[0].set_title('Euler integration')
+        axs[0].set_xlabel('X')
+        axs[0].set_ylabel('Y')
+        axs[0].set_xlim([0,REAL_SIZE])
+        axs[0].set_ylim([0,REAL_SIZE])
+        for i in range(len(self.humans)):
+            axs[0].plot(x_pose_humans_euler[i],y_pose_humans_euler[i])
+        axs[1].set_title('Runge-Kutta 45 integration')
+        axs[1].set_xlabel('X')
+        axs[1].set_ylabel('Y')
+        axs[1].set_xlim([0,REAL_SIZE])
+        axs[1].set_ylim([0,REAL_SIZE])
+        for i in range(len(self.humans)):
+            axs[1].plot(x_pose_humans_rk45[i],y_pose_humans_rk45[i])
+        ## Display graphics
+        plt.show()
 
-SfmGame().run()
+simulator = SfmGame()
+if not simulator.test: simulator.run()
+else: simulator.run_test()

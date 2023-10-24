@@ -3,6 +3,7 @@ import numpy as np
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.utils import bound_angle
+from scipy.integrate import solve_ivp
 
 GOAL_RADIUS = 0.35
 
@@ -114,4 +115,35 @@ def update_positions(agents:list[HumanAgent], dt:float):
             goal = agent.goals[0]
             agent.goals.remove(goal)
             agent.goals.append(goal)
+
+def update_positions_RK45(agents:list[HumanAgent], t:float, dt:float):
+    for agent in agents:
+        init_yaw = agent.yaw
+        global MASS
+        global LINEAR_VELOCITY
+        global GLOBAL_FORCE
+        MASS = agent.mass
+        GLOBAL_FORCE = agent.global_force
+        ## First integration
+        solution = solve_ivp(f1, (t, t+dt), agent.linear_velocity, method='RK45')
+        agent.linear_velocity = np.array([solution.y[0][-1],solution.y[1][-1]],dtype=np.float64)
+        LINEAR_VELOCITY = agent.linear_velocity
+        if (np.linalg.norm(agent.linear_velocity) > agent.desired_speed): agent.linear_velocity = (agent.linear_velocity / np.linalg.norm(agent.linear_velocity)) * agent.desired_speed
+        agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
+        ## Second integration
+        solution2 = solve_ivp(f2, (t, t+dt), agent.position, method='RK45')
+        agent.position = np.array([solution2.y[0][-1],solution2.y[1][-1]], dtype=np.float64)
+        agent.angular_velocity = (agent.yaw - init_yaw) / dt
+        if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < GOAL_RADIUS)):
+            goal = agent.goals[0]
+            agent.goals.remove(goal)
+            agent.goals.append(goal)
+
+def f1(t, y):
+    ydot = GLOBAL_FORCE / MASS
+    return ydot
+
+def f2(t, y):
+    ydot = LINEAR_VELOCITY
+    return ydot
 
