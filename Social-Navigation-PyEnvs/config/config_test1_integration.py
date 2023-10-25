@@ -1,7 +1,7 @@
 import math
 
 ## Chose between sfm_roboticsupo, sfm_helbing
-motion_model = "sfm_roboticsupo"
+motion_model = "sfm_helbing"
 
 ## Decide wether to integrate with RKF45(True) or Euler(False)
 runge_kutta = True

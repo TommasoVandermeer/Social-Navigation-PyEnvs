@@ -7,10 +7,11 @@ from src.obstacle import Obstacle
 from src.utils import round_time
 import numpy as np
 import matplotlib.pyplot as plt
-#from config.config import initialize
+# from config.config import initialize
 # from config.config_test1_integration import initialize
-# from config.config_test2_integration import initialize
-from config.config_test3_integration import initialize
+from config.config_test2_integration import initialize
+# from config.config_test3_integration import initialize
+# from config.config_test4_integration import initialize
 
 ### GLOBAL VARIABLES
 WINDOW_SIZE = 700
@@ -48,13 +49,48 @@ class SfmGame:
 
         pygame.display.set_caption('Social Navigation')
 
-        walls, humans, motion_model, runge_kutta, insert_robot, grid, test = initialize()
-        self.motion_model = motion_model
-        self.runge_kutta = runge_kutta
-        self.insert_robot = insert_robot
-        self.grid = grid
-        self.test = test
+        # Obstacles
+        self.walls = pygame.sprite.Group()
+        # Humans
+        self.humans = []
+        # Reset simulation to initialize all agent states
+        self.reset()
 
+    def reset(self):
+        self.humans.clear()
+        self.walls.empty()
+
+        data = initialize()
+        if "motion_model" in data.keys(): self.motion_model = data["motion_model"]
+        else: self.motion_model = "sfm_helbing"
+        if "runge_kutta" in data.keys(): self.runge_kutta = data["runge_kutta"]
+        else: self.runge_kutta = False
+        if "insert_robot" in data.keys(): self.insert_robot = data["insert_robot"]
+        else: self.insert_robot = False
+        if "grid" in data.keys(): self.grid = data["grid"]
+        else: self.grid = True
+        if "test" in data.keys(): self.test = data["test"]
+        else: self.test = False
+        
+        for wall in data["walls"]:
+            self.walls.add(Obstacle(self, wall))
+
+        for key in data["humans"]:
+            init_position = data["humans"][key]["pos"].copy()
+            init_yaw = data["humans"][key]["yaw"]
+            goals = data["humans"][key]["goals"].copy()
+            if "color" in data["humans"][key]: color = data["humans"][key]["color"]
+            else: color = (0,0,0)
+            if "radius" in data["humans"][key]: radius = data["humans"][key]["radius"]
+            else: radius = 0.3
+            if "mass" in data["humans"][key]: mass = data["humans"][key]["mass"]
+            else: mass = 75
+            if "des_speed" in data["humans"][key]: des_speed = data["humans"][key]["des_speed"]
+            else: des_speed = 0.9
+            if "group_id" in data["humans"][key]: group_id = data["humans"][key]["group_id"]
+            else: group_id = -1
+            self.humans.append(HumanAgent(self, key, self.motion_model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
+        
         # Grid
         if self.grid: 
             self.grid_lines = []
@@ -67,30 +103,6 @@ class SfmGame:
                 pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1])
             self.grid_surface.set_alpha(50)
 
-        # Obstacles
-        self.walls = pygame.sprite.Group()
-        # Humans
-        self.humans = []
-        
-        for wall in walls:
-            self.walls.add(Obstacle(self, wall))
-
-        for key in humans:
-            init_position = humans[key]["pos"]
-            init_yaw = humans[key]["yaw"]
-            goals = humans[key]["goals"]
-            if "color" in humans[key]: color = humans[key]["color"]
-            else: color = (0,0,0)
-            if "radius" in humans[key]: radius = humans[key]["radius"]
-            else: radius = 0.3
-            if "mass" in humans[key]: mass = humans[key]["mass"]
-            else: mass = 75
-            if "des_speed" in humans[key]: des_speed = humans[key]["des_speed"]
-            else: des_speed = 0.9
-            if "group_id" in humans[key]: group_id = humans[key]["group_id"]
-            else: group_id = -1
-            self.humans.append(HumanAgent(self, key, self.motion_model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
-
         # Robot
         if self.insert_robot: self.robot = RobotAgent(self)
 
@@ -98,6 +110,7 @@ class SfmGame:
         self.n_updates = 0
         self.real_t = 0.0
         self.sim_t = 0.0
+        self.last_reset = round_time(pygame.time.get_ticks() / 1000)
 
     def render(self):
         self.display.fill((255,255,255))
@@ -112,7 +125,7 @@ class SfmGame:
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
         self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
-        self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ self.real_t, 2)}", False, (0,0,255))
+        self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
         self.display.blit(self.fps_text,self.fps_text_rect)
         self.display.blit(self.real_time,self.real_time_rect)
         self.display.blit(self.simulation_time,self.simulation_time_rect)
@@ -137,7 +150,7 @@ class SfmGame:
             if self.runge_kutta: sfm_helbing.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
             else: sfm_helbing.update_positions(self.humans, SAMPLING_TIME)
 
-        self.real_t = round_time(pygame.time.get_ticks() / 1000)
+        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
         for human in self.humans:
@@ -145,11 +158,19 @@ class SfmGame:
 
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
 
-    def move_robot(self):
+    def move_robot_with_keys(self):
         if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
         if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
         if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
         if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
+    
+    def get_human_states(self):
+        # State: [x, y, yaw, Vx, Vy, Omega]
+        state = np.empty([len(self.humans),6],dtype=np.float64)
+        for i in range(len(self.humans)):
+            human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity], dtype=np.float64)
+            state[i] = human_state
+        return state
 
     def run(self):
         while True:
@@ -157,8 +178,7 @@ class SfmGame:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-
-            if self.insert_robot: self.move_robot()
+            if self.insert_robot: self.move_robot_with_keys()
             self.update()
             self.render()
 
@@ -178,11 +198,8 @@ class SfmGame:
                 else:
                     x_pose_humans_euler[i].append(self.humans[i].position[0])
                     y_pose_humans_euler[i].append(self.humans[i].position[1])
-        # ## Runge kutta
-        walls, humans, motion_model, runge_kutta, insert_robot, grid, test = initialize()
-        for i in range(len(self.humans)):
-            self.humans[i].position = np.array(humans[i]["pos"],dtype=np.float64)
-        self.sim_t = 0.0
+        ## Runge kutta
+        self.reset()
         self.runge_kutta = True
         x_pose_humans_rk45 = {}
         y_pose_humans_rk45 = {}

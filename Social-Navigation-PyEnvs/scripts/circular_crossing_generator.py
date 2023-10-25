@@ -30,9 +30,11 @@ def write_config(model_title:str, init_pos:list, init_yaw:list, goal:list, n_act
         if i == 0: data += f"{i}: {ocb}'pos': [{init_pos[i][0]},{init_pos[i][1]}], 'yaw': {init_yaw[i]}, 'goals': [[{goal[i][0]},{goal[i][1]}],[{init_pos[i][0]},{init_pos[i][1]}]]{ccb},\n"; continue
         if i < n_actors - 1: data += f"          {i}: {ocb}'pos': [{init_pos[i][0]},{init_pos[i][1]}], 'yaw': {init_yaw[i]}, 'goals': [[{goal[i][0]},{goal[i][1]}],[{init_pos[i][0]},{init_pos[i][1]}]]{ccb},\n"
         else: data += f"          {i}: {ocb}'pos': [{init_pos[i][0]},{init_pos[i][1]}], 'yaw': {init_yaw[i]}, 'goals': [[{goal[i][0]},{goal[i][1]}],[{init_pos[i][0]},{init_pos[i][1]}]]{ccb}{ccb}\n"
-    data += ("\n" + 
+    data += ("\n" +
+             "data = {'motion_model': motion_model, 'runge_kutta': runge_kutta, 'insert_robot': insert_robot, 'grid': grid, 'test': test, 'humans': humans, 'walls': walls}\n" +
+             "\n" + 
              "def initialize():\n" +
-             "  return walls, humans, motion_model, runge_kutta, insert_robot, grid, test")
+             "  return data")
     
     with open(f'{CONFIG_DIR}{title}.py', 'w') as file:
             file.write(data)
@@ -62,7 +64,7 @@ def main():
         for i in range(n_actors):
             init_pos.append([round(dist_center * math.cos(arch * i),4), round(dist_center * math.sin(arch * i),4)])
             init_yaw.append(round(bound_angle(-math.pi + arch * i),4))
-            goal.append([-init_pos[i][0],-init_pos[i][1]])
+            goal.append([-round(init_pos[i][0],4),-round(init_pos[i][1],4)])
         
         for i in range(n_actors):
             init_pos[i][0] += center[0]

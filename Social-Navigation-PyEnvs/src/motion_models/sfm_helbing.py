@@ -71,13 +71,11 @@ def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
 
 def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
     groups = {}
-    i = 0
-    for agent in agents:
-        if (agent.group_id < 0): i += 1; continue
-        if (not agent.group_id in groups): groups[agent.group_id] = Group()
-        groups[agent.group_id].append_agent(i)
-        groups[agent.group_id].center += agent.position
-        i += 1
+    for i in range(len(agents)):
+        if (agents[i].group_id <0): continue
+        if (not agents[i].group_id in groups): groups[agents[i].group_id] = Group()
+        groups[agents[i].group_id].append_agent(i)
+        groups[agents[i].group_id].center += agents[i].position
     for key in groups:
         groups[key].compute_center()
     for i in range(len(agents)):
@@ -88,13 +86,11 @@ def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
 
 def compute_forces_no_robot(agents:list[HumanAgent]):
     groups = {}
-    i = 0
-    for agent in agents:
-        if (agent.group_id < 0): i += 1; continue
-        if (not agent.group_id in groups): groups[agent.group_id] = Group()
-        groups[agent.group_id].append_agent(i)
-        groups[agent.group_id].center += agent.position
-        i += 1
+    for i in range(len(agents)):
+        if (agents[i].group_id <0): continue
+        if (not agents[i].group_id in groups): groups[agents[i].group_id] = Group()
+        groups[agents[i].group_id].append_agent(i)
+        groups[agents[i].group_id].center += agents[i].position
     for key in groups:
         groups[key].compute_center()
     for i in range(len(agents)):
