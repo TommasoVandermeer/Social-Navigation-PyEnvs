@@ -47,13 +47,16 @@ def compute_social_force(index:int, agents:list[HumanAgent], robot:RobotAgent):
     entities.append(robot)
     for i in range(len(entities)):
         if (i == index): continue
-        r_ij = target_agent.radius + entities[i].radius
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
-        delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi) + target_agent.k1 * max(0,r_ij - distance)) * n_ij + target_agent.k2  * max(0,r_ij - distance) * delta_v_ij * t_ij
+        interaction_norm = np.linalg.norm(target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij)
+        i_ij = (target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij) / interaction_norm
+        theta_ij = bound_angle(math.atan2(n_ij[1],n_ij[0]) - math.atan2(i_ij[1],i_ij[0]) + math.pi)
+        k_ij = np.sign(theta_ij)
+        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
+        F_ij = target_agent.gamma * interaction_norm
+        target_agent.social_force += - target_agent.Ei * math.exp(-distance/F_ij) * (math.exp((-target_agent.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp((-target_agent.ns * F_ij * theta_ij)**2) * h_ij)
 
 def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
     target_agent = agents[index]
@@ -61,13 +64,16 @@ def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
     entities = agents.copy()
     for i in range(len(entities)):
         if (i == index): continue
-        r_ij = target_agent.radius + entities[i].radius
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
-        delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi) + target_agent.k1 * max(0,r_ij - distance)) * n_ij + target_agent.k2  * max(0,r_ij - distance) * delta_v_ij * t_ij
+        interaction_norm = np.linalg.norm(target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij)
+        i_ij = (target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij) / interaction_norm
+        theta_ij = bound_angle(math.atan2(n_ij[1],n_ij[0]) - math.atan2(i_ij[1],i_ij[0]) + math.pi)
+        k_ij = np.sign(theta_ij)
+        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
+        F_ij = target_agent.gamma * interaction_norm
+        target_agent.social_force += - target_agent.Ei * math.exp(-distance/F_ij) * (math.exp((-target_agent.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp((-target_agent.ns * F_ij * theta_ij)**2) * h_ij)
 
 def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
     groups = {}
@@ -142,4 +148,3 @@ def f1(t, y):
 def f2(t, y):
     ydot = LINEAR_VELOCITY
     return ydot
-

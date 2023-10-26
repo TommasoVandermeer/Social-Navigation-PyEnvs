@@ -1,3 +1,5 @@
+headless = True
+
 motion_model = 'sfm_helbing'
 
 runge_kutta = False
@@ -31,5 +33,7 @@ humans = {0: {'pos': [14.0,7.5], 'yaw': -3.1416, 'goals': [[1.0,7.5],[14.0,7.5]]
           18: {'pos': [12.758600000000001,3.6794], 'yaw': 2.5133, 'goals': [[2.2413999999999996,11.3206],[12.758600000000001,3.6794]]},
           19: {'pos': [13.681899999999999,5.4914000000000005], 'yaw': 2.8274, 'goals': [[1.3181000000000003,9.5086],[13.681899999999999,5.4914000000000005]]}}
 
+data = {"headless": headless, "motion_model": motion_model, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": grid, "test": test, "humans": humans, "walls": walls}
+
 def initialize():
-  return walls, humans, motion_model, runge_kutta, insert_robot, grid, test
+    return data

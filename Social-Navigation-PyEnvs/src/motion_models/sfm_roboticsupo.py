@@ -43,7 +43,7 @@ def compute_social_force(index:int, agents:list[HumanAgent], robot:RobotAgent):
     entities = agents.copy()
     entities.append(robot)
     for i in range(len(entities)):
-        if (i == index): i += 1; continue
+        if (i == index): continue
         diff = np.array(entities[i].position) - np.array(target_agent.position)
         diff_direction = diff / np.linalg.norm(diff)
         vel_diff = target_agent.linear_velocity - entities[i].linear_velocity
@@ -63,7 +63,7 @@ def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
     target_agent.social_force = np.array([0.0,0.0], dtype=np.float64)
     entities = agents.copy()
     for i in range(len(entities)):
-        if (i == index): i += 1; continue
+        if (i == index): continue
         diff = np.array(entities[i].position) - np.array(target_agent.position)
         diff_direction = diff / np.linalg.norm(diff)
         vel_diff = target_agent.linear_velocity - entities[i].linear_velocity
@@ -112,13 +112,11 @@ def compute_group_force(index:int, agents:list[HumanAgent], desired_direction:np
 
 def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
     groups = {}
-    i = 0
-    for agent in agents:
-        if (agent.group_id < 0): i += 1; continue
-        if (not agent.group_id in groups): groups[agent.group_id] = Group()
-        groups[agent.group_id].append_agent(i)
-        groups[agent.group_id].center += agent.position
-        i += 1
+    for i in range(len(agents)):
+        if (agents[i].group_id <0): continue
+        if (not agents[i].group_id in groups): groups[agents[i].group_id] = Group()
+        groups[agents[i].group_id].append_agent(i)
+        groups[agents[i].group_id].center += agents[i].position
     for key in groups:
         groups[key].compute_center()
     for i in range(len(agents)):
@@ -130,13 +128,11 @@ def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
 
 def compute_forces_no_robot(agents:list[HumanAgent]):
     groups = {}
-    i = 0
-    for agent in agents:
-        if (agent.group_id < 0): i += 1; continue
-        if (not agent.group_id in groups): groups[agent.group_id] = Group()
-        groups[agent.group_id].append_agent(i)
-        groups[agent.group_id].center += agent.position
-        i += 1
+    for i in range(len(agents)):
+        if (agents[i].group_id <0): continue
+        if (not agents[i].group_id in groups): groups[agents[i].group_id] = Group()
+        groups[agents[i].group_id].append_agent(i)
+        groups[agents[i].group_id].center += agents[i].position
     for key in groups:
         groups[key].compute_center()
     for i in range(len(agents)):
@@ -176,6 +172,7 @@ def update_positions_RK45(agents:list[HumanAgent], t:float, dt:float):
         solution2 = solve_ivp(f2, (t, t+dt), agent.position, method='RK45')
         agent.position = np.array([solution2.y[0][-1],solution2.y[1][-1]], dtype=np.float64)
         agent.angular_velocity = (agent.yaw - init_yaw) / dt
+        check_agents_collisions(agents)
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < GOAL_RADIUS)):
             goal = agent.goals[0]
             agent.goals.remove(goal)

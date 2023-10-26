@@ -4,7 +4,7 @@ import numpy as np
 from .agent import Agent
 
 class HumanAgent(Agent):
-    def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=75, des_speed=0.9, group_id=-1):
+    def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=80, des_speed=0.9, group_id=-1):
         super().__init__(pos, yaw, color, radius, game.real_size, game.display_to_real_ratio)
 
         self.motion_model = model
@@ -13,6 +13,9 @@ class HumanAgent(Agent):
         self.group_id = group_id
         self.goals = goals
         self.obstacles = []
+
+        self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
+        self.angular_velocity = 0
 
         if (self.motion_model == 'sfm_roboticsupo'):
             # SFM Parameters
@@ -28,38 +31,50 @@ class HumanAgent(Agent):
             self.agent_gamma = 0.35
             self.agent_nPrime = 3.0
             self.agent_n = 2.0
-            # SFM Forces
-            self.desired_force = np.array([0.0,0.0], dtype=np.float64)
-            self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
-            self.social_force = np.array([0.0,0.0], dtype=np.float64)
-            self.group_force = np.array([0.0,0.0], dtype=np.float64)
-            self.global_force = np.array([0.0,0.0], dtype=np.float64)
-            # SFM Velocities
-            self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
-            self.angular_velocity = 0
         elif (self.motion_model == 'sfm_helbing'):
             # SFM Parameters
             self.mass = mass
             self.relaxation_time = 0.5
-            self.group_distance_forward = 2.0
-            self.group_distance_orthogonal = 1.0
-            self.k1g = 200.0
-            self.k2g = 200.0
             self.Ai = 2000.0
             self.Aw = 2000.0
             self.Bi = 0.08
             self.Bw = 0.08
             self.k1 = 120000.0
             self.k2 = 240000.0
+        elif (self.motion_model == 'sfm_guo'):
+            # SFM Parameters
+            self.mass = mass
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.Ci = 120.0
+            self.Cw = 120.0
+            self.Di = 0.6
+            self.Dw = 0.6
+        elif (self.motion_model == 'sfm_moussaid'):
+            # SFM Parameters
+            self.mass = mass
+            self.relaxation_time = 0.5
+            self.Ei = 4.5 * self.mass # 360.0
+            self.agent_lambda = 2.0
+            self.gamma = 0.35
+            self.ns = 2.0
+            self.ns1 = 3.0
+            self.Aw = 2000.0
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+        if "hsfm" in self.motion_model:
+            pass
+        else:
             # SFM Forces
             self.desired_force = np.array([0.0,0.0], dtype=np.float64)
             self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
             self.social_force = np.array([0.0,0.0], dtype=np.float64)
             self.group_force = np.array([0.0,0.0], dtype=np.float64)
             self.global_force = np.array([0.0,0.0], dtype=np.float64)
-            # SFM Velocities
-            self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
-            self.angular_velocity = 0
 
         self.font = pygame.font.Font('fonts/Roboto-Black.ttf',int(0.25 * self.ratio))
         self.label = self.font.render(f"{label}", False, (0,0,0))

@@ -36,8 +36,7 @@ def compute_obstacle_force(agent:HumanAgent):
         distance = np.linalg.norm(difference)
         n_iw = difference / distance
         t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
-        delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
-        agent.obstacle_force += (agent.Aw * math.exp((agent.radius - distance) / agent.Bw) + agent.k1 * max(0,agent.radius - distance)) * n_iw - agent.k2 * max(0,agent.radius - distance) * delta_v_iw * t_iw
+        agent.obstacle_force += (agent.Aw * math.exp((agent.radius - distance) / agent.Bw)) * n_iw + (agent.Cw * math.exp((agent.radius - distance) / agent.Dw)) * t_iw
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
 def compute_social_force(index:int, agents:list[HumanAgent], robot:RobotAgent):
@@ -52,8 +51,7 @@ def compute_social_force(index:int, agents:list[HumanAgent], robot:RobotAgent):
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
         t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
-        delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi) + target_agent.k1 * max(0,r_ij - distance)) * n_ij + target_agent.k2  * max(0,r_ij - distance) * delta_v_ij * t_ij
+        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi)) * n_ij + (target_agent.Ci * math.exp((r_ij - distance) / target_agent.Di)) * t_ij
 
 def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
     target_agent = agents[index]
@@ -66,8 +64,7 @@ def compute_social_force_no_robot(index:int, agents:list[HumanAgent]):
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
         t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
-        delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi) + target_agent.k1 * max(0,r_ij - distance)) * n_ij + target_agent.k2  * max(0,r_ij - distance) * delta_v_ij * t_ij
+        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi)) * n_ij + (target_agent.Ci * math.exp((r_ij - distance) / target_agent.Di)) * t_ij
 
 def compute_forces(agents:list[HumanAgent], robot:RobotAgent):
     groups = {}
