@@ -216,11 +216,11 @@ class SocialNav:
         human_states = np.empty((2,N_UPDATES+1,len(self.humans),6), dtype=np.float64)
         ## Euler
         self.motion_model_manager.runge_kutta = False
-        human_states[0] = self.run_k_steps_headless(N_UPDATES+1)
+        human_states[0] = self.run_k_steps(N_UPDATES+1)
         ## Runge kutta
         self.reset()
         self.motion_model_manager.runge_kutta = True
-        human_states[1] = self.run_k_steps_headless(N_UPDATES+1)
+        human_states[1] = self.run_k_steps(N_UPDATES+1)
         ## Print
         figure, axs = plt.subplots(1, 2)
         figure.suptitle('Human agents position over simulation')

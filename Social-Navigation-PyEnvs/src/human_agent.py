@@ -55,7 +55,7 @@ class HumanAgent(Agent):
         elif (self.motion_model == 'sfm_moussaid'):
             # SFM Parameters
             self.relaxation_time = 0.5
-            self.Ei = 4.5 * self.mass # 360.0
+            self.Ei = 360
             self.agent_lambda = 2.0
             self.gamma = 0.35
             self.ns = 2.0
@@ -64,8 +64,36 @@ class HumanAgent(Agent):
             self.Bw = 0.08
             self.k1 = 120000.0
             self.k2 = 240000.0
+        elif (self.motion_model == 'hsfm_farina'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            self.group_distance_forward = 2.0
+            self.group_distance_orthogonal = 1.0
+            self.k1g = 200.0
+            self.k2g = 200.0
         if "hsfm" in self.motion_model:
-            pass
+            # HSFM Forces and utils
+            self.inertia = 0.5 * self.mass * self.radius * self.radius
+            self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=np.float64)
+            self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
+            self.k_theta = 0.0
+            self.k_omega = 0.0
+            self.desired_force = np.array([0.0,0.0], dtype=np.float64)
+            self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
+            self.social_force = np.array([0.0,0.0], dtype=np.float64)
+            self.group_force = np.array([0.0,0.0], dtype=np.float64)
+            self.global_force = np.array([0.0,0.0], dtype=np.float64)
+            self.torque_force = 0.0
         else:
             # SFM Forces
             self.desired_force = np.array([0.0,0.0], dtype=np.float64)

@@ -3,11 +3,11 @@ import math
 ## Run pygame without GUI - WARNING: No event handling if true
 headless = False
 
-## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo
-motion_model = "sfm_helbing"
+## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina
+motion_model = "hsfm_farina"
 
 ## Decide wether to integrate with RKF45(True) or Euler(False)
-runge_kutta = False
+runge_kutta = True
 
 ## Decide wether to insert the robot in the simulation
 insert_robot = True
