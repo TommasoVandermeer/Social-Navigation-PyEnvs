@@ -13,6 +13,7 @@ class HumanAgent(Agent):
         self.group_id = group_id
         self.goals = goals
         self.obstacles = []
+        self.mass = mass
 
         self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
         self.angular_velocity = 0
@@ -33,7 +34,6 @@ class HumanAgent(Agent):
             self.agent_n = 2.0
         elif (self.motion_model == 'sfm_helbing'):
             # SFM Parameters
-            self.mass = mass
             self.relaxation_time = 0.5
             self.Ai = 2000.0
             self.Aw = 2000.0
@@ -43,7 +43,6 @@ class HumanAgent(Agent):
             self.k2 = 240000.0
         elif (self.motion_model == 'sfm_guo'):
             # SFM Parameters
-            self.mass = mass
             self.relaxation_time = 0.5
             self.Ai = 2000.0
             self.Aw = 2000.0
@@ -55,7 +54,6 @@ class HumanAgent(Agent):
             self.Dw = 0.6
         elif (self.motion_model == 'sfm_moussaid'):
             # SFM Parameters
-            self.mass = mass
             self.relaxation_time = 0.5
             self.Ei = 4.5 * self.mass # 360.0
             self.agent_lambda = 2.0

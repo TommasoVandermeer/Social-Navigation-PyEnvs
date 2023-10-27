@@ -1,16 +1,12 @@
 import pygame
-from src.motion_models import sfm_helbing, sfm_guo, sfm_moussaid, sfm_roboticsupo
+from src.motion_model_manager import MotionModelManager
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
-from src.utils import round_time
+from src.utils import round_time, bound_angle
+import math
 import numpy as np
 import matplotlib.pyplot as plt
-from config.config import initialize
-# from config.config_test1_integration import initialize
-# from config.config_test2_integration import initialize
-# from config.config_test3_integration import initialize
-# from config.config_test4_integration import initialize
 
 ### GLOBAL VARIABLES
 WINDOW_SIZE = 700
@@ -23,18 +19,20 @@ FINAL_T = 40
 N_UPDATES = int(FINAL_T / SAMPLING_TIME)
 
 class SocialNav:
-    def __init__(self):
+    def __init__(self, config_data, mode="custom_config"):
         pygame.init()
 
         self.display_to_real_ratio = DISPLAY_SIZE / REAL_SIZE
         self.real_size = REAL_SIZE
         self.clock = pygame.time.Clock()
-
-        # Obstacles
         self.walls = pygame.sprite.Group()
-        # Humans
         self.humans = []
-        # Reset simulation to initialize all agent states
+        self.mode = mode
+
+        if mode == "custom_config": self.config_data = config_data
+        elif mode == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
+        else: raise Exception(f"Mode '{mode}' does not exist")
+
         self.reset()
 
         if not self.headless:
@@ -59,38 +57,33 @@ class SocialNav:
         self.humans.clear()
         self.walls.empty()
 
-        data = initialize()
-        if "headless" in data.keys(): self.headless = data["headless"]
+        if "headless" in self.config_data.keys(): self.headless = self.config_data["headless"]
         else: self.headless = False
-        if "motion_model" in data.keys(): self.motion_model = data["motion_model"]
+        if "motion_model" in self.config_data.keys(): self.motion_model = self.config_data["motion_model"]
         else: self.motion_model = "sfm_helbing"
-        if "runge_kutta" in data.keys(): self.runge_kutta = data["runge_kutta"]
+        if "runge_kutta" in self.config_data.keys(): self.runge_kutta = self.config_data["runge_kutta"]
         else: self.runge_kutta = False
-        if "insert_robot" in data.keys(): self.insert_robot = data["insert_robot"]
+        if "insert_robot" in self.config_data.keys(): self.insert_robot = self.config_data["insert_robot"]
         else: self.insert_robot = False
-        if "grid" in data.keys(): self.grid = data["grid"]
+        if "grid" in self.config_data.keys(): self.grid = self.config_data["grid"]
         else: self.grid = True
-        if "test" in data.keys(): self.test = data["test"]
-        else: self.test = False
-
-        if self.test: self.headless = True
         
-        for wall in data["walls"]:
+        for wall in self.config_data["walls"]:
             self.walls.add(Obstacle(self, wall))
 
-        for key in data["humans"]:
-            init_position = data["humans"][key]["pos"].copy()
-            init_yaw = data["humans"][key]["yaw"]
-            goals = data["humans"][key]["goals"].copy()
-            if "color" in data["humans"][key]: color = data["humans"][key]["color"]
+        for key in self.config_data["humans"]:
+            init_position = self.config_data["humans"][key]["pos"].copy()
+            init_yaw = self.config_data["humans"][key]["yaw"]
+            goals = self.config_data["humans"][key]["goals"].copy()
+            if "color" in self.config_data["humans"][key]: color = self.config_data["humans"][key]["color"]
             else: color = (0,0,0)
-            if "radius" in data["humans"][key]: radius = data["humans"][key]["radius"]
+            if "radius" in self.config_data["humans"][key]: radius = self.config_data["humans"][key]["radius"]
             else: radius = 0.3
-            if "mass" in data["humans"][key]: mass = data["humans"][key]["mass"]
+            if "mass" in self.config_data["humans"][key]: mass = self.config_data["humans"][key]["mass"]
             else: mass = 75
-            if "des_speed" in data["humans"][key]: des_speed = data["humans"][key]["des_speed"]
+            if "des_speed" in self.config_data["humans"][key]: des_speed = self.config_data["humans"][key]["des_speed"]
             else: des_speed = 0.9
-            if "group_id" in data["humans"][key]: group_id = data["humans"][key]["group_id"]
+            if "group_id" in self.config_data["humans"][key]: group_id = self.config_data["humans"][key]["group_id"]
             else: group_id = -1
             self.humans.append(HumanAgent(self, key, self.motion_model, init_position, init_yaw, goals, color, radius, mass, des_speed, group_id))
         
@@ -107,13 +100,38 @@ class SocialNav:
             self.grid_surface.set_alpha(50)
 
         # Robot
-        if self.insert_robot: self.robot = RobotAgent(self)
+        self.robot = RobotAgent(self)
+
+        # Human motion model
+        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta)
 
         # Simulation variables
         self.n_updates = 0
         self.real_t = 0.0
         self.sim_t = 0.0
         self.last_reset = round_time(pygame.time.get_ticks() / 1000)
+
+    def generate_circular_crossing_setting(self, config_data:list):
+        radius = config_data[0]
+        n_actors = config_data[1]
+        rand = config_data[2]
+        model = config_data[3]
+        headless = config_data[4]
+        runge_kutta = config_data[5]
+        insert_robot = config_data[6]
+        center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
+        humans = {}
+        if not rand:
+            arch = (2 * math.pi) / (n_actors)
+            for i in range(n_actors):
+                center_pos = [radius * math.cos(arch * i), radius * math.sin(arch * i)]
+                humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
+                             "yaw": bound_angle(-math.pi + arch * i),
+                             "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]]}
+        else:
+            pass
+        data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
+        return data
 
     def render(self):
         self.display.fill((255,255,255))
@@ -142,26 +160,8 @@ class SocialNav:
     def update(self):
         self.n_updates += 1
 
-        if self.motion_model == "sfm_roboticsupo":
-            if self.insert_robot: sfm_roboticsupo.compute_forces(self.humans, self.robot)
-            else: sfm_roboticsupo.compute_forces_no_robot(self.humans)
-            if self.runge_kutta: sfm_roboticsupo.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
-            else: sfm_roboticsupo.update_positions(self.humans, SAMPLING_TIME)
-        elif self.motion_model == "sfm_helbing":
-            if self.insert_robot: sfm_helbing.compute_forces(self.humans, self.robot)
-            else: sfm_helbing.compute_forces_no_robot(self.humans)
-            if self.runge_kutta: sfm_helbing.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
-            else: sfm_helbing.update_positions(self.humans, SAMPLING_TIME)
-        elif self.motion_model == "sfm_guo":
-            if self.insert_robot: sfm_guo.compute_forces(self.humans, self.robot)
-            else: sfm_guo.compute_forces_no_robot(self.humans)
-            if self.runge_kutta: sfm_guo.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
-            else: sfm_guo.update_positions(self.humans, SAMPLING_TIME)
-        elif self.motion_model == "sfm_moussaid":
-            if self.insert_robot: sfm_moussaid.compute_forces(self.humans, self.robot)
-            else: sfm_moussaid.compute_forces_no_robot(self.humans)
-            if self.runge_kutta: sfm_moussaid.update_positions_RK45(self.humans, self.sim_t, SAMPLING_TIME)
-            else: sfm_moussaid.update_positions(self.humans, SAMPLING_TIME)
+        self.motion_model_manager.compute_forces(self.humans, self.robot)
+        self.motion_model_manager.update_positions(self.humans, self.sim_t, SAMPLING_TIME)
 
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
@@ -202,22 +202,24 @@ class SocialNav:
 
             self.clock.tick(MAX_FPS)
     
-    def run_k_steps_headless(self, steps):
+    def run_k_steps(self, steps):
         human_states = np.empty((steps,len(self.humans),6), dtype=np.float64)
         for step in range(steps):
             if step > 0: self.update()
+            if not self.headless: self.render()
             human_states[step] = self.get_human_states()
+        if not self.headless: pygame.quit()
         return human_states
 
-    def run_test(self):
+    def run_integration_test(self):
         global human_states
         human_states = np.empty((2,N_UPDATES+1,len(self.humans),6), dtype=np.float64)
         ## Euler
-        self.runge_kutta = False
+        self.motion_model_manager.runge_kutta = False
         human_states[0] = self.run_k_steps_headless(N_UPDATES+1)
         ## Runge kutta
         self.reset()
-        self.runge_kutta = True
+        self.motion_model_manager.runge_kutta = True
         human_states[1] = self.run_k_steps_headless(N_UPDATES+1)
         ## Print
         figure, axs = plt.subplots(1, 2)
@@ -240,7 +242,3 @@ class SocialNav:
         plt.show()
         ## Quit game
         pygame.quit()
-
-simulator = SocialNav()
-if not simulator.test: simulator.run()
-else: simulator.run_test()
