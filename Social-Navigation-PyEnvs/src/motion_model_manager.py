@@ -3,7 +3,6 @@ from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from scipy.integrate import solve_ivp
 import numpy as np
-import math
 
 GOAL_RADIUS = 0.35
 
@@ -31,11 +30,13 @@ class MotionModelManager:
         global compute_social_force
         global compute_group_force
         global compute_torque_force
-        if self.motion_model_title == "sfm_helbing": from src.motion_models.sfm_helbing import compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_guo": from src.motion_models.sfm_guo import compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_moussaid": from src.motion_models.sfm_moussaid import compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_roboticsupo": from src.motion_models.sfm_roboticsupo import compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force; self.headed = False; self.include_mass = False
-        elif self.motion_model_title == "hsfm_farina": from src.motion_models.hsfm_farina import compute_desired_force, compute_obstacle_force, compute_social_force, compute_torque_force, compute_group_force; self.headed = True; self.include_mass = True
+        if self.motion_model_title == "sfm_helbing": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
+        elif self.motion_model_title == "sfm_guo": from src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
+        elif self.motion_model_title == "sfm_moussaid": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
+        elif self.motion_model_title == "sfm_roboticsupo": from src.forces import compute_desired_force_roboticsupo as compute_desired_force, compute_obstacle_force_roboticsupo as compute_obstacle_force, compute_social_force_roboticsupo as compute_social_force, compute_group_force_roboticsupo as compute_group_force; self.headed = False; self.include_mass = False
+        elif self.motion_model_title == "hsfm_farina": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
+        elif self.motion_model_title == "hsfm_guo": from src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
+        elif self.motion_model_title == "hsfm_moussaid": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
 
     def update_goals(self, agent:HumanAgent):
@@ -63,10 +64,11 @@ class MotionModelManager:
             desired_direction = compute_desired_force(agents[i])
             compute_obstacle_force(agents[i])
             compute_social_force(i, agents, robot, self.consider_robot)
-            compute_group_force(i, agents, desired_direction, groups)
             if not self.headed:
+                compute_group_force(i, agents, desired_direction, groups)
                 agents[i].global_force = agents[i].desired_force + agents[i].obstacle_force + agents[i].social_force + agents[i].group_force
             else:
+                agents[i].rotational_matrix = np.array([[np.cos(agents[i].yaw), -np.sin(agents[i].yaw)],[np.sin(agents[i].yaw), np.cos(agents[i].yaw)]], dtype=np.float64)
                 compute_torque_force(agents[i])
                 agents[i].global_force[0] = np.dot(agents[i].desired_force + agents[i].obstacle_force + agents[i].social_force, agents[i].rotational_matrix[:,0]) + agents[i].group_force[0]
                 agents[i].global_force[1] = agents[i].ko * np.dot(agents[i].obstacle_force + agents[i].social_force, agents[i].rotational_matrix[:,1]) - agents[i].kd * agents[i].body_velocity[1] + agents[i].group_force[1]

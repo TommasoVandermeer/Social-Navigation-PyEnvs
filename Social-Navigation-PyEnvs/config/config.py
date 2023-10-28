@@ -3,8 +3,8 @@ import math
 ## Run pygame without GUI - WARNING: No event handling if true
 headless = False
 
-## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina
-motion_model = "hsfm_farina"
+## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid
+motion_model = "sfm_helbing"
 
 ## Decide wether to integrate with RKF45(True) or Euler(False)
 runge_kutta = True
