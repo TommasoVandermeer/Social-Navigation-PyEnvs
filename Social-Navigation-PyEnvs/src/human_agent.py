@@ -122,6 +122,23 @@ class HumanAgent(Agent):
             # self.group_distance_orthogonal = 1.0
             # self.k1g = 200.0
             # self.k2g = 200.0
+        elif (self.motion_model == 'hsfm_new'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
 
         if "hsfm" in self.motion_model:
             # HSFM Forces and utils

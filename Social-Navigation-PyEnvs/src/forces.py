@@ -159,3 +159,9 @@ def compute_torque_force_farina(agent:HumanAgent):
     agent.k_theta = agent.inertia * agent.k_lambda * np.linalg.norm(agent.desired_force)
     agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * np.linalg.norm(agent.desired_force)) / agent.alpha)
     agent.torque_force = - agent.k_theta * bound_angle(agent.yaw - math.atan2(agent.desired_force[1],agent.desired_force[0])) - agent.k_omega * agent.angular_velocity
+
+def compute_torque_force_new(agent:HumanAgent):
+    forces_sum = agent.desired_force + agent.obstacle_force + agent.social_force
+    agent.k_theta = agent.inertia * agent.k_lambda * np.linalg.norm(forces_sum)
+    agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * np.linalg.norm(forces_sum)) / agent.alpha)
+    agent.torque_force = - agent.k_theta * bound_angle(agent.yaw - math.atan2(forces_sum[1],forces_sum[0])) - agent.k_omega * agent.angular_velocity
