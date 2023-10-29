@@ -11,8 +11,8 @@ social_nav = SocialNav(data)
 # social_nav = SocialNav([7,6,False,"hsfm_new_guo",False,False,False],mode="circular_crossing")
 
 # Infinite loop run
-social_nav.run()
+# social_nav.run()
 # Run only k steps
-# social_nav.run_k_steps(10000)
+social_nav.run_k_steps(1000)
 # Run integration test
 # social_nav.run_integration_test()

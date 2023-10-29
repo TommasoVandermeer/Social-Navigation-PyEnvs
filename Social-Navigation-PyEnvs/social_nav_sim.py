@@ -14,9 +14,6 @@ DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
-### TEST VARIABLES
-FINAL_T = 40
-N_UPDATES = int(FINAL_T / SAMPLING_TIME)
 
 class SocialNav:
     def __init__(self, config_data, mode="custom_config"):
@@ -34,7 +31,7 @@ class SocialNav:
         elif mode == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
         else: raise Exception(f"Mode '{mode}' does not exist")
 
-        self.reset()
+        self.reset(restart_gui=True)
 
     def init_gui(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
@@ -56,7 +53,7 @@ class SocialNav:
         self.pause_text_rect = self.pause_text.get_rect(center = (DISPLAY_SIZE/2, DISPLAY_SIZE/20))
         pygame.display.set_caption('Social Navigation')
 
-    def reset(self):
+    def reset(self, restart_gui=False):
         if not self.pygame_init: pygame.init()
         self.humans.clear()
         self.walls.empty()
@@ -72,7 +69,7 @@ class SocialNav:
         if "grid" in self.config_data.keys(): self.grid = self.config_data["grid"]
         else: self.grid = True
         
-        if not self.headless: self.init_gui()
+        if not self.headless and restart_gui: self.init_gui()
 
         for wall in self.config_data["walls"]:
             self.walls.add(Obstacle(self, wall))
@@ -220,24 +217,25 @@ class SocialNav:
 
             self.clock.tick(MAX_FPS)
     
-    def run_k_steps(self, steps):
+    def run_k_steps(self, steps, quit=True):
         human_states = np.empty((steps,len(self.humans),6), dtype=np.float64)
         for step in range(steps):
-            if step > 0: self.update()
+            self.update()
             if not self.headless: self.render()
             human_states[step] = self.get_human_states()
-        if not self.headless: pygame.quit(); self.pygame_init = False
+        if not self.headless and quit: pygame.quit(); self.pygame_init = False
         return human_states
 
-    def run_integration_test(self):
-        self.human_states = np.empty((2,N_UPDATES+1,len(self.humans),6), dtype=np.float64)
+    def run_integration_test(self, final_time=40):
+        n_updates = int(final_time / SAMPLING_TIME)
+        self.human_states = np.empty((2,n_updates+1,len(self.humans),6), dtype=np.float64)
         ## Euler
         self.motion_model_manager.runge_kutta = False
-        self.human_states[0] = self.run_k_steps(N_UPDATES+1)
+        self.human_states[0] = np.append([self.get_human_states()], self.run_k_steps(n_updates, quit=False), axis=0)
         ## Runge kutta
         self.reset()
         self.motion_model_manager.runge_kutta = True
-        self.human_states[1] = self.run_k_steps(N_UPDATES+1)
+        self.human_states[1] = np.append([self.get_human_states()], self.run_k_steps(n_updates), axis=0)
         ## Print
         figure, axs = plt.subplots(1, 2)
         figure.suptitle('Human agents position over simulation')
