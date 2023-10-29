@@ -21,6 +21,7 @@ N_UPDATES = int(FINAL_T / SAMPLING_TIME)
 class SocialNav:
     def __init__(self, config_data, mode="custom_config"):
         pygame.init()
+        self.pygame_init = True
 
         self.display_to_real_ratio = DISPLAY_SIZE / REAL_SIZE
         self.real_size = REAL_SIZE
@@ -35,25 +36,28 @@ class SocialNav:
 
         self.reset()
 
-        if not self.headless:
-            self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
-            self.display = pygame.Surface((DISPLAY_SIZE, DISPLAY_SIZE))
-            self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.05 * WINDOW_SIZE))
-            self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
-            self.fps_text_rect = self.fps_text.get_rect(topright = (DISPLAY_SIZE - DISPLAY_SIZE/30, DISPLAY_SIZE/60))
-            self.x_axis_label = self.font.render("X", False, (0,0,255))
-            self.x_axis_label_rect = self.x_axis_label.get_rect(center = (DISPLAY_SIZE - DISPLAY_SIZE/20, DISPLAY_SIZE - DISPLAY_SIZE/20))
-            self.y_axis_label = self.font.render("Y", False, (0,0,255))
-            self.y_axis_label_rect = self.y_axis_label.get_rect(center = (DISPLAY_SIZE/20, DISPLAY_SIZE/20))
-            self.real_time = self.font.render(f"Real time: 0", False, (0,0,255))
-            self.real_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/12, DISPLAY_SIZE/20)))
-            self.simulation_time = self.font.render(f"Sim. time: 0", False, (0,0,255))
-            self.simulation_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/11.5, DISPLAY_SIZE/12)))
-            self.real_time_factor = self.font.render(f"Time fact.: 0", False, (0,0,255))
-            self.real_time_factor_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/13.25, DISPLAY_SIZE/8.5)))
-            pygame.display.set_caption('Social Navigation')
+    def init_gui(self):
+        self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
+        self.display = pygame.Surface((DISPLAY_SIZE, DISPLAY_SIZE))
+        self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.05 * WINDOW_SIZE))
+        self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
+        self.fps_text_rect = self.fps_text.get_rect(topright = (DISPLAY_SIZE - DISPLAY_SIZE/30, DISPLAY_SIZE/60))
+        self.x_axis_label = self.font.render("X", False, (0,0,255))
+        self.x_axis_label_rect = self.x_axis_label.get_rect(center = (DISPLAY_SIZE - DISPLAY_SIZE/20, DISPLAY_SIZE - DISPLAY_SIZE/20))
+        self.y_axis_label = self.font.render("Y", False, (0,0,255))
+        self.y_axis_label_rect = self.y_axis_label.get_rect(center = (DISPLAY_SIZE/20, DISPLAY_SIZE/20))
+        self.real_time = self.font.render(f"Real time: 0", False, (0,0,255))
+        self.real_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/12, DISPLAY_SIZE/20)))
+        self.simulation_time = self.font.render(f"Sim. time: 0", False, (0,0,255))
+        self.simulation_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/11.5, DISPLAY_SIZE/12)))
+        self.real_time_factor = self.font.render(f"Time fact.: 0", False, (0,0,255))
+        self.real_time_factor_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/13.25, DISPLAY_SIZE/8.5)))
+        self.pause_text = self.font.render("PAUSED", False, ((0,0,255)))
+        self.pause_text_rect = self.pause_text.get_rect(center = (DISPLAY_SIZE/2, DISPLAY_SIZE/20))
+        pygame.display.set_caption('Social Navigation')
 
     def reset(self):
+        if not self.pygame_init: pygame.init()
         self.humans.clear()
         self.walls.empty()
 
@@ -68,6 +72,8 @@ class SocialNav:
         if "grid" in self.config_data.keys(): self.grid = self.config_data["grid"]
         else: self.grid = True
         
+        if not self.headless: self.init_gui()
+
         for wall in self.config_data["walls"]:
             self.walls.add(Obstacle(self, wall))
 
@@ -110,6 +116,9 @@ class SocialNav:
         self.real_t = 0.0
         self.sim_t = 0.0
         self.last_reset = round_time(pygame.time.get_ticks() / 1000)
+        self.last_pause_start = 0.0
+        self.paused_time = 0.0
+        self.paused = False
 
     def generate_circular_crossing_setting(self, config_data:list):
         radius = config_data[0]
@@ -154,6 +163,8 @@ class SocialNav:
         self.display.blit(self.x_axis_label,self.x_axis_label_rect)
         self.display.blit(self.y_axis_label,self.y_axis_label_rect)
 
+        if self.paused: self.display.blit(self.pause_text, self.pause_text_rect)
+
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
         pygame.display.update()
 
@@ -163,7 +174,7 @@ class SocialNav:
         self.motion_model_manager.compute_forces(self.humans, self.robot)
         self.motion_model_manager.update_positions(self.humans, self.sim_t, SAMPLING_TIME)
 
-        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset)
+        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
         for human in self.humans:
@@ -187,18 +198,25 @@ class SocialNav:
 
     def run(self):
         self.active = True
-        global human_states
-        human_states = np.array([self.get_human_states()], dtype=np.float64)
+        self.human_states = np.array([self.get_human_states()], dtype=np.float64)
         while self.active:
-            if self.insert_robot: self.move_robot_with_keys()
-            self.update()
-            if not self.headless: self.render()
-            human_states = np.append(human_states, [self.get_human_states()], axis=0)
+            if not self.paused:
+                if self.insert_robot: self.move_robot_with_keys()
+                self.update()
+                if not self.headless: self.render()
+                self.human_states = np.append(self.human_states, [self.get_human_states()], axis=0)
+
+            else:
+                if not self.headless: self.render()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     self.active = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.paused = not self.paused
+                    if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
+                    else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
 
             self.clock.tick(MAX_FPS)
     
@@ -208,19 +226,18 @@ class SocialNav:
             if step > 0: self.update()
             if not self.headless: self.render()
             human_states[step] = self.get_human_states()
-        if not self.headless: pygame.quit()
+        if not self.headless: pygame.quit(); self.pygame_init = False
         return human_states
 
     def run_integration_test(self):
-        global human_states
-        human_states = np.empty((2,N_UPDATES+1,len(self.humans),6), dtype=np.float64)
+        self.human_states = np.empty((2,N_UPDATES+1,len(self.humans),6), dtype=np.float64)
         ## Euler
         self.motion_model_manager.runge_kutta = False
-        human_states[0] = self.run_k_steps(N_UPDATES+1)
+        self.human_states[0] = self.run_k_steps(N_UPDATES+1)
         ## Runge kutta
         self.reset()
         self.motion_model_manager.runge_kutta = True
-        human_states[1] = self.run_k_steps(N_UPDATES+1)
+        self.human_states[1] = self.run_k_steps(N_UPDATES+1)
         ## Print
         figure, axs = plt.subplots(1, 2)
         figure.suptitle('Human agents position over simulation')
@@ -230,15 +247,13 @@ class SocialNav:
         axs[0].set_xlim([0,REAL_SIZE])
         axs[0].set_ylim([0,REAL_SIZE])
         for i in range(len(self.humans)):
-            axs[0].plot(human_states[0,:,i,0],human_states[0,:,i,1])
+            axs[0].plot(self.human_states[0,:,i,0],self.human_states[0,:,i,1])
         axs[1].set_title('Runge-Kutta 45 integration')
         axs[1].set_xlabel('X')
         axs[1].set_ylabel('Y')
         axs[1].set_xlim([0,REAL_SIZE])
         axs[1].set_ylim([0,REAL_SIZE])
         for i in range(len(self.humans)):
-            axs[1].plot(human_states[1,:,i,0],human_states[1,:,i,1])
+            axs[1].plot(self.human_states[1,:,i,0],self.human_states[1,:,i,1])
         ## Display graphics
         plt.show()
-        ## Quit game
-        pygame.quit()
