@@ -22,14 +22,13 @@ class Group:
 
 class MotionModelManager:
     def __init__(self, motion_model_title:str, consider_robot:bool, runge_kutta:bool):
-        self.motion_model_title = motion_model_title
         self.consider_robot = consider_robot
         self.runge_kutta = runge_kutta
-        global compute_desired_force
-        global compute_obstacle_force
-        global compute_social_force
-        global compute_group_force
-        global compute_torque_force
+        self.set_motion_model(motion_model_title)
+
+    def set_motion_model(self, motion_model_title:str):
+        self.motion_model_title = motion_model_title
+        global compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force, compute_torque_force
         if self.motion_model_title == "sfm_helbing": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
         elif self.motion_model_title == "sfm_guo": from src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
         elif self.motion_model_title == "sfm_moussaid": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True

@@ -6,17 +6,19 @@ from src.utils import bound_angle
 from src.motion_model_manager import GOAL_RADIUS, Group
 
 def compute_desired_force(agent:HumanAgent):
-    distance = np.linalg.norm(agent.goals[0] - agent.position)
+    difference = agent.goals[0] - agent.position
+    distance = np.linalg.norm(difference)
     if ((agent.goals) and (distance > GOAL_RADIUS)):
-        desired_direction = (agent.goals[0] - agent.position) / distance
+        desired_direction = difference / distance
         agent.desired_force = agent.mass * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
     else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
     return desired_direction
 
 def compute_desired_force_roboticsupo(agent:HumanAgent):
-    distance = np.linalg.norm(agent.goals[0] - agent.position)
+    difference = agent.goals[0] - agent.position
+    distance = np.linalg.norm(difference)
     if ((agent.goals) and (distance > GOAL_RADIUS)):
-        desired_direction = (agent.goals[0] - agent.position) / distance
+        desired_direction = difference / distance
         agent.desired_force = agent.goal_weight * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
     else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
     return desired_direction
@@ -29,7 +31,8 @@ def compute_obstacle_force_helbing(agent:HumanAgent):
         n_iw = difference / distance
         t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
         delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
-        agent.obstacle_force += (agent.Aw * math.exp((agent.radius - distance) / agent.Bw) + agent.k1 * max(0,agent.radius - distance)) * n_iw - agent.k2 * max(0,agent.radius - distance) * delta_v_iw * t_iw
+        real_distance = agent.radius - distance
+        agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw) + agent.k1 * max(0,real_distance)) * n_iw - agent.k2 * max(0,real_distance) * delta_v_iw * t_iw
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
 def compute_obstacle_force_guo(agent:HumanAgent):
@@ -39,7 +42,8 @@ def compute_obstacle_force_guo(agent:HumanAgent):
         distance = np.linalg.norm(difference)
         n_iw = difference / distance
         t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
-        agent.obstacle_force += (agent.Aw * math.exp((agent.radius - distance) / agent.Bw)) * n_iw + (agent.Cw * math.exp((agent.radius - distance) / agent.Dw)) * t_iw
+        real_distance = agent.radius - distance
+        agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw)) * n_iw + (agent.Cw * math.exp((real_distance) / agent.Dw)) * t_iw
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
 def compute_obstacle_force_roboticsupo(agent:HumanAgent):
@@ -63,7 +67,8 @@ def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:Robot
         n_ij = difference / distance
         t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
         delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi) + target_agent.k1 * max(0,r_ij - distance)) * n_ij + target_agent.k2  * max(0,r_ij - distance) * delta_v_ij * t_ij
+        real_distance = r_ij - distance
+        target_agent.social_force += (target_agent.Ai * math.exp((real_distance) / target_agent.Bi) + target_agent.k1 * max(0,real_distance)) * n_ij + target_agent.k2  * max(0,real_distance) * delta_v_ij * t_ij
 
 def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     target_agent = agents[index]
@@ -77,7 +82,8 @@ def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgen
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
         t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
-        target_agent.social_force += (target_agent.Ai * math.exp((r_ij - distance) / target_agent.Bi)) * n_ij + (target_agent.Ci * math.exp((r_ij - distance) / target_agent.Di)) * t_ij
+        real_distance = r_ij - distance
+        target_agent.social_force += (target_agent.Ai * math.exp((real_distance) / target_agent.Bi)) * n_ij + (target_agent.Ci * math.exp((real_distance) / target_agent.Di)) * t_ij
 
 def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     target_agent = agents[index]
@@ -89,13 +95,19 @@ def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:Robo
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
-        interaction_norm = np.linalg.norm(target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij)
-        i_ij = (target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij) / interaction_norm
-        theta_ij = bound_angle(math.atan2(n_ij[1],n_ij[0]) - math.atan2(i_ij[1],i_ij[0]) + math.pi)
+        interaction_vector = target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij
+        # difference = entities[i].position - target_agent.position
+        # distance = np.linalg.norm(difference)
+        # e_ij = difference / distance
+        # interaction_vector = target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) + e_ij
+        interaction_norm = np.linalg.norm(interaction_vector)
+        i_ij = (interaction_vector) / interaction_norm
+        theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi)
+        # theta_ij = bound_angle(math.atan2(e_ij[1],e_ij[0]) - math.atan2(i_ij[1],i_ij[0]))
         k_ij = np.sign(theta_ij)
         h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
         F_ij = target_agent.gamma * interaction_norm
-        target_agent.social_force += - target_agent.Ei * math.exp(-distance/F_ij) * (math.exp((-target_agent.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp((-target_agent.ns * F_ij * theta_ij)**2) * h_ij)
+        target_agent.social_force -= target_agent.Ei * math.exp(-distance/F_ij) * (math.exp(-(target_agent.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(target_agent.ns * F_ij * theta_ij)**2) * h_ij)
 
 def compute_social_force_roboticsupo(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     target_agent = agents[index]
@@ -111,9 +123,9 @@ def compute_social_force_roboticsupo(index:int, agents:list[HumanAgent], robot:R
         interaction_length = np.linalg.norm(interaction_vector)
         interaction_direction = interaction_vector / interaction_length
         theta = bound_angle(np.arctan2(diff_direction[1], diff_direction[0]) - np.arctan2(interaction_direction[1], interaction_direction[0]))
-        B = target_agent.agent_gamma * interaction_length
-        force_velocity_amount = -math.exp(-np.linalg.norm(diff) / B - (target_agent.agent_nPrime * B * theta) ** 2)
-        force_angle_amount = np.sign(-theta) * math.exp(-np.linalg.norm(diff) / B - (target_agent.agent_n * B * theta) ** 2)
+        b = target_agent.agent_gamma * interaction_length
+        force_velocity_amount = -math.exp(-np.linalg.norm(diff) / b - (target_agent.agent_nPrime * b * theta) ** 2)
+        force_angle_amount = np.sign(-theta) * math.exp(-np.linalg.norm(diff) / b - (target_agent.agent_n * b * theta) ** 2)
         force_velocity = force_velocity_amount * interaction_direction
         force_angle = force_angle_amount * np.array([-interaction_direction[1], interaction_direction[0]])
         target_agent.social_force += target_agent.social_weight * (force_velocity + force_angle)
@@ -156,12 +168,14 @@ def compute_group_force_roboticsupo(index:int, agents:list[HumanAgent], desired_
     target_agent.group_force = group_gaze_force + group_coherence_force + group_repulsion_force
 
 def compute_torque_force_farina(agent:HumanAgent):
-    agent.k_theta = agent.inertia * agent.k_lambda * np.linalg.norm(agent.desired_force)
-    agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * np.linalg.norm(agent.desired_force)) / agent.alpha)
+    desired_force_norm = np.linalg.norm(agent.desired_force)
+    agent.k_theta = agent.inertia * agent.k_lambda * desired_force_norm
+    agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * desired_force_norm) / agent.alpha)
     agent.torque_force = - agent.k_theta * bound_angle(agent.yaw - math.atan2(agent.desired_force[1],agent.desired_force[0])) - agent.k_omega * agent.angular_velocity
 
 def compute_torque_force_new(agent:HumanAgent):
     forces_sum = agent.desired_force + agent.obstacle_force + agent.social_force
-    agent.k_theta = agent.inertia * agent.k_lambda * np.linalg.norm(forces_sum)
-    agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * np.linalg.norm(forces_sum)) / agent.alpha)
+    forces_sum_norm = np.linalg.norm(forces_sum)
+    agent.k_theta = agent.inertia * agent.k_lambda * forces_sum_norm
+    agent.k_omega = agent.inertia * (1 + agent.alpha) * math.sqrt((agent.k_lambda * forces_sum_norm) / agent.alpha)
     agent.torque_force = - agent.k_theta * bound_angle(agent.yaw - math.atan2(forces_sum[1],forces_sum[0])) - agent.k_omega * agent.angular_velocity

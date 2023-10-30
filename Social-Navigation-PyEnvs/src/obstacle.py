@@ -13,6 +13,7 @@ class Obstacle(pygame.sprite.Sprite):
         self.ratio = game.display_to_real_ratio
         self.real_size = game.real_size
 
+        self.vertices = np.array(vertices, dtype=np.float64)
         self.segments = {}
         self.coordinates = []
 
