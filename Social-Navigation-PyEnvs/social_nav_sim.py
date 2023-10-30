@@ -13,7 +13,7 @@ WINDOW_SIZE = 700
 DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
-SAMPLING_TIME = 1 / 60
+SAMPLING_TIME = 1 / MAX_FPS
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 
@@ -234,17 +234,21 @@ class SocialNav:
         test_time = round_time((pygame.time.get_ticks() / 1000) - start_time - self.paused_time)
         return human_states, test_time
 
-    def run_multiple_models_test(self, final_time=40):
+    def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS):
         n_updates = int(final_time / SAMPLING_TIME)
-        self.human_states = np.empty((len(MOTION_MODELS),n_updates+1,len(self.humans),6), dtype=np.float64)
-        test_times = np.empty((len(MOTION_MODELS),), dtype=np.float64)
-        if not bool(len(MOTION_MODELS) % 2): figure, axs = plt.subplots(len(MOTION_MODELS)/2,2)
-        else: figure, axs = plt.subplots(len(MOTION_MODELS)/2 + 0.5,2)
-        figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)}')
-        for i in len(MOTION_MODELS):
+        self.human_states = np.empty((len(models),n_updates+1,len(self.humans),6), dtype=np.float64)
+        test_times = np.empty((len(models),), dtype=np.float64)
+        for i in range(len(models)):
             self.reset()
-            self.motion_model_manager.set_motion_model(MOTION_MODELS[i])
+            self.motion_model_manager.set_motion_model(models[i])
+            for human in self.humans: human.set_parameters(models[i])
             self.human_states[i], test_times[i] = self.run_single_test(n_updates)
+            figure, ax = plt.subplots()
+            figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)}')
+            ax.set(xlabel='X',ylabel='Y',title=f'Model: {models[i]} | Elapsed time: {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+            self.print_walls_on_plot(ax)
+            for j in range(len(self.humans)): ax.plot(self.human_states[i,:,j,0],self.human_states[i,:,j,1])
+        if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 
     def run_integration_test(self, final_time=40):

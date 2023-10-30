@@ -7,16 +7,16 @@ from config.config_corridor import data
 
 ## SIMULATOR INITIALIZATION
 # Create instance of simulator and load paramas from config file
-# social_nav = SocialNav(data)
+social_nav = SocialNav(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot]
-social_nav = SocialNav([7,6,False,"hsfm_guo",False,False,False],mode="circular_crossing")
+# social_nav = SocialNav([7,6,False,"hsfm_new",False,False,False],mode="circular_crossing")
 
 ## SIMULATOR RUN
 # Infinite loop run
-social_nav.run()
+# social_nav.run()
 # Run only k steps
 # social_nav.run_k_steps(1000)
-# Run test
-# social_nav.run_multiple_models_test()
+# Run multiple models test
+social_nav.run_multiple_models_test(final_time=30, models=["hsfm_farina","hsfm_new"])
 # Run integration test
 # social_nav.run_integration_test()

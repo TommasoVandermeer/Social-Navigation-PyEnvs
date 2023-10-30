@@ -17,190 +17,19 @@ class HumanAgent(Agent):
 
         self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
         self.angular_velocity = 0
+        self.desired_force = np.array([0.0,0.0], dtype=np.float64)
+        self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
+        self.social_force = np.array([0.0,0.0], dtype=np.float64)
+        self.group_force = np.array([0.0,0.0], dtype=np.float64)
+        self.global_force = np.array([0.0,0.0], dtype=np.float64)
+        self.torque_force = 0.0
+        self.inertia = 0.5 * self.mass * self.radius * self.radius
+        self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=np.float64)
+        self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
+        self.k_theta = 0.0
+        self.k_omega = 0.0
 
-        if (self.motion_model == 'sfm_roboticsupo'):
-            # SFM Parameters
-            self.goal_weight = 2.0
-            self.obstacle_weight = 10.0
-            self.social_weight = 15.0
-            self.group_gaze_weight = 3.0
-            self.group_coh_weight = 2.0
-            self.group_rep_weight = 1.0
-            self.relaxation_time = 0.5
-            self.obstacle_sigma = 0.2
-            self.agent_lambda = 2.0
-            self.agent_gamma = 0.35
-            self.agent_nPrime = 3.0
-            self.agent_n = 2.0
-        elif (self.motion_model == 'sfm_helbing'):
-            # SFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-        elif (self.motion_model == 'sfm_guo'):
-            # SFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.Ci = 120.0
-            self.Cw = 120.0
-            self.Di = 0.6
-            self.Dw = 0.6
-        elif (self.motion_model == 'sfm_moussaid'):
-            # SFM Parameters
-            self.relaxation_time = 0.5
-            self.Ei = 360
-            self.agent_lambda = 2.0
-            self.gamma = 0.35
-            self.ns = 2.0
-            self.ns1 = 3.0
-            self.Aw = 2000.0
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-        elif (self.motion_model == 'hsfm_farina'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-        elif (self.motion_model == 'hsfm_guo'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.Ci = 120.0
-            self.Cw = 120.0
-            self.Di = 0.6
-            self.Dw = 0.6
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-        elif (self.motion_model == 'hsfm_moussaid'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ei = 360
-            self.agent_lambda = 2.0
-            self.gamma = 0.35
-            self.ns = 2.0
-            self.ns1 = 3.0
-            self.Aw = 2000.0
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-        elif (self.motion_model == 'hsfm_new'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-        elif (self.motion_model == 'hsfm_new_guo'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ai = 2000.0
-            self.Aw = 2000.0
-            self.Bi = 0.08
-            self.Bw = 0.08
-            self.Ci = 120.0
-            self.Cw = 120.0
-            self.Di = 0.6
-            self.Dw = 0.6
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-        elif (self.motion_model == 'hsfm_new_moussaid'):
-            # HSFM Parameters
-            self.relaxation_time = 0.5
-            self.Ei = 360
-            self.agent_lambda = 2.0
-            self.gamma = 0.35
-            self.ns = 2.0
-            self.ns1 = 3.0
-            self.Aw = 2000.0
-            self.Bw = 0.08
-            self.k1 = 120000.0
-            self.k2 = 240000.0
-            self.ko = 1.0
-            self.kd = 500.0
-            self.alpha = 3.0
-            self.k_lambda = 0.3
-            # self.group_distance_forward = 2.0
-            # self.group_distance_orthogonal = 1.0
-            # self.k1g = 200.0
-            # self.k2g = 200.0
-
-        if "hsfm" in self.motion_model:
-            # HSFM Forces and utils
-            self.inertia = 0.5 * self.mass * self.radius * self.radius
-            self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=np.float64)
-            self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
-            self.k_theta = 0.0
-            self.k_omega = 0.0
-            self.desired_force = np.array([0.0,0.0], dtype=np.float64)
-            self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
-            self.social_force = np.array([0.0,0.0], dtype=np.float64)
-            self.group_force = np.array([0.0,0.0], dtype=np.float64)
-            self.global_force = np.array([0.0,0.0], dtype=np.float64)
-            self.torque_force = 0.0
-        else:
-            # SFM Forces
-            self.desired_force = np.array([0.0,0.0], dtype=np.float64)
-            self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
-            self.social_force = np.array([0.0,0.0], dtype=np.float64)
-            self.group_force = np.array([0.0,0.0], dtype=np.float64)
-            self.global_force = np.array([0.0,0.0], dtype=np.float64)
+        self.set_parameters(self.motion_model)
 
         self.font = pygame.font.Font('fonts/Roboto-Black.ttf',int(0.25 * self.ratio))
         self.label = self.font.render(f"{label}", False, (0,0,0))
@@ -228,3 +57,167 @@ class HumanAgent(Agent):
         self.label_rect.centerx = round(self.position[0] * self.ratio)
         self.label_rect.centery = round((self.real_size - self.position[1]) * self.ratio)
         display.blit(self.label, self.label_rect)
+
+    def set_parameters(self, model:str):
+        if (model == 'sfm_roboticsupo'):
+            # SFM Parameters
+            self.goal_weight = 2.0
+            self.obstacle_weight = 10.0
+            self.social_weight = 15.0
+            self.group_gaze_weight = 3.0
+            self.group_coh_weight = 2.0
+            self.group_rep_weight = 1.0
+            self.relaxation_time = 0.5
+            self.obstacle_sigma = 0.2
+            self.agent_lambda = 2.0
+            self.agent_gamma = 0.35
+            self.agent_nPrime = 3.0
+            self.agent_n = 2.0
+        elif (model == 'sfm_helbing'):
+            # SFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+        elif (model == 'sfm_guo'):
+            # SFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.Ci = 120.0
+            self.Cw = 120.0
+            self.Di = 0.6
+            self.Dw = 0.6
+        elif (model == 'sfm_moussaid'):
+            # SFM Parameters
+            self.relaxation_time = 0.5
+            self.Ei = 360
+            self.agent_lambda = 2.0
+            self.gamma = 0.35
+            self.ns = 2.0
+            self.ns1 = 3.0
+            self.Aw = 2000.0
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+        elif (model == 'hsfm_farina'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
+        elif (model == 'hsfm_guo'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.Ci = 120.0
+            self.Cw = 120.0
+            self.Di = 0.6
+            self.Dw = 0.6
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
+        elif (model == 'hsfm_moussaid'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ei = 360
+            self.agent_lambda = 2.0
+            self.gamma = 0.35
+            self.ns = 2.0
+            self.ns1 = 3.0
+            self.Aw = 2000.0
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
+        elif (model == 'hsfm_new'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
+        elif (model == 'hsfm_new_guo'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ai = 2000.0
+            self.Aw = 2000.0
+            self.Bi = 0.08
+            self.Bw = 0.08
+            self.Ci = 120.0
+            self.Cw = 120.0
+            self.Di = 0.6
+            self.Dw = 0.6
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
+        elif (model == 'hsfm_new_moussaid'):
+            # HSFM Parameters
+            self.relaxation_time = 0.5
+            self.Ei = 360
+            self.agent_lambda = 2.0
+            self.gamma = 0.35
+            self.ns = 2.0
+            self.ns1 = 3.0
+            self.Aw = 2000.0
+            self.Bw = 0.08
+            self.k1 = 120000.0
+            self.k2 = 240000.0
+            self.ko = 1.0
+            self.kd = 500.0
+            self.alpha = 3.0
+            self.k_lambda = 0.3
+            # self.group_distance_forward = 2.0
+            # self.group_distance_orthogonal = 1.0
+            # self.k1g = 200.0
+            # self.k2g = 200.0
