@@ -7,15 +7,17 @@ from src.utils import round_time, bound_angle
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 ### GLOBAL VARIABLES
 WINDOW_SIZE = 700
 DISPLAY_SIZE = 1000
 REAL_SIZE = 15
-MAX_FPS = 60
-SAMPLING_TIME = 1 / MAX_FPS
+MAX_FPS = 50
+SAMPLING_TIME = 1 / 60
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
+COLORS = list(mcolors.TABLEAU_COLORS.values())
 
 class SocialNav:
     def __init__(self, config_data, mode="custom_config"):
@@ -108,7 +110,7 @@ class SocialNav:
         self.robot = RobotAgent(self)
 
         # Human motion model
-        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta)
+        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta, self.humans, self.robot)
 
         # Simulation variables
         self.n_updates = 0
@@ -170,14 +172,12 @@ class SocialNav:
     def update(self):
         self.n_updates += 1
 
-        self.motion_model_manager.compute_forces(self.humans, self.robot)
-        self.motion_model_manager.update_positions(self.humans, self.sim_t, SAMPLING_TIME)
+        self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
 
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
-        for human in self.humans:
-            human.update(self.walls.sprites())
+        for human in self.humans: human.update(self.walls.sprites())
 
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
 
@@ -186,24 +186,16 @@ class SocialNav:
         if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
         if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
         if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
-    
-    def get_human_states(self):
-        # State: [x, y, yaw, Vx, Vy, Omega] - Pose (x,y,yaw) and Velocity (linear_x,linear_y,angular)
-        state = np.empty([len(self.humans),6],dtype=np.float64)
-        for i in range(len(self.humans)):
-            human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity], dtype=np.float64)
-            state[i] = human_state
-        return state
 
     def run(self):
         self.active = True
-        self.human_states = np.array([self.get_human_states()], dtype=np.float64)
+        self.human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
         while self.active:
             if not self.paused:
                 if self.insert_robot: self.move_robot_with_keys()
                 self.update()
                 if not self.headless: self.render()
-                self.human_states = np.append(self.human_states, [self.get_human_states()], axis=0)
+                self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states()], axis=0)
 
             else:
                 if not self.headless: self.render()
@@ -224,17 +216,17 @@ class SocialNav:
         for step in range(steps):
             self.update()
             if not self.headless: self.render()
-            human_states[step] = self.get_human_states()
+            human_states[step] = self.motion_model_manager.get_human_states()
         if not self.headless and quit: pygame.quit(); self.pygame_init = False
         return human_states
 
     def run_single_test(self, n_updates):
         start_time = round_time((pygame.time.get_ticks() / 1000))
-        human_states = np.append([self.get_human_states()], self.run_k_steps(n_updates, quit=False), axis=0)
+        human_states = np.append([self.motion_model_manager.get_human_states()], self.run_k_steps(n_updates, quit=False), axis=0)
         test_time = round_time((pygame.time.get_ticks() / 1000) - start_time - self.paused_time)
         return human_states, test_time
 
-    def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS):
+    def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3):
         n_updates = int(final_time / SAMPLING_TIME)
         self.human_states = np.empty((len(models),n_updates+1,len(self.humans),6), dtype=np.float64)
         test_times = np.empty((len(models),), dtype=np.float64)
@@ -245,9 +237,25 @@ class SocialNav:
             self.human_states[i], test_times[i] = self.run_single_test(n_updates)
             figure, ax = plt.subplots()
             figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)}')
-            ax.set(xlabel='X',ylabel='Y',title=f'Model: {models[i]} | Elapsed time: {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+            ax.set(xlabel='X',ylabel='Y',title=f'Model = {models[i]} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+            ax.axis('equal')
             self.print_walls_on_plot(ax)
-            for j in range(len(self.humans)): ax.plot(self.human_states[i,:,j,0],self.human_states[i,:,j,1])
+            for j in range(len(self.humans)):
+                color_idx = j % len(COLORS)
+                ax.plot(self.human_states[i,:,j,0],self.human_states[i,:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
+                for k in range(0,n_updates,int(plot_sample_time / SAMPLING_TIME)):
+                    if "hsfm" in models[i]:
+                        head = plt.Circle((self.human_states[i,k,j,0] + math.cos(self.human_states[i,k,j,2]) * self.humans[j].radius, self.human_states[i,k,j,1] + math.sin(self.human_states[i,k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
+                        ax.add_patch(head)
+                    circle = plt.Circle((self.human_states[i,k,j,0],self.human_states[i,k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
+                    ax.add_patch(circle)
+                    ax.text(self.human_states[i,k,j,0],self.human_states[i,k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="x-small", zorder=1)
+                goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
+                for k in range(len(goals)):
+                    if goals[k,0] == self.human_states[i,0,j,0] and goals[k,1] == self.human_states[i,0,j,1]: 
+                        goals = np.delete(goals, k, 0)
+                        break
+                ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
         if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 

@@ -5,7 +5,7 @@ headless = False
 
 ## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
 # hsfm_new, hsfm_new_guo, hsfm_new_moussaid
-motion_model = "hsfm_new"
+motion_model = "hsfm_new_guo"
 
 ## Decide wether to integrate with RKF45(True) or Euler(False)
 runge_kutta = False
