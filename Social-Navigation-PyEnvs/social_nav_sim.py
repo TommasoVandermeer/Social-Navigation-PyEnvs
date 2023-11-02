@@ -315,7 +315,7 @@ class SocialNav:
                     ax.add_patch(head)
                 circle = plt.Circle((human_states[k,j,0],human_states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
                 ax.add_patch(circle)
-                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="x-small", zorder=1)
+                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="xx-small", zorder=1)
             goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
             for k in range(len(goals)):
                 if goals[k,0] == human_states[0,j,0] and goals[k,1] == human_states[0,j,1]: 
