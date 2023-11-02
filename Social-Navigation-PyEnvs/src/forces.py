@@ -98,7 +98,7 @@ def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:Robo
         interaction_vector = target_agent.agent_lambda * (target_agent.linear_velocity - entities[i].linear_velocity) - n_ij
         interaction_norm = np.linalg.norm(interaction_vector)
         i_ij = (interaction_vector) / interaction_norm
-        theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi) # + 0.005 
+        theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi) # + 0.00000001 
         k_ij = np.sign(theta_ij)
         h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
         F_ij = target_agent.gamma * interaction_norm

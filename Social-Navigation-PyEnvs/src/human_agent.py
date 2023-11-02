@@ -16,6 +16,7 @@ class HumanAgent(Agent):
         self.mass = mass
 
         self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
+        self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
         self.angular_velocity = 0
         self.desired_force = np.array([0.0,0.0], dtype=np.float64)
         self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
@@ -25,7 +26,6 @@ class HumanAgent(Agent):
         self.torque_force = 0.0
         self.inertia = 0.5 * self.mass * self.radius * self.radius
         self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=np.float64)
-        self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
         self.k_theta = 0.0
         self.k_omega = 0.0
 

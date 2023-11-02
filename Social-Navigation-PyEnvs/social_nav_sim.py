@@ -234,7 +234,6 @@ class SocialNav:
             for i in range(len(models)):
                 self.reset()
                 self.motion_model_manager.set_motion_model(models[i])
-                for human in self.humans: human.set_parameters(models[i])
                 self.human_states[i], test_times[i] = self.run_single_test(n_updates)
                 figure, ax = plt.subplots()
                 figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
@@ -249,12 +248,10 @@ class SocialNav:
                 self.reset()
                 self.motion_model_manager.set_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = False
-                for human in self.humans: human.set_parameters(models[i])
                 self.human_states[i,0], test_times[i,0] = self.run_single_test(n_updates)
                 self.reset()
                 self.motion_model_manager.set_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = True
-                for human in self.humans: human.set_parameters(models[i])
                 self.human_states[i,1], test_times[i,1] = self.run_single_test(n_updates)
                 figure, ax = plt.subplots(1,2)
                 figure.suptitle(f'Humans\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
