@@ -139,7 +139,19 @@ class SocialNav:
                              "yaw": bound_angle(-math.pi + arch * i),
                              "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]]}
         else:
-            pass
+            arch = math.acos(1-((0.7**2) / (2*(radius**2))))
+            rand_nums = []
+            for i in range(n_actors):
+                check = False
+                num = 0
+                while not check:
+                    num = np.random.randint(0,int(2*math.pi / arch))
+                    if (num in rand_nums): continue
+                    else: check = True, rand_nums.append(num)
+                center_pos = [radius * math.cos(arch * num), radius * math.sin(arch * num)]
+                humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
+                             "yaw": bound_angle(-math.pi + arch * num),
+                             "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]]}
         data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
         return data
 
