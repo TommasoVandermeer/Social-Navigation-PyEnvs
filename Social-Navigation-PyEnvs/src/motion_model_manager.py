@@ -43,7 +43,7 @@ class MotionModelManager:
         elif self.motion_model_title == "hsfm_new_moussaid": from src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
 
-    def get_human_states(self, headed=True, general=True):
+    def get_human_states(self, general=True, headed=True):
         if general:
             # State: [x, y, yaw, Vx, Vy, Omega] - Pose (x,y,yaw) and Velocity (linear_x,linear_y,angular)
                 state = np.empty([len(self.humans),6],dtype=np.float64)
@@ -71,20 +71,13 @@ class MotionModelManager:
             agent.goals.remove(goal)
             agent.goals.append(goal)
 
-    def bound_linear_velocity(self, agent:HumanAgent):
-        if (np.linalg.norm(agent.linear_velocity) > agent.desired_speed): agent.linear_velocity = (agent.linear_velocity / np.linalg.norm(agent.linear_velocity)) * agent.desired_speed
-
-    def bound_body_velocity(self, agent:HumanAgent):
-        if (np.linalg.norm(agent.body_velocity) > agent.desired_speed): agent.body_velocity = (agent.body_velocity / np.linalg.norm(agent.body_velocity)) * agent.desired_speed
+    def bound_velocity(self, velocity:np.array, desired_speed:float):
+        if (np.linalg.norm(velocity) > desired_speed): velocity = (velocity / np.linalg.norm(velocity)) * desired_speed
+        return velocity
 
     def update(self, t:float, dt:float):
-        if not self.runge_kutta:
-            self.compute_forces()
-            self.update_positions(t,dt)
-        else:
-            # self.compute_forces()
-            # self.update_positions(t,dt)
-            self.update_positions_rk45(t,dt)
+        if not self.runge_kutta: self.update_positions(t,dt)
+        else: self.update_positions_rk45(t,dt)
 
     def compute_forces(self):
         groups = {}
@@ -110,78 +103,39 @@ class MotionModelManager:
                 self.humans[i].global_force[1] = self.humans[i].ko * np.dot(self.humans[i].obstacle_force + self.humans[i].social_force, self.humans[i].rotational_matrix[:,1]) - self.humans[i].kd * self.humans[i].body_velocity[1] + self.humans[i].group_force[1]
         
     def update_positions(self, t:float, dt:float):
-        global MASS, LINEAR_VELOCITY, ANGULAR_VELOCITY, GLOBAL_FORCE, TORQUE_FORCE, INERTIA
+        self.compute_forces()
         if not self.headed:
-            if not self.runge_kutta:
-                for agent in self.humans:
-                    init_yaw = agent.yaw
-                    if self.include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
-                    else: agent.linear_velocity += agent.global_force * dt
-                    self.bound_linear_velocity(agent)
-                    agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
-                    agent.position += agent.linear_velocity * dt
-                    agent.angular_velocity = (agent.yaw - init_yaw) / dt
-                    self.update_goals(agent)
-            else:
-                for agent in self.humans:
-                    init_yaw = agent.yaw
-                    global MASS, LINEAR_VELOCITY, GLOBAL_FORCE
-                    MASS = agent.mass
-                    GLOBAL_FORCE = agent.global_force
-                    ## First integration
-                    if self.include_mass: solution = solve_ivp(f1_sfm_with_mass, (t, t+dt), agent.linear_velocity, method='RK45')
-                    else: solution = solve_ivp(f1_sfm_no_mass, (t, t+dt), agent.linear_velocity, method='RK45')
-                    agent.linear_velocity = np.array([solution.y[0][-1],solution.y[1][-1]],dtype=np.float64)
-                    self.bound_linear_velocity(agent)
-                    LINEAR_VELOCITY = agent.linear_velocity
-                    agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
-                    ## Second integration
-                    solution2 = solve_ivp(f2_sfm, (t, t+dt), agent.position, method='RK45')
-                    agent.position = np.array([solution2.y[0][-1],solution2.y[1][-1]], dtype=np.float64)
-                    agent.angular_velocity = (agent.yaw - init_yaw) / dt
-                    self.update_goals(agent)
+            for agent in self.humans:
+                init_yaw = agent.yaw
+                if self.include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
+                else: agent.linear_velocity += agent.global_force * dt
+                agent.linear_velocity = self.bound_velocity(agent.linear_velocity, agent.desired_speed)
+                agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
+                agent.position += agent.linear_velocity * dt
+                agent.angular_velocity = (agent.yaw - init_yaw) / dt
+                self.update_goals(agent)
         else:
-            if not self.runge_kutta:
-                for agent in self.humans:
-                    agent.body_velocity += (agent.global_force / agent.mass) * dt
-                    agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
-                    self.bound_body_velocity(agent)
-                    agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
-                    agent.position += agent.linear_velocity * dt
-                    agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
-                    self.update_goals(agent)
-            else:
-                for agent in self.humans:
-                    MASS = agent.mass
-                    GLOBAL_FORCE = agent.global_force
-                    TORQUE_FORCE = agent.torque_force
-                    INERTIA = agent.inertia
-                    ## First integration
-                    solution = solve_ivp(f1_hsfm, (t, t+dt), [agent.body_velocity[0],agent.body_velocity[1],agent.angular_velocity], method='RK45')
-                    agent.body_velocity = np.array([solution.y[0][-1],solution.y[1][-1]], dtype=np.float64)
-                    agent.angular_velocity = solution.y[2][-1]
-                    self.bound_body_velocity(agent)
-                    agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
-                    LINEAR_VELOCITY = agent.linear_velocity
-                    ANGULAR_VELOCITY = agent.angular_velocity
-                    ## Second integration
-                    solution2 = solve_ivp(f2_hsfm, (t, t+dt), [agent.position[0], agent.position[1], agent.yaw], method='RK45')
-                    agent.position = np.array([solution2.y[0][-1],solution2.y[1][-1]], dtype=np.float64)
-                    agent.yaw = bound_angle(solution2.y[2][-1])
-                    self.update_goals(agent)
+            for agent in self.humans:
+                agent.body_velocity += (agent.global_force / agent.mass) * dt
+                agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
+                agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
+                agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
+                agent.position += agent.linear_velocity * dt
+                agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
+                self.update_goals(agent)
 
     def update_positions_rk45(self, t:float, dt:float):
         if self.headed: 
-            current_state = np.reshape(self.get_human_states(general=False), (len(self.humans) * 6,))
+            current_state = np.reshape(self.get_human_states(general=False, headed=True), (len(self.humans) * 6,))
             solution = solve_ivp(self.f_rk45, (t, t+dt), current_state, method='RK45')
             for i in range(len(self.humans)):
-                self.humans[i].position[0] = solution.y[i*4][-1]
-                self.humans[i].position[1] = solution.y[i*4+1][-1]
-                self.humans[i].yaw = bound_angle(solution.y[i*4+2][-1])
-                self.humans[i].body_velocity[0] = solution.y[i*4+3][-1]
-                self.humans[i].body_velocity[1] = solution.y[i*4+4][-1]
+                self.humans[i].position[0] = solution.y[i*6][-1]
+                self.humans[i].position[1] = solution.y[i*6+1][-1]
+                self.humans[i].yaw = bound_angle(solution.y[i*6+2][-1])
+                self.humans[i].body_velocity[0] = solution.y[i*6+3][-1]
+                self.humans[i].body_velocity[1] = solution.y[i*6+4][-1]
                 self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
-                self.humans[i].angular_velocity = solution.y[i*4+5][-1]
+                self.humans[i].angular_velocity = solution.y[i*6+5][-1]
                 self.update_goals(self.humans[i])
         else: 
             current_state = np.reshape(self.get_human_states(headed=False, general=False), (len(self.humans) * 4,))
@@ -198,8 +152,8 @@ class MotionModelManager:
         if self.headed:
             ydot = np.empty((len(self.humans) * 6,), dtype=np.float64)
             for i in range(len(self.humans)):
-                ydot[i*6] = self.humans[i].rotational_matrix[0,0] * self.humans[i].body_velocity[0] + self.humans[i].rotational_matrix[0,1] * self.humans[i].body_velocity[1]
-                ydot[i*6+1] = self.humans[i].rotational_matrix[1,0] * self.humans[i].body_velocity[0] + self.humans[i].rotational_matrix[1,1] * self.humans[i].body_velocity[1]
+                ydot[i*6] = np.dot(self.humans[i].rotational_matrix[0,:], self.humans[i].body_velocity)
+                ydot[i*6+1] = np.dot(self.humans[i].rotational_matrix[1,:], self.humans[i].body_velocity)
                 ydot[i*6+2] = self.humans[i].angular_velocity
                 ydot[i*6+3] = self.humans[i].global_force[0] / self.humans[i].mass
                 ydot[i*6+4] = self.humans[i].global_force[1] / self.humans[i].mass
@@ -219,18 +173,3 @@ class MotionModelManager:
                     ydot[i*4+2] = self.humans[i].global_force[0]
                     ydot[i*4+3] = self.humans[i].global_force[1]
         return ydot
-
-def f1_sfm_with_mass(t, y):
-    return GLOBAL_FORCE / MASS
-
-def f1_sfm_no_mass(t, y):
-    return GLOBAL_FORCE
-
-def f2_sfm(t, y):
-    return LINEAR_VELOCITY
-
-def f1_hsfm(t, y):
-    return np.array([GLOBAL_FORCE[0]/MASS, GLOBAL_FORCE[1]/MASS, TORQUE_FORCE/INERTIA], dtype=np.float64)
-
-def f2_hsfm(t, y):
-    return np.array([LINEAR_VELOCITY[0], LINEAR_VELOCITY[1], ANGULAR_VELOCITY], dtype=np.float64)

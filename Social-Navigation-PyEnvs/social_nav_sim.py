@@ -13,8 +13,8 @@ import matplotlib.colors as mcolors
 WINDOW_SIZE = 700
 DISPLAY_SIZE = 1000
 REAL_SIZE = 15
-MAX_FPS = 50
-SAMPLING_TIME = 1 / 60
+MAX_FPS = 60
+SAMPLING_TIME = 1 / MAX_FPS
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
@@ -226,36 +226,43 @@ class SocialNav:
         test_time = round_time((pygame.time.get_ticks() / 1000) - start_time - self.paused_time)
         return human_states, test_time
 
-    def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3):
+    def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3, two_integrations=False):
         n_updates = int(final_time / SAMPLING_TIME)
-        self.human_states = np.empty((len(models),n_updates+1,len(self.humans),6), dtype=np.float64)
-        test_times = np.empty((len(models),), dtype=np.float64)
-        for i in range(len(models)):
-            self.reset()
-            self.motion_model_manager.set_motion_model(models[i])
-            for human in self.humans: human.set_parameters(models[i])
-            self.human_states[i], test_times[i] = self.run_single_test(n_updates)
-            figure, ax = plt.subplots()
-            figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)}')
-            ax.set(xlabel='X',ylabel='Y',title=f'Model = {models[i]} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-            ax.axis('equal')
-            self.print_walls_on_plot(ax)
-            for j in range(len(self.humans)):
-                color_idx = j % len(COLORS)
-                ax.plot(self.human_states[i,:,j,0],self.human_states[i,:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
-                for k in range(0,n_updates,int(plot_sample_time / SAMPLING_TIME)):
-                    if "hsfm" in models[i]:
-                        head = plt.Circle((self.human_states[i,k,j,0] + math.cos(self.human_states[i,k,j,2]) * self.humans[j].radius, self.human_states[i,k,j,1] + math.sin(self.human_states[i,k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
-                        ax.add_patch(head)
-                    circle = plt.Circle((self.human_states[i,k,j,0],self.human_states[i,k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
-                    ax.add_patch(circle)
-                    ax.text(self.human_states[i,k,j,0],self.human_states[i,k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="x-small", zorder=1)
-                goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
-                for k in range(len(goals)):
-                    if goals[k,0] == self.human_states[i,0,j,0] and goals[k,1] == self.human_states[i,0,j,1]: 
-                        goals = np.delete(goals, k, 0)
-                        break
-                ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
+        if not two_integrations:
+            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),6), dtype=np.float64)
+            test_times = np.empty((len(models),), dtype=np.float64)
+            for i in range(len(models)):
+                self.reset()
+                self.motion_model_manager.set_motion_model(models[i])
+                for human in self.humans: human.set_parameters(models[i])
+                self.human_states[i], test_times[i] = self.run_single_test(n_updates)
+                figure, ax = plt.subplots()
+                figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
+                if self.motion_model_manager.runge_kutta == False: integration_title = "Euler"
+                else: integration_title = "Runge-Kutta-45"
+                ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+                self.plot_agents_position(ax,self.human_states[i],plot_sample_time,models[i])
+        else:
+            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),6), dtype=np.float64)
+            test_times = np.empty((len(models),2), dtype=np.float64)
+            for i in range(len(models)):
+                self.reset()
+                self.motion_model_manager.set_motion_model(models[i])
+                self.motion_model_manager.runge_kutta = False
+                for human in self.humans: human.set_parameters(models[i])
+                self.human_states[i,0], test_times[i,0] = self.run_single_test(n_updates)
+                self.reset()
+                self.motion_model_manager.set_motion_model(models[i])
+                self.motion_model_manager.runge_kutta = True
+                for human in self.humans: human.set_parameters(models[i])
+                self.human_states[i,1], test_times[i,1] = self.run_single_test(n_updates)
+                figure, ax = plt.subplots(1,2)
+                figure.suptitle(f'Humans\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
+                ax[0].set(xlabel='X',ylabel='Y',title=f'Euler | Elapsed time = {test_times[i,0]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+                self.plot_agents_position(ax[0],self.human_states[i,0],plot_sample_time,models[i])
+                ax[1].set(xlabel='X',ylabel='Y',title=f'Runge-Kutta-45 | Elapsed time = {test_times[i,1]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+                self.plot_agents_position(ax[1],self.human_states[i,1],plot_sample_time,models[i])
+
         if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 
@@ -292,6 +299,26 @@ class SocialNav:
         ## Display graphics
         plt.show()
 
-    def print_walls_on_plot(self, axs):
+    def print_walls_on_plot(self, ax):
         for i in range(len(self.walls)):
-                axs.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
+                ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
+
+    def plot_agents_position(self, ax, human_states, plot_sample_time, model):
+        ax.axis('equal')
+        self.print_walls_on_plot(ax)
+        for j in range(len(self.humans)):
+            color_idx = j % len(COLORS)
+            ax.plot(human_states[:,j,0],human_states[:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
+            for k in range(0,len(human_states),int(plot_sample_time / SAMPLING_TIME)):
+                if "hsfm" in model:
+                    head = plt.Circle((human_states[k,j,0] + math.cos(human_states[k,j,2]) * self.humans[j].radius, human_states[k,j,1] + math.sin(human_states[k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
+                    ax.add_patch(head)
+                circle = plt.Circle((human_states[k,j,0],human_states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
+                ax.add_patch(circle)
+                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="x-small", zorder=1)
+            goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
+            for k in range(len(goals)):
+                if goals[k,0] == human_states[0,j,0] and goals[k,1] == human_states[0,j,1]: 
+                    goals = np.delete(goals, k, 0)
+                    break
+            ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
