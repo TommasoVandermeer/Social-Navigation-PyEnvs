@@ -12,14 +12,12 @@ from config.config_example import data
 social_nav = SocialNav([7,6,False,"hsfm_new_moussaid",False,False,False],mode="circular_crossing")
 
 ## SIMULATOR RUN
-# Infinite loop run (controlled speed, can also be paused)
+# Infinite loop run (controlled speed, can also be paused and rewinded)
 social_nav.run()
 # Run only k steps at max speed
 # social_nav.run_k_steps(1000)
 # Run multiple models test at max speed
-# social_nav.run_multiple_models_test(final_time=20, models=["sfm_helbing", "sfm_guo", "sfm_moussaid", 
-#                                                            "hsfm_farina", "hsfm_guo", "hsfm_moussaid", 
-#                                                            "hsfm_new", "hsfm_new_guo", "hsfm_new_moussaid"],
-#                                                             plot_sample_time=3, two_integrations=True)
+# models = ["sfm_helbing", "sfm_guo", "sfm_moussaid","hsfm_farina", "hsfm_guo", "hsfm_moussaid", "hsfm_new", "hsfm_new_guo", "hsfm_new_moussaid"]
+# social_nav.run_multiple_models_test(final_time=1, models=models, plot_sample_time=3, two_integrations=True)
 # Run integration test at max speed
 # social_nav.run_integration_test(final_time=30)

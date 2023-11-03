@@ -53,6 +53,10 @@ class HumanAgent(Agent):
             obstacle, distance = wall.get_closest_point(self.position)
             self.obstacles.append(obstacle)
 
+    def render(self, display):
+        display.blit(self.image, self.rect)
+        self.render_label(display)
+
     def render_label(self, display):
         self.label_rect.centerx = round(self.position[0] * self.ratio)
         self.label_rect.centery = round((self.real_size - self.position[1]) * self.ratio)

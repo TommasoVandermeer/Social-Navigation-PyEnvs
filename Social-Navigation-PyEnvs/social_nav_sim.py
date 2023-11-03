@@ -120,6 +120,7 @@ class SocialNav:
         self.last_pause_start = 0.0
         self.paused_time = 0.0
         self.paused = False
+        self.rewinded_time = 0.0
 
     def generate_circular_crossing_setting(self, config_data:list):
         radius = config_data[0]
@@ -159,9 +160,7 @@ class SocialNav:
         self.display.fill((255,255,255))
         if self.grid: self.display.blit(self.grid_surface, (0,0))
 
-        for human in self.humans:
-            human.render(self.display)
-            human.render_label(self.display)
+        for human in self.humans: human.render(self.display)
         if self.insert_robot: self.robot.render(self.display)
         self.walls.draw(self.display)
 
@@ -186,7 +185,7 @@ class SocialNav:
 
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
 
-        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
+        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
         for human in self.humans: human.update(self.walls.sprites())
@@ -199,6 +198,14 @@ class SocialNav:
         if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
         if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
 
+    def rewind_human_state(self):
+        if len(self.human_states) > 0:
+            state = self.human_states[self.n_updates]
+            self.motion_model_manager.set_human_states(state, self.walls)
+            self.n_updates -= 1
+            self.human_states = self.human_states[:-1]
+            self.rewinded_time += SAMPLING_TIME
+
     def run(self):
         self.active = True
         self.human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
@@ -208,23 +215,21 @@ class SocialNav:
                 self.update()
                 if not self.headless: self.render()
                 self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states()], axis=0)
-
             else:
                 if not self.headless: self.render()
-
+                if pygame.key.get_pressed()[pygame.K_r]: self.rewind_human_state()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
                     self.active = False
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pygame.quit()
+                if (event.type == pygame.MOUSEBUTTONDOWN) or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                     self.paused = not self.paused
                     if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
-
             self.clock.tick(MAX_FPS)
     
     def run_k_steps(self, steps, quit=True):
-        human_states = np.empty((steps,len(self.humans),6), dtype=np.float64)
+        human_states = np.empty((steps,len(self.humans),8), dtype=np.float64)
         for step in range(steps):
             self.update()
             if not self.headless: self.render()
@@ -241,7 +246,7 @@ class SocialNav:
     def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3, two_integrations=False):
         n_updates = int(final_time / SAMPLING_TIME)
         if not two_integrations:
-            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),6), dtype=np.float64)
+            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),8), dtype=np.float64)
             test_times = np.empty((len(models),), dtype=np.float64)
             for i in range(len(models)):
                 self.reset()
@@ -254,7 +259,7 @@ class SocialNav:
                 ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
                 self.plot_agents_position(ax,self.human_states[i],plot_sample_time,models[i])
         else:
-            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),6), dtype=np.float64)
+            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),8), dtype=np.float64)
             test_times = np.empty((len(models),2), dtype=np.float64)
             for i in range(len(models)):
                 self.reset()
@@ -277,7 +282,7 @@ class SocialNav:
 
     def run_integration_test(self, final_time=40):
         n_updates = int(final_time / SAMPLING_TIME)
-        self.human_states = np.empty((2,n_updates+1,len(self.humans),6), dtype=np.float64)
+        self.human_states = np.empty((2,n_updates+1,len(self.humans),8), dtype=np.float64)
         ## Euler
         self.motion_model_manager.runge_kutta = False
         self.human_states[0], euler_time = self.run_single_test(n_updates)

@@ -46,10 +46,10 @@ class MotionModelManager:
 
     def get_human_states(self, general=True, headed=True):
         if general:
-            # State: [x, y, yaw, Vx, Vy, Omega] - Pose (x,y,yaw) and Velocity (linear_x,linear_y,angular)
-                state = np.empty([len(self.humans),6],dtype=np.float64)
+            # State: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] - Pose (x,y,yaw), Velocity (linear_x,linear_y,angular), and Goal (goal_x, goal_y)
+                state = np.empty([len(self.humans),8],dtype=np.float64)
                 for i in range(len(self.humans)):
-                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity], dtype=np.float64)
+                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=np.float64)
                     state[i] = human_state
         else:
             if headed:
@@ -66,6 +66,32 @@ class MotionModelManager:
                     state[i] = human_state
         return state
 
+    def set_human_states(self, state:np.array, walls):
+        # State must be of the form: [x, y, yaw, Vx, Vy, Omega, Gx, Gy]
+        for i in range(len(self.humans)):
+            self.humans[i].position[0] = state[i,0]
+            self.humans[i].position[1] = state[i,1]
+            self.humans[i].yaw = state[i,2]
+            self.humans[i].linear_velocity[0] = state[i,3]
+            self.humans[i].linear_velocity[1] = state[i,4]
+            self.humans[i].angular_velocity = state[i,5]
+            if self.headed:
+                self.humans[i].body_velocity[0] = np.cos(self.humans[i].yaw) * self.humans[i].linear_velocity[0] + np.sin(self.humans[i].yaw) * self.humans[i].linear_velocity[1]
+                self.humans[i].body_velocity[1] = -np.sin(self.humans[i].yaw) * self.humans[i].linear_velocity[0] + np.cos(self.humans[i].yaw) * self.humans[i].linear_velocity[1]
+            else:
+                self.humans[i].body_velocity[0] = 0.0
+                self.humans[i].body_velocity[1] = 0.0
+            self.humans[i].update(walls)
+            goal = [state[i,6],state[i,7]]
+            self.rewind_goals(self.humans[i], goal)
+
+    def rewind_goals(self, agent:HumanAgent, goal:list):
+        if ((agent.goals) and (agent.goals[0] != goal)):
+            while agent.goals[0] != goal:
+                goal_back = agent.goals[0]
+                agent.goals.remove(goal_back)
+                agent.goals.append(goal_back)
+    
     def update_goals(self, agent:HumanAgent):
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < GOAL_RADIUS)):
             goal = agent.goals[0]
@@ -140,7 +166,7 @@ class MotionModelManager:
                 self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
                 self.update_goals(self.humans[i])
         else: 
-            current_state = np.reshape(self.get_human_states(headed=False, general=False), (len(self.humans) * 4,))
+            current_state = np.reshape(self.get_human_states(general=False, headed=False), (len(self.humans) * 4,))
             solution = solve_ivp(self.f_rk45_not_headed, (t, t+dt), current_state, method='RK45')
             for i in range(len(self.humans)):
                 self.humans[i].position[0] = solution.y[i*4][-1]
