@@ -44,14 +44,9 @@ class HumanAgent(Agent):
         self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
         self.label_rect = self.label.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
 
-    def update(self, walls):
+    def update(self):
         self.move()
         self.rotate()
-        # Update ostacles
-        self.obstacles.clear()
-        for wall in walls:
-            obstacle, distance = wall.get_closest_point(self.position)
-            self.obstacles.append(obstacle)
 
     def render(self, display):
         display.blit(self.image, self.rect)

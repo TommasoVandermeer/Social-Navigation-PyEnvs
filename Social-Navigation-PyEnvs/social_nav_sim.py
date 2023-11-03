@@ -1,5 +1,5 @@
 import pygame
-from src.motion_model_manager import MotionModelManager
+from src.motion_model_manager import MotionModelManager, N_GENERAL_STATES, N_HEADED_STATES, N_NOT_HEADED_STATES
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from src.obstacle import Obstacle
@@ -110,7 +110,7 @@ class SocialNav:
         self.robot = RobotAgent(self)
 
         # Human motion model
-        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta, self.humans, self.robot)
+        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
 
         # Simulation variables
         self.n_updates = 0
@@ -188,7 +188,7 @@ class SocialNav:
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
 
-        for human in self.humans: human.update(self.walls.sprites())
+        for human in self.humans: human.update()
 
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
 
@@ -201,7 +201,7 @@ class SocialNav:
     def rewind_human_state(self):
         if len(self.human_states) > 0:
             state = self.human_states[self.n_updates]
-            self.motion_model_manager.set_human_states(state, self.walls)
+            self.motion_model_manager.set_human_states(state)
             self.n_updates -= 1
             self.human_states = self.human_states[:-1]
             self.rewinded_time += SAMPLING_TIME
@@ -216,8 +216,9 @@ class SocialNav:
                 if not self.headless: self.render()
                 self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states()], axis=0)
             else:
-                if not self.headless: self.render()
-                if pygame.key.get_pressed()[pygame.K_r]: self.rewind_human_state()
+                if not self.headless: 
+                    self.render()
+                    if pygame.key.get_pressed()[pygame.K_r]: self.rewind_human_state()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.active = False
@@ -229,7 +230,7 @@ class SocialNav:
             self.clock.tick(MAX_FPS)
     
     def run_k_steps(self, steps, quit=True):
-        human_states = np.empty((steps,len(self.humans),8), dtype=np.float64)
+        human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
         for step in range(steps):
             self.update()
             if not self.headless: self.render()
@@ -246,7 +247,7 @@ class SocialNav:
     def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3, two_integrations=False):
         n_updates = int(final_time / SAMPLING_TIME)
         if not two_integrations:
-            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),8), dtype=np.float64)
+            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
             test_times = np.empty((len(models),), dtype=np.float64)
             for i in range(len(models)):
                 self.reset()
@@ -257,9 +258,9 @@ class SocialNav:
                 if self.motion_model_manager.runge_kutta == False: integration_title = "Euler"
                 else: integration_title = "Runge-Kutta-45"
                 ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-                self.plot_agents_position(ax,self.human_states[i],plot_sample_time,models[i])
+                self.plot_agents_position_with_sample(ax,self.human_states[i],plot_sample_time,models[i])
         else:
-            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),8), dtype=np.float64)
+            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
             test_times = np.empty((len(models),2), dtype=np.float64)
             for i in range(len(models)):
                 self.reset()
@@ -273,16 +274,16 @@ class SocialNav:
                 figure, ax = plt.subplots(1,2)
                 figure.suptitle(f'Humans\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
                 ax[0].set(xlabel='X',ylabel='Y',title=f'Euler | Elapsed time = {test_times[i,0]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-                self.plot_agents_position(ax[0],self.human_states[i,0],plot_sample_time,models[i])
+                self.plot_agents_position_with_sample(ax[0],self.human_states[i,0],plot_sample_time,models[i])
                 ax[1].set(xlabel='X',ylabel='Y',title=f'Runge-Kutta-45 | Elapsed time = {test_times[i,1]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-                self.plot_agents_position(ax[1],self.human_states[i,1],plot_sample_time,models[i])
+                self.plot_agents_position_with_sample(ax[1],self.human_states[i,1],plot_sample_time,models[i])
 
         if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 
     def run_integration_test(self, final_time=40):
         n_updates = int(final_time / SAMPLING_TIME)
-        self.human_states = np.empty((2,n_updates+1,len(self.humans),8), dtype=np.float64)
+        self.human_states = np.empty((2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
         ## Euler
         self.motion_model_manager.runge_kutta = False
         self.human_states[0], euler_time = self.run_single_test(n_updates)
@@ -313,11 +314,24 @@ class SocialNav:
         ## Display graphics
         plt.show()
 
+    def run_complete_rk45_simulation(self, sampling_time=1/60, final_time=40, plot_sample_time=3):
+        self.reset()
+        global SAMPLING_TIME; SAMPLING_TIME = sampling_time
+        start_time = round_time((pygame.time.get_ticks() / 1000))
+        self.human_states = self.motion_model_manager.complete_rk45_simulation(0.0, sampling_time, final_time)
+        test_time = round_time((pygame.time.get_ticks() / 1000) - start_time - self.paused_time)
+        figure, ax = plt.subplots()
+        figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(sampling_time, 4)} | Model = {self.motion_model_manager.motion_model_title}')
+        ax.set(xlabel='X',ylabel='Y',title=f'Complete Runge-kutta-45 | Elapsed time = {test_time}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+        self.plot_agents_position_with_sample(ax,self.human_states,plot_sample_time,self.motion_model_manager.motion_model_title)
+        if not self.headless: pygame.quit(); self.pygame_init = False
+        plt.show()
+
     def print_walls_on_plot(self, ax):
         for i in range(len(self.walls)):
                 ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
 
-    def plot_agents_position(self, ax, human_states, plot_sample_time, model):
+    def plot_agents_position_with_sample(self, ax, human_states, plot_sample_time, model):
         ax.axis('equal')
         self.print_walls_on_plot(ax)
         for j in range(len(self.humans)):

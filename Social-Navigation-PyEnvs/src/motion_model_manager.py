@@ -5,6 +5,9 @@ from scipy.integrate import solve_ivp
 import numpy as np
 
 GOAL_RADIUS = 0.35
+N_GENERAL_STATES = 8
+N_HEADED_STATES = 6
+N_NOT_HEADED_STATES = 4
 
 class Group:
     def __init__(self):
@@ -21,11 +24,12 @@ class Group:
         return len(self.group_agents)
 
 class MotionModelManager:
-    def __init__(self, motion_model_title:str, consider_robot:bool, runge_kutta:bool, humans:list[HumanAgent], robot:RobotAgent):
+    def __init__(self, motion_model_title:str, consider_robot:bool, runge_kutta:bool, humans:list[HumanAgent], robot:RobotAgent, walls:list):
         self.consider_robot = consider_robot
         self.runge_kutta = runge_kutta
         self.humans = humans
         self.robot = robot
+        self.walls = walls
         self.set_motion_model(motion_model_title)
 
     def set_motion_model(self, motion_model_title:str):
@@ -47,26 +51,26 @@ class MotionModelManager:
     def get_human_states(self, general=True, headed=True):
         if general:
             # State: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] - Pose (x,y,yaw), Velocity (linear_x,linear_y,angular), and Goal (goal_x, goal_y)
-                state = np.empty([len(self.humans),8],dtype=np.float64)
+                state = np.empty([len(self.humans),N_GENERAL_STATES],dtype=np.float64)
                 for i in range(len(self.humans)):
                     human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=np.float64)
                     state[i] = human_state
         else:
             if headed:
                 # State: [x, y, yaw, BVx, BVy, Omega] - Pose (x,y,yaw) and Velocity (body_linear_x,body_linear_y,angular)
-                state = np.empty([len(self.humans),6],dtype=np.float64)
+                state = np.empty([len(self.humans),N_HEADED_STATES],dtype=np.float64)
                 for i in range(len(self.humans)):
                     human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].body_velocity[0],self.humans[i].body_velocity[1],self.humans[i].angular_velocity], dtype=np.float64)
                     state[i] = human_state
             else:
                 # State: [x, y, Vx, Vy] - Position (x,y) and Velocity (linear_x,linear_y)
-                state = np.empty([len(self.humans),4],dtype=np.float64)
+                state = np.empty([len(self.humans),N_NOT_HEADED_STATES],dtype=np.float64)
                 for i in range(len(self.humans)):
                     human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1]], dtype=np.float64)
                     state[i] = human_state
         return state
 
-    def set_human_states(self, state:np.array, walls):
+    def set_human_states(self, state:np.array):
         # State must be of the form: [x, y, yaw, Vx, Vy, Omega, Gx, Gy]
         for i in range(len(self.humans)):
             self.humans[i].position[0] = state[i,0]
@@ -81,9 +85,8 @@ class MotionModelManager:
             else:
                 self.humans[i].body_velocity[0] = 0.0
                 self.humans[i].body_velocity[1] = 0.0
-            self.humans[i].update(walls)
-            goal = [state[i,6],state[i,7]]
-            self.rewind_goals(self.humans[i], goal)
+            self.humans[i].update()
+            self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
 
     def rewind_goals(self, agent:HumanAgent, goal:list):
         if ((agent.goals) and (agent.goals[0] != goal)):
@@ -109,10 +112,18 @@ class MotionModelManager:
     def compute_forces(self):
         groups = {}
         for i in range(len(self.humans)):
+            # Update goals
+            self.update_goals(self.humans[i])
+            # Update groups
             if (self.humans[i].group_id <0): continue
             if (not self.humans[i].group_id in groups): groups[self.humans[i].group_id] = Group()
             groups[self.humans[i].group_id].append_agent(i)
             groups[self.humans[i].group_id].center += self.humans[i].position
+            # Update obstacles
+            self.humans[i].obstacles.clear()
+            for wall in self.walls:
+                obstacle, distance = wall.get_closest_point(self.humans[i].position)
+                self.humans[i].obstacles.append(obstacle)
         for key in groups:
             groups[key].compute_center()
         for i in range(len(self.humans)):
@@ -140,7 +151,6 @@ class MotionModelManager:
                 agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
                 agent.position += agent.linear_velocity * dt
                 agent.angular_velocity = (agent.yaw - init_yaw) / dt
-                self.update_goals(agent)
         else:
             for agent in self.humans:
                 agent.body_velocity += (agent.global_force / agent.mass) * dt
@@ -149,73 +159,96 @@ class MotionModelManager:
                 agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
                 agent.position += agent.linear_velocity * dt
                 agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
-                self.update_goals(agent)
 
     def update_positions_rk45(self, t:float, dt:float):
         if self.headed: 
-            current_state = np.reshape(self.get_human_states(general=False, headed=True), (len(self.humans) * 6,))
+            current_state = np.reshape(self.get_human_states(general=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
             solution = solve_ivp(self.f_rk45_headed, (t, t+dt), current_state, method='RK45')
             for i in range(len(self.humans)):
-                self.humans[i].position[0] = solution.y[i*6][-1]
-                self.humans[i].position[1] = solution.y[i*6+1][-1]
-                self.humans[i].yaw = bound_angle(solution.y[i*6+2][-1])
-                self.humans[i].body_velocity[0] = solution.y[i*6+3][-1]
-                self.humans[i].body_velocity[1] = solution.y[i*6+4][-1]
+                self.humans[i].position[0] = solution.y[i*N_HEADED_STATES][-1]
+                self.humans[i].position[1] = solution.y[i*N_HEADED_STATES+1][-1]
+                self.humans[i].yaw = bound_angle(solution.y[i*N_HEADED_STATES+2][-1])
+                self.humans[i].body_velocity[0] = solution.y[i*N_HEADED_STATES+3][-1]
+                self.humans[i].body_velocity[1] = solution.y[i*N_HEADED_STATES+4][-1]
                 self.humans[i].body_velocity = self.bound_velocity(self.humans[i].body_velocity, self.humans[i].desired_speed)
-                self.humans[i].angular_velocity = solution.y[i*6+5][-1]
+                self.humans[i].angular_velocity = solution.y[i*N_HEADED_STATES+5][-1]
                 self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
-                self.update_goals(self.humans[i])
         else: 
-            current_state = np.reshape(self.get_human_states(general=False, headed=False), (len(self.humans) * 4,))
+            current_state = np.reshape(self.get_human_states(general=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
             solution = solve_ivp(self.f_rk45_not_headed, (t, t+dt), current_state, method='RK45')
             for i in range(len(self.humans)):
-                self.humans[i].position[0] = solution.y[i*4][-1]
-                self.humans[i].position[1] = solution.y[i*4+1][-1]
-                self.humans[i].linear_velocity[0] = solution.y[i*4+2][-1]
-                self.humans[i].linear_velocity[1] = solution.y[i*4+3][-1]
+                self.humans[i].position[0] = solution.y[i*N_NOT_HEADED_STATES][-1]
+                self.humans[i].position[1] = solution.y[i*N_NOT_HEADED_STATES+1][-1]
+                self.humans[i].linear_velocity[0] = solution.y[i*N_NOT_HEADED_STATES+2][-1]
+                self.humans[i].linear_velocity[1] = solution.y[i*N_NOT_HEADED_STATES+3][-1]
                 self.humans[i].linear_velocity = self.bound_velocity(self.humans[i].linear_velocity, self.humans[i].desired_speed)
-                self.update_goals(self.humans[i])
+
+    def complete_rk45_simulation(self, t:float, dt:float, final_time:float):
+        evaluation_times = np.arange(t,final_time,dt, dtype=np.float64)
+        if self.headed: 
+            current_state = np.reshape(self.get_human_states(general=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
+            solution = solve_ivp(self.f_rk45_headed, (t, t+final_time), current_state, method='RK45', t_eval=evaluation_times)
+            human_states = np.empty((len(evaluation_times),len(self.humans),N_HEADED_STATES), dtype=np.float64)
+            for i in range(len(solution.y[0])):
+                for j in range(len(self.humans)):
+                    human_states[i,j,0] = solution.y[j*N_HEADED_STATES][i]
+                    human_states[i,j,1] = solution.y[j*N_HEADED_STATES+1][i]
+                    human_states[i,j,2] = solution.y[j*N_HEADED_STATES+2][i]
+                    human_states[i,j,3] = solution.y[j*N_HEADED_STATES+3][i]
+                    human_states[i,j,4] = solution.y[j*N_HEADED_STATES+4][i]
+                    human_states[i,j,5] = solution.y[j*N_HEADED_STATES+5][i]
+        else:
+            current_state = np.reshape(self.get_human_states(general=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
+            solution = solve_ivp(self.f_rk45_not_headed, (t, t+final_time), current_state, method='RK45', t_eval=evaluation_times)
+            human_states = np.empty((len(evaluation_times),len(self.humans),N_NOT_HEADED_STATES), dtype=np.float64)
+            for i in range(len(solution.y[0])):
+                for j in range(len(self.humans)):
+                    human_states[i,j,0] = solution.y[j*N_NOT_HEADED_STATES][i]
+                    human_states[i,j,1] = solution.y[j*N_NOT_HEADED_STATES+1][i]
+                    human_states[i,j,2] = solution.y[j*N_NOT_HEADED_STATES+2][i]
+                    human_states[i,j,3] = solution.y[j*N_NOT_HEADED_STATES+3][i]
+        return human_states
 
     def f_rk45_headed(self, t, y):
         for i in range(len(self.humans)):
-            self.humans[i].position[0] = y[i*6]
-            self.humans[i].position[1] = y[i*6+1]
-            self.humans[i].yaw = bound_angle(y[i*6+2])
-            self.humans[i].body_velocity[0] = y[i*6+3]
-            self.humans[i].body_velocity[1] = y[i*6+4]
+            self.humans[i].position[0] = y[i*N_HEADED_STATES]
+            self.humans[i].position[1] = y[i*N_HEADED_STATES+1]
+            self.humans[i].yaw = bound_angle(y[i*N_HEADED_STATES+2])
+            self.humans[i].body_velocity[0] = y[i*N_HEADED_STATES+3]
+            self.humans[i].body_velocity[1] = y[i*N_HEADED_STATES+4]
             self.humans[i].body_velocity = self.bound_velocity(self.humans[i].body_velocity, self.humans[i].desired_speed)
-            self.humans[i].angular_velocity = y[i*6+5]
+            self.humans[i].angular_velocity = y[i*N_HEADED_STATES+5]
             self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
         self.compute_forces()
-        ydot = np.empty((len(self.humans) * 6,), dtype=np.float64)
+        ydot = np.empty((len(self.humans) * N_HEADED_STATES,), dtype=np.float64)
         for i in range(len(self.humans)):
-            ydot[i*6] = np.dot(self.humans[i].rotational_matrix[0,:], self.humans[i].body_velocity)
-            ydot[i*6+1] = np.dot(self.humans[i].rotational_matrix[1,:], self.humans[i].body_velocity)
-            ydot[i*6+2] = self.humans[i].angular_velocity
-            ydot[i*6+3] = self.humans[i].global_force[0] / self.humans[i].mass
-            ydot[i*6+4] = self.humans[i].global_force[1] / self.humans[i].mass
-            ydot[i*6+5] = self.humans[i].torque_force / self.humans[i].inertia
+            ydot[i*N_HEADED_STATES] = np.dot(self.humans[i].rotational_matrix[0,:], self.humans[i].body_velocity)
+            ydot[i*N_HEADED_STATES+1] = np.dot(self.humans[i].rotational_matrix[1,:], self.humans[i].body_velocity)
+            ydot[i*N_HEADED_STATES+2] = self.humans[i].angular_velocity
+            ydot[i*N_HEADED_STATES+3] = self.humans[i].global_force[0] / self.humans[i].mass
+            ydot[i*N_HEADED_STATES+4] = self.humans[i].global_force[1] / self.humans[i].mass
+            ydot[i*N_HEADED_STATES+5] = self.humans[i].torque_force / self.humans[i].inertia
         return ydot
     
     def f_rk45_not_headed(self, t, y):
         for i in range(len(self.humans)):
-            self.humans[i].position[0] = y[i*4]
-            self.humans[i].position[1] = y[i*4+1]
-            self.humans[i].linear_velocity[0] = y[i*4+2]
-            self.humans[i].linear_velocity[1] = y[i*4+3]
+            self.humans[i].position[0] = y[i*N_NOT_HEADED_STATES]
+            self.humans[i].position[1] = y[i*N_NOT_HEADED_STATES+1]
+            self.humans[i].linear_velocity[0] = y[i*N_NOT_HEADED_STATES+2]
+            self.humans[i].linear_velocity[1] = y[i*N_NOT_HEADED_STATES+3]
             self.humans[i].linear_velocity = self.bound_velocity(self.humans[i].linear_velocity, self.humans[i].desired_speed)
         self.compute_forces()
-        ydot = np.empty((len(self.humans) * 4,), dtype=np.float64)
+        ydot = np.empty((len(self.humans) * N_NOT_HEADED_STATES,), dtype=np.float64)
         if self.include_mass:
             for i in range(len(self.humans)):
-                ydot[i*4] = self.humans[i].linear_velocity[0]
-                ydot[i*4+1] = self.humans[i].linear_velocity[1]
-                ydot[i*4+2] = self.humans[i].global_force[0] / self.humans[i].mass
-                ydot[i*4+3] = self.humans[i].global_force[1] / self.humans[i].mass
+                ydot[i*N_NOT_HEADED_STATES] = self.humans[i].linear_velocity[0]
+                ydot[i*N_NOT_HEADED_STATES+1] = self.humans[i].linear_velocity[1]
+                ydot[i*N_NOT_HEADED_STATES+2] = self.humans[i].global_force[0] / self.humans[i].mass
+                ydot[i*N_NOT_HEADED_STATES+3] = self.humans[i].global_force[1] / self.humans[i].mass
         else:
             for i in range(len(self.humans)):
-                ydot[i*4] = self.humans[i].linear_velocity[0]
-                ydot[i*4+1] = self.humans[i].linear_velocity[1]
-                ydot[i*4+2] = self.humans[i].global_force[0]
-                ydot[i*4+3] = self.humans[i].global_force[1]
+                ydot[i*N_NOT_HEADED_STATES] = self.humans[i].linear_velocity[0]
+                ydot[i*N_NOT_HEADED_STATES+1] = self.humans[i].linear_velocity[1]
+                ydot[i*N_NOT_HEADED_STATES+2] = self.humans[i].global_force[0]
+                ydot[i*N_NOT_HEADED_STATES+3] = self.humans[i].global_force[1]
         return ydot
