@@ -114,16 +114,16 @@ class MotionModelManager:
         for i in range(len(self.humans)):
             # Update goals
             self.update_goals(self.humans[i])
-            # Update groups
-            if (self.humans[i].group_id <0): continue
-            if (not self.humans[i].group_id in groups): groups[self.humans[i].group_id] = Group()
-            groups[self.humans[i].group_id].append_agent(i)
-            groups[self.humans[i].group_id].center += self.humans[i].position
             # Update obstacles
             self.humans[i].obstacles.clear()
             for wall in self.walls:
                 obstacle, distance = wall.get_closest_point(self.humans[i].position)
                 self.humans[i].obstacles.append(obstacle)
+            # Update groups
+            if (self.humans[i].group_id <0): continue
+            if (not self.humans[i].group_id in groups): groups[self.humans[i].group_id] = Group()
+            groups[self.humans[i].group_id].append_agent(i)
+            groups[self.humans[i].group_id].center += self.humans[i].position
         for key in groups:
             groups[key].compute_center()
         for i in range(len(self.humans)):

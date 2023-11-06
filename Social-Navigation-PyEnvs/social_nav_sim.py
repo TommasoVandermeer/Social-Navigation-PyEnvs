@@ -55,6 +55,10 @@ class SocialNav:
         self.real_time_factor_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/13.25, DISPLAY_SIZE/8.5)))
         self.pause_text = self.font.render("PAUSED", False, ((0,0,255)))
         self.pause_text_rect = self.pause_text.get_rect(center = (DISPLAY_SIZE/2, DISPLAY_SIZE/20))
+        self.rewind_text = self.font.render("PRESS Z KEY TO REWIND", False, ((0,0,255)))
+        self.rewind_text_rect = self.rewind_text.get_rect(bottomleft = (DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
+        self.reset_text = self.font.render("PRESS R KEY TO RESET", False, ((0,0,255)))
+        self.reset_text_rect = self.reset_text.get_rect(bottomright = (DISPLAY_SIZE - DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
         pygame.display.set_caption('Social Navigation')
 
     def reset(self, restart_gui=False):
@@ -175,7 +179,10 @@ class SocialNav:
         self.display.blit(self.x_axis_label,self.x_axis_label_rect)
         self.display.blit(self.y_axis_label,self.y_axis_label_rect)
 
-        if self.paused: self.display.blit(self.pause_text, self.pause_text_rect)
+        if self.paused: 
+            self.display.blit(self.pause_text, self.pause_text_rect)
+            self.display.blit(self.rewind_text, self.rewind_text_rect)
+            self.display.blit(self.reset_text, self.reset_text_rect)
 
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
         pygame.display.update()
@@ -218,12 +225,13 @@ class SocialNav:
             else:
                 if not self.headless: 
                     self.render()
-                    if pygame.key.get_pressed()[pygame.K_r]: self.rewind_human_state()
+                    if pygame.key.get_pressed()[pygame.K_z]: self.rewind_human_state()
+                    if pygame.key.get_pressed()[pygame.K_r]: self.reset(); self.human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.active = False
                     pygame.quit()
-                if (event.type == pygame.MOUSEBUTTONDOWN) or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     self.paused = not self.paused
                     if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
