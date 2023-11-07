@@ -9,7 +9,7 @@ from config.config_corridor import data
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNav(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot]
-social_nav = SocialNav([7,20,False,"hsfm_guo",False,False,False],mode="circular_crossing")
+social_nav = SocialNav([7,20,False,"hsfm_new_guo",False,False,False],mode="circular_crossing")
 
 ## SIMULATOR RUN
 # Infinite loop live run (controlled speed, can also be paused and rewinded)
@@ -24,5 +24,5 @@ social_nav.run()
 # Run integration test at max speed
 # social_nav.run_integration_test(final_time=30)
 # Run from previously computed states (controlled speed)
-# social_nav.run_complete_rk45_simulation(final_time=15, sampling_time=1/60, plot_sample_time=1.5)
+# social_nav.run_complete_rk45_simulation(final_time=20, sampling_time=1/60, plot_sample_time=3)
 # social_nav.run_from_precomputed_states(social_nav.human_states)

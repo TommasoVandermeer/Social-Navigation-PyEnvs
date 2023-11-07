@@ -195,7 +195,7 @@ class HumanAgent(Agent):
             self.ko = 1.0
             self.kd = 500.0
             self.alpha = 3.0
-            self.k_lambda = 0.3
+            self.k_lambda = 0.3 # 0.1
             # self.group_distance_forward = 2.0
             # self.group_distance_orthogonal = 1.0
             # self.k1g = 200.0
@@ -215,7 +215,7 @@ class HumanAgent(Agent):
             self.ko = 1.0
             self.kd = 500.0
             self.alpha = 3.0
-            self.k_lambda = 0.3
+            self.k_lambda = 0.3 # 0.1
             # self.group_distance_forward = 2.0
             # self.group_distance_orthogonal = 1.0
             # self.k1g = 200.0
