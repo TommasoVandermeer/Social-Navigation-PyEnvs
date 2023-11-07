@@ -62,7 +62,7 @@ class SocialNav:
         pygame.display.set_caption('Social Navigation')
 
     def reset(self, restart_gui=False):
-        if not self.pygame_init: pygame.init()
+        if not self.pygame_init: pygame.init(); self.pygame_init = True
         self.humans.clear()
         self.walls.empty()
 
@@ -76,7 +76,7 @@ class SocialNav:
         else: self.insert_robot = False
         if "grid" in self.config_data.keys(): self.grid = self.config_data["grid"]
         else: self.grid = True
-        
+
         if not self.headless and restart_gui: self.init_gui()
 
         for wall in self.config_data["walls"]:
@@ -207,26 +207,31 @@ class SocialNav:
 
     def rewind_human_state(self):
         if len(self.human_states) > 0:
+            self.n_updates -= 1
             state = self.human_states[self.n_updates]
             self.motion_model_manager.set_human_states(state)
-            self.n_updates -= 1
             self.human_states = self.human_states[:-1]
             self.rewinded_time += SAMPLING_TIME
 
     def run(self):
         self.active = True
-        self.human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
+        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
+        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
             if not self.paused:
                 if self.insert_robot: self.move_robot_with_keys()
                 self.update()
                 if not self.headless: self.render()
-                self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states()], axis=0)
+                if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
+                else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
             else:
                 if not self.headless: 
                     self.render()
                     if pygame.key.get_pressed()[pygame.K_z]: self.rewind_human_state()
-                    if pygame.key.get_pressed()[pygame.K_r]: self.reset(); self.human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
+                    if pygame.key.get_pressed()[pygame.K_r]: 
+                        self.reset()
+                        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
+                        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.active = False
@@ -237,6 +242,20 @@ class SocialNav:
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
             self.clock.tick(MAX_FPS)
     
+    def run_from_precomputed_states(self, human_states):
+        self.config_data["headless"] = False
+        self.reset(restart_gui=True)
+        for i in range(len(human_states)):
+            self.motion_model_manager.set_human_states(human_states[i], just_visual=True)
+            self.n_updates += 1
+            self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
+            self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
+            self.render()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: pygame.quit(); self.pygame_init = False
+            self.clock.tick(MAX_FPS)
+        pygame.quit(); self.pygame_init = False
+
     def run_k_steps(self, steps, quit=True):
         human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
         for step in range(steps):
@@ -303,22 +322,10 @@ class SocialNav:
         ## Print
         figure, axs = plt.subplots(1, 2)
         figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | motion model: {self.motion_model}')
-        axs[0].set_title(f'Euler - Elapsed time: {euler_time}')
-        axs[0].set_xlabel('X')
-        axs[0].set_ylabel('Y')
-        axs[0].set_xlim([0,REAL_SIZE])
-        axs[0].set_ylim([0,REAL_SIZE])
-        self.print_walls_on_plot(axs[0])
-        for i in range(len(self.humans)):
-            axs[0].plot(self.human_states[0,:,i,0],self.human_states[0,:,i,1])
-        axs[1].set_title(f'Runge-Kutta 45 - Elapsed time: {rk45_time}')
-        axs[1].set_xlabel('X')
-        axs[1].set_ylabel('Y')
-        axs[1].set_xlim([0,REAL_SIZE])
-        axs[1].set_ylim([0,REAL_SIZE])
-        self.print_walls_on_plot(axs[1])
-        for i in range(len(self.humans)):
-            axs[1].plot(self.human_states[1,:,i,0],self.human_states[1,:,i,1])
+        axs[0].set(xlabel='X',ylabel='Y',title=f'Euler | Elapsed time = {euler_time}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+        self.plot_agents_trajectory(axs[0], self.human_states[0])
+        axs[1].set(xlabel='X',ylabel='Y',title=f'Runge-Kutta 45 | Elapsed time = {rk45_time}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+        self.plot_agents_trajectory(axs[1], self.human_states[1])
         ## Display graphics
         plt.show()
 
@@ -339,7 +346,7 @@ class SocialNav:
         for i in range(len(self.walls)):
                 ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
 
-    def plot_agents_position_with_sample(self, ax, human_states, plot_sample_time, model):
+    def plot_agents_position_with_sample(self, ax, human_states, plot_sample_time:float, model:str):
         ax.axis('equal')
         self.print_walls_on_plot(ax)
         for j in range(len(self.humans)):
@@ -358,3 +365,9 @@ class SocialNav:
                     goals = np.delete(goals, k, 0)
                     break
             ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
+
+    def plot_agents_trajectory(self, ax, human_states):
+        ax.axis('equal')
+        self.print_walls_on_plot(ax)
+        for i in range(len(self.humans)):
+            ax.plot(human_states[:,i,0],human_states[:,i,1])

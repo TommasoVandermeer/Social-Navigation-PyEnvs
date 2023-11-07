@@ -1,7 +1,7 @@
 import math
 
 ## Run pygame without GUI - WARNING: No event handling if true
-headless = False
+headless = True
 
 ## Chose between sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
 # hsfm_new, hsfm_new_guo, hsfm_new_moussaid
