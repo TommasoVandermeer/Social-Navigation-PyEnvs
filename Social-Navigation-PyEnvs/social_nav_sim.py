@@ -176,7 +176,7 @@ class SocialNav:
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
         self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
-        if self.n_updates < N_UPDATES_AVERAGE_TIME: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
+        if self.n_updates < N_UPDATES_AVERAGE_TIME * 2: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
         else: self.real_time_factor = self.font.render(f"Time fact.: {round((SAMPLING_TIME * N_UPDATES_AVERAGE_TIME) / (self.updates_time - self.previous_updates_time), 2)}", False, (0,0,255))
         self.display.blit(self.fps_text,self.fps_text_rect)
         self.display.blit(self.real_time,self.real_time_rect)
@@ -201,7 +201,7 @@ class SocialNav:
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
         for human in self.humans: human.update()
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
-        if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = pygame.time.get_ticks() / 1000
+        if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
     def move_robot_with_keys(self):
         if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
