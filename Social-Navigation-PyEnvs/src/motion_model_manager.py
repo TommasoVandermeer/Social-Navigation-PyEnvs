@@ -135,6 +135,10 @@ class MotionModelManager:
             for wall in self.walls:
                 obstacle, distance = wall.get_closest_point(self.humans[i].position)
                 self.humans[i].obstacles.append(obstacle)
+            # Update linear velocity and rotation matrix for Headed models
+            if self.headed:
+                self.compute_rotational_matrix(self.humans[i])
+                self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
             # Update groups
             if (self.humans[i].group_id <0): continue
             if (not self.humans[i].group_id in groups): groups[self.humans[i].group_id] = Group()
@@ -150,7 +154,6 @@ class MotionModelManager:
                 compute_group_force(i, self.humans, desired_direction, groups)
                 self.humans[i].global_force = self.humans[i].desired_force + self.humans[i].obstacle_force + self.humans[i].social_force + self.humans[i].group_force
             else:
-                self.compute_rotational_matrix(self.humans[i])
                 compute_group_force(i, self.humans, desired_direction, groups)
                 compute_torque_force(self.humans[i])
                 self.humans[i].global_force[0] = np.dot(self.humans[i].desired_force + self.humans[i].obstacle_force + self.humans[i].social_force, self.humans[i].rotational_matrix[:,0]) + self.humans[i].group_force[0]
@@ -172,8 +175,7 @@ class MotionModelManager:
                 agent.body_velocity += (agent.global_force / agent.mass) * dt
                 agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
                 agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
-                agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
-                agent.position += agent.linear_velocity * dt
+                agent.position += np.matmul(agent.rotational_matrix, agent.body_velocity) * dt
                 agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
 
     def update_positions_rk45(self, t:float, dt:float):
@@ -234,7 +236,6 @@ class MotionModelManager:
             self.humans[i].body_velocity[1] = y[i*N_HEADED_STATES+4]
             self.humans[i].body_velocity = self.bound_velocity(self.humans[i].body_velocity, self.humans[i].desired_speed)
             self.humans[i].angular_velocity = y[i*N_HEADED_STATES+5]
-            self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
         self.compute_forces()
         ydot = np.empty((len(self.humans) * N_HEADED_STATES,), dtype=np.float64)
         for i in range(len(self.humans)):

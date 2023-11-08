@@ -15,6 +15,7 @@ DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
+N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
@@ -41,6 +42,7 @@ class SocialNav:
         self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
         self.display = pygame.Surface((DISPLAY_SIZE, DISPLAY_SIZE))
         self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.05 * WINDOW_SIZE))
+        self.small_font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.035 * WINDOW_SIZE))
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.fps_text_rect = self.fps_text.get_rect(topright = (DISPLAY_SIZE - DISPLAY_SIZE/30, DISPLAY_SIZE/60))
         self.x_axis_label = self.font.render("X", False, (0,0,255))
@@ -55,10 +57,12 @@ class SocialNav:
         self.real_time_factor_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/13.25, DISPLAY_SIZE/8.5)))
         self.pause_text = self.font.render("PAUSED", False, ((0,0,255)))
         self.pause_text_rect = self.pause_text.get_rect(center = (DISPLAY_SIZE/2, DISPLAY_SIZE/20))
-        self.rewind_text = self.font.render("PRESS Z KEY TO REWIND", False, ((0,0,255)))
+        self.rewind_text = self.small_font.render("PRESS Z TO REWIND", False, ((0,0,255)))
         self.rewind_text_rect = self.rewind_text.get_rect(bottomleft = (DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
-        self.reset_text = self.font.render("PRESS R KEY TO RESET", False, ((0,0,255)))
+        self.reset_text = self.small_font.render("PRESS R TO RESET", False, ((0,0,255)))
         self.reset_text_rect = self.reset_text.get_rect(bottomright = (DISPLAY_SIZE - DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
+        self.speedup_text = self.small_font.render("PRESS S TO SPEED UP", False, ((0,0,255)))
+        self.speedup_text_rect = self.reset_text.get_rect(midbottom = (DISPLAY_SIZE/2, DISPLAY_SIZE - DISPLAY_SIZE/10))
         pygame.display.set_caption('Social Navigation')
 
     def reset(self, restart_gui=False):
@@ -124,7 +128,8 @@ class SocialNav:
         self.last_pause_start = 0.0
         self.paused_time = 0.0
         self.paused = False
-        self.rewinded_time = 0.0
+        self.updates_time = 0.0
+        self.previous_updates_time = 0.0
 
     def generate_circular_crossing_setting(self, config_data:list):
         radius = config_data[0]
@@ -171,7 +176,8 @@ class SocialNav:
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
         self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
-        self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
+        if self.n_updates < N_UPDATES_AVERAGE_TIME: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
+        else: self.real_time_factor = self.font.render(f"Time fact.: {round((SAMPLING_TIME * N_UPDATES_AVERAGE_TIME) / (self.updates_time - self.previous_updates_time), 2)}", False, (0,0,255))
         self.display.blit(self.fps_text,self.fps_text_rect)
         self.display.blit(self.real_time,self.real_time_rect)
         self.display.blit(self.simulation_time,self.simulation_time_rect)
@@ -183,21 +189,19 @@ class SocialNav:
             self.display.blit(self.pause_text, self.pause_text_rect)
             self.display.blit(self.rewind_text, self.rewind_text_rect)
             self.display.blit(self.reset_text, self.reset_text_rect)
+            self.display.blit(self.speedup_text, self.speedup_text_rect)
 
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
         pygame.display.update()
 
     def update(self):
         self.n_updates += 1
-
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
-
-        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
+        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-
         for human in self.humans: human.update()
-
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
+        if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = pygame.time.get_ticks() / 1000
 
     def move_robot_with_keys(self):
         if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
@@ -211,9 +215,8 @@ class SocialNav:
             state = self.human_states[self.n_updates]
             self.motion_model_manager.set_human_states(state)
             self.human_states = self.human_states[:-1]
-            self.rewinded_time += SAMPLING_TIME
 
-    def run(self):
+    def run_live(self):
         self.active = True
         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
@@ -227,11 +230,29 @@ class SocialNav:
             else:
                 if not self.headless: 
                     self.render()
-                    if pygame.key.get_pressed()[pygame.K_z]: self.rewind_human_state()
+                    # Rewind
+                    if pygame.key.get_pressed()[pygame.K_z]: 
+                        r_is_pressed = True
+                        while r_is_pressed:
+                            self.rewind_human_state()
+                            self.render()
+                            pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
+                    # Reset
                     if pygame.key.get_pressed()[pygame.K_r]: 
                         self.reset()
                         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
                         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
+                    # Speed up (or Resume)
+                    if pygame.key.get_pressed()[pygame.K_s]:
+                        self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
+                        s_is_pressed = True
+                        while s_is_pressed:
+                            self.update()
+                            self.render()
+                            if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
+                            else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
+                            pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
+                        self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.active = False

@@ -9,11 +9,12 @@ from config.config_corridor import data
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNav(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot]
-social_nav = SocialNav([7,20,False,"hsfm_new_guo",False,False,False],mode="circular_crossing")
+social_nav = SocialNav([7,5,False,"hsfm_new_guo",False,False,False],mode="circular_crossing")
 
 ## SIMULATOR RUN
-# Infinite loop live run (controlled speed, can also be paused and rewinded)
-social_nav.run()
+# Infinite loop interactive live run (controlled speed)
+# Can be paused (SPACE), resetted (R), rewinded (Z) fast and speeded up (S)
+social_nav.run_live()
 # Run only k steps at max speed
 # social_nav.run_k_steps(1000)
 # Run multiple models test at max speed
