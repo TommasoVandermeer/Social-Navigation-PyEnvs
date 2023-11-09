@@ -19,9 +19,11 @@ N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
+ZOOM_BOUNDS = [0.1, 2.0]
+SCROLL_BOUNDS = [[-1000,-1000],[1000,1000]]
 
 class SocialNav:
-    def __init__(self, config_data, mode="custom_config"):
+    def __init__(self, config_data, scenario="custom_config"):
         pygame.init()
         self.pygame_init = True
 
@@ -30,11 +32,11 @@ class SocialNav:
         self.clock = pygame.time.Clock()
         self.walls = pygame.sprite.Group()
         self.humans = []
-        self.mode = mode
+        self.mode = scenario
 
-        if mode == "custom_config": self.config_data = config_data
-        elif mode == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
-        else: raise Exception(f"Mode '{mode}' does not exist")
+        if scenario == "custom_config": self.config_data = config_data
+        elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
+        else: raise Exception(f"Scenario '{scenario}' does not exist")
 
         self.reset(restart_gui=True)
 
@@ -113,6 +115,10 @@ class SocialNav:
             for line in self.grid_lines:
                 pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1])
             self.grid_surface.set_alpha(50)
+
+        # Scroll and zoom
+        self.scroll = np.array([100.0,100.0], dtype=np.float16)
+        self.zoom = 1
 
         # Robot
         self.robot = RobotAgent(self)
@@ -254,13 +260,30 @@ class SocialNav:
                             pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
                         self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
             for event in pygame.event.get():
+                # Exit
                 if event.type == pygame.QUIT:
                     self.active = False
                     pygame.quit()
+                # Pause
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     self.paused = not self.paused
                     if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
+                # Scroll
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
+                    self.scroll_start = np.array([event.pos[0], event.pos[1]], dtype=int)
+                if event.type == pygame.MOUSEBUTTONUP and event.button == 2:
+                    self.scroll += self.scroll_start - event.pos
+                    self.scroll[0] = min(SCROLL_BOUNDS[1][0],max(SCROLL_BOUNDS[0][0], self.scroll[0]))
+                    self.scroll[1] = min(SCROLL_BOUNDS[1][1],max(SCROLL_BOUNDS[0][1], self.scroll[1]))
+                    print(self.scroll)
+                # Zoom
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
+                    self.zoom -= 0.1
+                    self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
+                    self.zoom += 0.1
+                    self.zoom = min(self.zoom, ZOOM_BOUNDS[1])
             self.clock.tick(MAX_FPS)
     
     def run_from_precomputed_states(self, human_states):
