@@ -19,8 +19,8 @@ class Agent():
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))
         self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
 
-    def render(self, display):
-        display.blit(self.image, self.rect)
+    def render(self, display, scroll:np.array):
+        display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))
     
     def get_rect(self):
         return self.rect

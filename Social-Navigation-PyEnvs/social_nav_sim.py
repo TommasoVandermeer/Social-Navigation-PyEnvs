@@ -19,8 +19,8 @@ N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
-ZOOM_BOUNDS = [0.1, 2.0]
-SCROLL_BOUNDS = [[-1000,-1000],[1000,1000]]
+ZOOM_BOUNDS = [0.5, 2.0]
+SCROLL_BOUNDS = [-1000,1000]
 
 class SocialNav:
     def __init__(self, config_data, scenario="custom_config"):
@@ -28,6 +28,7 @@ class SocialNav:
         self.pygame_init = True
 
         self.display_to_real_ratio = DISPLAY_SIZE / REAL_SIZE
+        self.display_to_window_ratio = DISPLAY_SIZE / WINDOW_SIZE
         self.real_size = REAL_SIZE
         self.clock = pygame.time.Clock()
         self.walls = pygame.sprite.Group()
@@ -107,17 +108,25 @@ class SocialNav:
         # Grid
         if self.grid: 
             self.grid_lines = []
-            for i in range(REAL_SIZE):
-                self.grid_lines.append([[(i+1) * self.display_to_real_ratio, 0],[(i+1) * self.display_to_real_ratio, DISPLAY_SIZE]])
-                self.grid_lines.append([[0, (i+1) * self.display_to_real_ratio],[DISPLAY_SIZE, (i+1) * self.display_to_real_ratio]])
-            self.grid_surface = pygame.Surface((DISPLAY_SIZE,DISPLAY_SIZE))
-            self.grid_surface.fill((255,255,255))
-            for line in self.grid_lines:
-                pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1])
+            whole_size = int(DISPLAY_SIZE + (SCROLL_BOUNDS[1]-SCROLL_BOUNDS[0]) * self.display_to_window_ratio)
+            self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio]]) # X AXIS
+            self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio,whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio, 0]]) # Y AXIS
+            for i in range(int((DISPLAY_SIZE + SCROLL_BOUNDS[1] * self.display_to_window_ratio) / self.display_to_real_ratio)): # Positive lines
+                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio - ((i+1) * self.display_to_real_ratio)],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio - ((i+1) * self.display_to_real_ratio)]]) # x line
+                self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio + ((i+1) * self.display_to_real_ratio),whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio + ((i+1) * self.display_to_real_ratio), 0]]) # y line
+            for i in range(int((-SCROLL_BOUNDS[0] * self.display_to_window_ratio) / self.display_to_real_ratio)): # Positive lines
+                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + (i+1) * self.display_to_real_ratio],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + (i+1) * self.display_to_real_ratio]]) # x line
+                self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio - (i+1) * self.display_to_real_ratio,whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio - (i+1) * self.display_to_real_ratio, 0]]) # y line
+            self.grid_surface = pygame.Surface((whole_size, whole_size), pygame.SRCALPHA)
+            # self.grid_surface.fill((255,255,255))
+            for i, line in enumerate(self.grid_lines):
+                if i < 2: pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1], blend=0)
+                else: pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1], blend=0)
             self.grid_surface.set_alpha(50)
 
         # Scroll and zoom
-        self.scroll = np.array([100.0,100.0], dtype=np.float16)
+        self.scroll = np.array([0.0,0.0], dtype=np.float16)
+        self.display_scroll = np.array([0.0,0.0], dtype=np.float16)
         self.zoom = 1
 
         # Robot
@@ -172,13 +181,16 @@ class SocialNav:
         return data
 
     def render(self):
+        # self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
         self.display.fill((255,255,255))
-        if self.grid: self.display.blit(self.grid_surface, (0,0))
 
-        for human in self.humans: human.render(self.display)
-        if self.insert_robot: self.robot.render(self.display)
-        self.walls.draw(self.display)
+        # Change based on scroll and zoom
+        if self.grid: self.display.blit(self.grid_surface, ((SCROLL_BOUNDS[0]) * self.display_to_window_ratio - self.display_scroll[0], (SCROLL_BOUNDS[0]) * self.display_to_window_ratio - self.display_scroll[1]))
+        for human in self.humans: human.render(self.display, self.display_scroll)
+        if self.insert_robot: self.robot.render(self.display, self.display_scroll)
+        for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
 
+        # Fixed on screen
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
         self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
@@ -190,7 +202,6 @@ class SocialNav:
         self.display.blit(self.real_time_factor,self.real_time_factor_rect)
         self.display.blit(self.x_axis_label,self.x_axis_label_rect)
         self.display.blit(self.y_axis_label,self.y_axis_label_rect)
-
         if self.paused: 
             self.display.blit(self.pause_text, self.pause_text_rect)
             self.display.blit(self.rewind_text, self.rewind_text_rect)
@@ -227,6 +238,8 @@ class SocialNav:
         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
+            # Reset scroll
+            if pygame.key.get_pressed()[pygame.K_o]: self.scroll -= self.scroll; self.display_scroll = self.scroll * self.display_to_window_ratio
             if not self.paused:
                 if self.insert_robot: self.move_robot_with_keys()
                 self.update()
@@ -270,20 +283,18 @@ class SocialNav:
                     if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
                 # Scroll
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
-                    self.scroll_start = np.array([event.pos[0], event.pos[1]], dtype=int)
-                if event.type == pygame.MOUSEBUTTONUP and event.button == 2:
-                    self.scroll += self.scroll_start - event.pos
-                    self.scroll[0] = min(SCROLL_BOUNDS[1][0],max(SCROLL_BOUNDS[0][0], self.scroll[0]))
-                    self.scroll[1] = min(SCROLL_BOUNDS[1][1],max(SCROLL_BOUNDS[0][1], self.scroll[1]))
-                    print(self.scroll)
+                if event.type == pygame.MOUSEMOTION and event.buttons[1]:
+                    self.scroll -= event.rel
+                    self.scroll[0] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[0]))
+                    self.scroll[1] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[1]))
+                    self.display_scroll = self.scroll * self.display_to_window_ratio
                 # Zoom
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
-                    self.zoom -= 0.1
-                    self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
                     self.zoom += 0.1
                     self.zoom = min(self.zoom, ZOOM_BOUNDS[1])
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
+                    self.zoom -= 0.1
+                    self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
             self.clock.tick(MAX_FPS)
     
     def run_from_precomputed_states(self, human_states):

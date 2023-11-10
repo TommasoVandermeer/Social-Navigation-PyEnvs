@@ -40,6 +40,8 @@ class Obstacle(pygame.sprite.Sprite):
         pygame.draw.polygon(self.image, (0,0,0), self.coordinates)
         self.rect = self.image.get_rect(bottomleft = (min_x * self.ratio, (self.real_size - min_y) * self.ratio))
 
+    def render(self, display:pygame.Surface, scroll:np.array):
+        display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))
 
     def get_rect(self):
         return self.rect

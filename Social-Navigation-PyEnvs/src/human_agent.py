@@ -48,14 +48,14 @@ class HumanAgent(Agent):
         self.move()
         self.rotate()
 
-    def render(self, display):
-        display.blit(self.image, self.rect)
-        self.render_label(display)
+    def render(self, display, scroll:np.array):
+        display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))
+        self.render_label(display, scroll)
 
-    def render_label(self, display):
+    def render_label(self, display, scroll:np.array):
         self.label_rect.centerx = round(self.position[0] * self.ratio)
         self.label_rect.centery = round((self.real_size - self.position[1]) * self.ratio)
-        display.blit(self.label, self.label_rect)
+        display.blit(self.label, (self.label_rect.x - scroll[0], self.label_rect.y - scroll[1]))
 
     def set_parameters(self, model:str):
         if (model == 'sfm_roboticsupo'):
