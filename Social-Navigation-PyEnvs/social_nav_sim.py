@@ -19,7 +19,7 @@ N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
-ZOOM_BOUNDS = [0.5, 2.0]
+ZOOM_BOUNDS = [0.5, 2]
 SCROLL_BOUNDS = [-1000,1000]
 
 class SocialNav:
@@ -44,28 +44,28 @@ class SocialNav:
     def init_gui(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
         self.display = pygame.Surface((DISPLAY_SIZE, DISPLAY_SIZE))
-        self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.05 * WINDOW_SIZE))
-        self.small_font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.035 * WINDOW_SIZE))
+        self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.035 * WINDOW_SIZE))
+        self.small_font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.0245 * WINDOW_SIZE))
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
-        self.fps_text_rect = self.fps_text.get_rect(topright = (DISPLAY_SIZE - DISPLAY_SIZE/30, DISPLAY_SIZE/60))
+        self.fps_text_rect = self.fps_text.get_rect(topright = (WINDOW_SIZE - WINDOW_SIZE/30, WINDOW_SIZE/60))
         self.x_axis_label = self.font.render("X", False, (0,0,255))
-        self.x_axis_label_rect = self.x_axis_label.get_rect(center = (DISPLAY_SIZE - DISPLAY_SIZE/20, DISPLAY_SIZE - DISPLAY_SIZE/20))
+        self.x_axis_label_rect = self.x_axis_label.get_rect(center = (WINDOW_SIZE - WINDOW_SIZE/20, WINDOW_SIZE - WINDOW_SIZE/20))
         self.y_axis_label = self.font.render("Y", False, (0,0,255))
-        self.y_axis_label_rect = self.y_axis_label.get_rect(center = (DISPLAY_SIZE/20, DISPLAY_SIZE/20))
+        self.y_axis_label_rect = self.y_axis_label.get_rect(center = (WINDOW_SIZE/20, WINDOW_SIZE/20))
         self.real_time = self.font.render(f"Real time: 0", False, (0,0,255))
-        self.real_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/12, DISPLAY_SIZE/20)))
+        self.real_time_rect = self.real_time.get_rect(topright = ((WINDOW_SIZE - WINDOW_SIZE/12, WINDOW_SIZE/20)))
         self.simulation_time = self.font.render(f"Sim. time: 0", False, (0,0,255))
-        self.simulation_time_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/11.5, DISPLAY_SIZE/12)))
+        self.simulation_time_rect = self.real_time.get_rect(topright = ((WINDOW_SIZE - WINDOW_SIZE/11.5, WINDOW_SIZE/12)))
         self.real_time_factor = self.font.render(f"Time fact.: 0", False, (0,0,255))
-        self.real_time_factor_rect = self.real_time.get_rect(topright = ((DISPLAY_SIZE - DISPLAY_SIZE/13.25, DISPLAY_SIZE/8.5)))
+        self.real_time_factor_rect = self.real_time.get_rect(topright = ((WINDOW_SIZE - WINDOW_SIZE/13.25, WINDOW_SIZE/8.5)))
         self.pause_text = self.font.render("PAUSED", False, ((0,0,255)))
-        self.pause_text_rect = self.pause_text.get_rect(center = (DISPLAY_SIZE/2, DISPLAY_SIZE/20))
+        self.pause_text_rect = self.pause_text.get_rect(center = (WINDOW_SIZE/2, WINDOW_SIZE/20))
         self.rewind_text = self.small_font.render("PRESS Z TO REWIND", False, ((0,0,255)))
-        self.rewind_text_rect = self.rewind_text.get_rect(bottomleft = (DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
+        self.rewind_text_rect = self.rewind_text.get_rect(bottomleft = (WINDOW_SIZE/25, WINDOW_SIZE - WINDOW_SIZE/10))
         self.reset_text = self.small_font.render("PRESS R TO RESET", False, ((0,0,255)))
-        self.reset_text_rect = self.reset_text.get_rect(bottomright = (DISPLAY_SIZE - DISPLAY_SIZE/25, DISPLAY_SIZE - DISPLAY_SIZE/10))
+        self.reset_text_rect = self.reset_text.get_rect(bottomright = (WINDOW_SIZE - WINDOW_SIZE/25, WINDOW_SIZE - WINDOW_SIZE/10))
         self.speedup_text = self.small_font.render("PRESS S TO SPEED UP", False, ((0,0,255)))
-        self.speedup_text_rect = self.reset_text.get_rect(midbottom = (DISPLAY_SIZE/2, DISPLAY_SIZE - DISPLAY_SIZE/10))
+        self.speedup_text_rect = self.reset_text.get_rect(midbottom = (WINDOW_SIZE/2, WINDOW_SIZE - WINDOW_SIZE/10))
         pygame.display.set_caption('Social Navigation')
 
     def reset(self, restart_gui=False):
@@ -108,26 +108,28 @@ class SocialNav:
         # Grid
         if self.grid: 
             self.grid_lines = []
-            whole_size = int(DISPLAY_SIZE + (SCROLL_BOUNDS[1]-SCROLL_BOUNDS[0]) * self.display_to_window_ratio)
-            self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio]]) # X AXIS
-            self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio,whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio, 0]]) # Y AXIS
-            for i in range(int((DISPLAY_SIZE + SCROLL_BOUNDS[1] * self.display_to_window_ratio) / self.display_to_real_ratio)): # Positive lines
-                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio - ((i+1) * self.display_to_real_ratio)],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio - ((i+1) * self.display_to_real_ratio)]]) # x line
+            whole_size = int(DISPLAY_SIZE * ZOOM_BOUNDS[1] + (SCROLL_BOUNDS[1]-SCROLL_BOUNDS[0]) * self.display_to_window_ratio)
+            for i in range(int((DISPLAY_SIZE * ZOOM_BOUNDS[1] + SCROLL_BOUNDS[1] * self.display_to_window_ratio) / self.display_to_real_ratio)): # Positive lines (in Pygame frame)
+                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1]) - ((i+1) * self.display_to_real_ratio)],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1]) - ((i+1) * self.display_to_real_ratio)]]) # x line
                 self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio + ((i+1) * self.display_to_real_ratio),whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio + ((i+1) * self.display_to_real_ratio), 0]]) # y line
-            for i in range(int((-SCROLL_BOUNDS[0] * self.display_to_window_ratio) / self.display_to_real_ratio)): # Positive lines
-                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + (i+1) * self.display_to_real_ratio],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + (i+1) * self.display_to_real_ratio]]) # x line
+            for i in range(int((-SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (ZOOM_BOUNDS[1] - 1)) / self.display_to_real_ratio)): # Negative lines (in Pygame frame)
+                self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1]) + (i+1) * self.display_to_real_ratio],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1]) + (i+1) * self.display_to_real_ratio]]) # x line
                 self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio - (i+1) * self.display_to_real_ratio,whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio - (i+1) * self.display_to_real_ratio, 0]]) # y line
+            self.grid_lines.append([[0,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1])],[whole_size,whole_size + SCROLL_BOUNDS[0] * self.display_to_window_ratio + DISPLAY_SIZE * (1 - ZOOM_BOUNDS[1])]]) # X AXIS
+            self.grid_lines.append([[-SCROLL_BOUNDS[0] * self.display_to_window_ratio,whole_size],[-SCROLL_BOUNDS[0] * self.display_to_window_ratio, 0]]) # Y AXIS
             self.grid_surface = pygame.Surface((whole_size, whole_size), pygame.SRCALPHA)
-            # self.grid_surface.fill((255,255,255))
-            for i, line in enumerate(self.grid_lines):
-                if i < 2: pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1], blend=0)
-                else: pygame.draw.aaline(self.grid_surface, (0,0,0), line[0], line[1], blend=0)
-            self.grid_surface.set_alpha(50)
 
+            for i, line in enumerate(self.grid_lines):
+                if i >= len(self.grid_lines)-2: pygame.draw.line(self.grid_surface, (0,0,255,255), line[0], line[1], 5)
+                else: pygame.draw.line(self.grid_surface, (0,0,0,50), line[0], line[1], 3)
+            
         # Scroll and zoom
         self.scroll = np.array([0.0,0.0], dtype=np.float16)
         self.display_scroll = np.array([0.0,0.0], dtype=np.float16)
         self.zoom = 1
+
+        # Simulation stats
+        self.show_stats = True
 
         # Robot
         self.robot = RobotAgent(self)
@@ -181,34 +183,35 @@ class SocialNav:
         return data
 
     def render(self):
-        # self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
+        self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
         self.display.fill((255,255,255))
 
         # Change based on scroll and zoom
-        if self.grid: self.display.blit(self.grid_surface, ((SCROLL_BOUNDS[0]) * self.display_to_window_ratio - self.display_scroll[0], (SCROLL_BOUNDS[0]) * self.display_to_window_ratio - self.display_scroll[1]))
+        if self.grid: self.display.blit(self.grid_surface, (SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[0], SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[1]))
+        for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
         for human in self.humans: human.render(self.display, self.display_scroll)
         if self.insert_robot: self.robot.render(self.display, self.display_scroll)
-        for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
+        pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
 
         # Fixed on screen
-        self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
-        self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
-        self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
-        if self.n_updates < N_UPDATES_AVERAGE_TIME * 2: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
-        else: self.real_time_factor = self.font.render(f"Time fact.: {round((SAMPLING_TIME * N_UPDATES_AVERAGE_TIME) / (self.updates_time - self.previous_updates_time), 2)}", False, (0,0,255))
-        self.display.blit(self.fps_text,self.fps_text_rect)
-        self.display.blit(self.real_time,self.real_time_rect)
-        self.display.blit(self.simulation_time,self.simulation_time_rect)
-        self.display.blit(self.real_time_factor,self.real_time_factor_rect)
-        self.display.blit(self.x_axis_label,self.x_axis_label_rect)
-        self.display.blit(self.y_axis_label,self.y_axis_label_rect)
-        if self.paused: 
-            self.display.blit(self.pause_text, self.pause_text_rect)
-            self.display.blit(self.rewind_text, self.rewind_text_rect)
-            self.display.blit(self.reset_text, self.reset_text_rect)
-            self.display.blit(self.speedup_text, self.speedup_text_rect)
+        if self.show_stats:
+            self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
+            self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
+            self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
+            if self.n_updates < N_UPDATES_AVERAGE_TIME * 2: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
+            else: self.real_time_factor = self.font.render(f"Time fact.: {round((SAMPLING_TIME * N_UPDATES_AVERAGE_TIME) / (self.updates_time - self.previous_updates_time), 2)}", False, (0,0,255))
+            self.screen.blit(self.fps_text,self.fps_text_rect)
+            self.screen.blit(self.real_time,self.real_time_rect)
+            self.screen.blit(self.simulation_time,self.simulation_time_rect)
+            self.screen.blit(self.real_time_factor,self.real_time_factor_rect)
+            self.screen.blit(self.x_axis_label,self.x_axis_label_rect)
+            self.screen.blit(self.y_axis_label,self.y_axis_label_rect)
+            if self.paused: 
+                self.screen.blit(self.pause_text, self.pause_text_rect)
+                self.screen.blit(self.rewind_text, self.rewind_text_rect)
+                self.screen.blit(self.reset_text, self.reset_text_rect)
+                self.screen.blit(self.speedup_text, self.speedup_text_rect)
 
-        pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
         pygame.display.update()
 
     def update(self):
@@ -238,8 +241,6 @@ class SocialNav:
         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
-            # Reset scroll
-            if pygame.key.get_pressed()[pygame.K_o]: self.scroll -= self.scroll; self.display_scroll = self.scroll * self.display_to_window_ratio
             if not self.paused:
                 if self.insert_robot: self.move_robot_with_keys()
                 self.update()
@@ -282,6 +283,14 @@ class SocialNav:
                     self.paused = not self.paused
                     if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
                     else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
+                # Reset scroll and zoom
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+                    self.scroll -= self.scroll
+                    self.display_scroll = self.scroll * self.display_to_window_ratio
+                    self.zoom = 1
+                # Hide/Show simulation stats
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                    self.show_stats = not self.show_stats
                 # Scroll
                 if event.type == pygame.MOUSEMOTION and event.buttons[1]:
                     self.scroll -= event.rel
