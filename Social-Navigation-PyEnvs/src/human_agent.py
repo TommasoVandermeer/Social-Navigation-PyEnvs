@@ -92,6 +92,8 @@ class HumanAgent(Agent):
             self.Cw = 120.0
             self.Di = 0.6
             self.Dw = 0.6
+            self.k1 = 120000.0
+            self.k2 = 240000.0
         elif (model == 'sfm_moussaid'):
             # SFM Parameters
             self.relaxation_time = 0.5

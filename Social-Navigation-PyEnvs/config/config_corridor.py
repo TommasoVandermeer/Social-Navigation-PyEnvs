@@ -23,5 +23,7 @@ walls = [[[0.9+7.5,-2.5+7.5], [1.1+7.5,-2.5+7.5], [1.1+7.5,2.5+7.5], [0.9+7.5,2.
 
 ## Humans can be included by specifing various parameters, check src/human_agent.py
 humans = {0: {"pos": [0+7.5,5+7.5], "yaw": -math.pi, "goals": [[0+7.5,-5+7.5],[-2+7.5,-1.25+7.5],[-2+7.5,1.25+7.5],[0+7.5,5+7.5]]}}
+# humans = {0: {"pos": [12.0,2.0], "yaw": -math.pi, "goals": [[3.0,13.0],[12.0,2.0]]}}
+# humans = {0: {"pos": [3.0,2.0], "yaw": -math.pi, "goals": [[12.0,13.0],[3.0,2.0]]}}
 
 data = {"headless": headless, "motion_model": motion_model, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": grid, "humans": humans, "walls": walls}
