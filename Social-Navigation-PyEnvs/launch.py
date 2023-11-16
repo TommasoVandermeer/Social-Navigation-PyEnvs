@@ -1,4 +1,4 @@
-from social_nav_sim import SocialNav
+from social_nav_sim import SocialNavSim
 # from config.config_example import data
 from config.config_corridor import data
 
@@ -9,7 +9,7 @@ from config.config_corridor import data
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNav(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot]
-social_nav = SocialNav([7,22,False,"hsfm_new_moussaid",False,False,False],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,False,"hsfm_new_moussaid",False,False,False],scenario="circular_crossing")
 
 ## SIMULATOR RUN
 # Infinite loop interactive live run (controlled speed)

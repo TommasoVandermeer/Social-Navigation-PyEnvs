@@ -20,9 +20,9 @@ MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
 ZOOM_BOUNDS = [0.5, 2]
-SCROLL_BOUNDS = [-1000,1000]
+SCROLL_BOUNDS = [-500,500]
 
-class SocialNav:
+class SocialNavSim:
     def __init__(self, config_data, scenario="custom_config"):
         pygame.init()
         self.pygame_init = True
@@ -39,7 +39,7 @@ class SocialNav:
         elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
         else: raise Exception(f"Scenario '{scenario}' does not exist")
 
-        self.reset(restart_gui=True)
+        self.reset_sim(restart_gui=True)
 
     def init_gui(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
@@ -68,7 +68,7 @@ class SocialNav:
         self.speedup_text_rect = self.reset_text.get_rect(midbottom = (WINDOW_SIZE/2, WINDOW_SIZE - WINDOW_SIZE/10))
         pygame.display.set_caption('Social Navigation')
 
-    def reset(self, restart_gui=False):
+    def reset_sim(self, restart_gui=False):
         if not self.pygame_init: pygame.init(); self.pygame_init = True
         self.humans.clear()
         self.walls.empty()
@@ -182,7 +182,7 @@ class SocialNav:
         data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
         return data
 
-    def render(self):
+    def render_sim(self):
         self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
         self.display.fill((255,255,255))
 
@@ -244,22 +244,22 @@ class SocialNav:
             if not self.paused:
                 if self.insert_robot: self.move_robot_with_keys()
                 self.update()
-                if not self.headless: self.render()
+                if not self.headless: self.render_sim()
                 if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
                 else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
             else:
                 if not self.headless: 
-                    self.render()
+                    self.render_sim()
                     # Rewind
                     if pygame.key.get_pressed()[pygame.K_z]: 
                         r_is_pressed = True
                         while r_is_pressed:
                             self.rewind_human_state()
-                            self.render()
+                            self.render_sim()
                             pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
                     # Reset
                     if pygame.key.get_pressed()[pygame.K_r]: 
-                        self.reset()
+                        self.reset_sim()
                         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
                         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
                     # Speed up (or Resume)
@@ -268,7 +268,7 @@ class SocialNav:
                         s_is_pressed = True
                         while s_is_pressed:
                             self.update()
-                            self.render()
+                            self.render_sim()
                             if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
                             else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
                             pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
@@ -308,13 +308,13 @@ class SocialNav:
     
     def run_from_precomputed_states(self, human_states):
         self.config_data["headless"] = False
-        self.reset(restart_gui=True)
+        self.reset_sim(restart_gui=True)
         for i in range(len(human_states)):
             self.motion_model_manager.set_human_states(human_states[i], just_visual=True)
             self.n_updates += 1
             self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
             self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-            self.render()
+            self.render_sim()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: pygame.quit(); self.pygame_init = False
             self.clock.tick(MAX_FPS)
@@ -324,7 +324,7 @@ class SocialNav:
         human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
         for step in range(steps):
             self.update()
-            if not self.headless: self.render()
+            if not self.headless: self.render_sim()
             human_states[step] = self.motion_model_manager.get_human_states()
         if not self.headless and quit: pygame.quit(); self.pygame_init = False
         return human_states
@@ -341,7 +341,7 @@ class SocialNav:
             self.human_states = np.empty((len(models),n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
             test_times = np.empty((len(models),), dtype=np.float64)
             for i in range(len(models)):
-                self.reset()
+                self.reset_sim()
                 self.motion_model_manager.set_motion_model(models[i])
                 self.human_states[i], test_times[i] = self.run_single_test(n_updates)
                 figure, ax = plt.subplots()
@@ -354,11 +354,11 @@ class SocialNav:
             self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
             test_times = np.empty((len(models),2), dtype=np.float64)
             for i in range(len(models)):
-                self.reset()
+                self.reset_sim()
                 self.motion_model_manager.set_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = False
                 self.human_states[i,0], test_times[i,0] = self.run_single_test(n_updates)
-                self.reset()
+                self.reset_sim()
                 self.motion_model_manager.set_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = True
                 self.human_states[i,1], test_times[i,1] = self.run_single_test(n_updates)
@@ -379,7 +379,7 @@ class SocialNav:
         self.motion_model_manager.runge_kutta = False
         self.human_states[0], euler_time = self.run_single_test(n_updates)
         ## Runge kutta
-        self.reset()
+        self.reset_sim()
         self.motion_model_manager.runge_kutta = True
         self.human_states[1], rk45_time = self.run_single_test(n_updates)
         if not self.headless: pygame.quit(); self.pygame_init = False
@@ -394,7 +394,7 @@ class SocialNav:
         plt.show()
 
     def run_complete_rk45_simulation(self, sampling_time=1/60, final_time=40, plot_sample_time=3):
-        self.reset()
+        self.reset_sim()
         global SAMPLING_TIME; SAMPLING_TIME = sampling_time
         start_time = round_time((pygame.time.get_ticks() / 1000))
         self.human_states = self.motion_model_manager.complete_rk45_simulation(0.0, sampling_time, final_time)
