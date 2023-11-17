@@ -83,9 +83,24 @@ class SocialNavGym(gym.Env, SocialNavSim):
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_sim, self.test_sim))
         logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
 
-    # TO BE IMPLEMENTED
-    def set_robot(self):
+    def set_robot(self, robot):
+        self.robot = robot
+
+    def reset(self, phase='test', test_case = None):
+        """
+        Set px, py, gx, gy, vx, vy, theta for robot and humans
+        :return:
+        """
         pass
+
+    def step(self, action, update=True):
+        """
+        Compute actions for all agents, detect collision, update environment and return (ob, reward, done, info)
+
+        """
+        pass       
+
+    # TO BE IMPLEMENTED
 
     def generate_random_human_position(self):
         pass
@@ -99,13 +114,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
     def get_human_times(self):
         pass
 
-    def reset(self):
-        pass
-
     def onestep_lookahead(self, action):
-        pass
-
-    def step(self, action):
         pass
 
     def render(self):

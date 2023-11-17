@@ -86,9 +86,16 @@ class SocialNavSim:
 
         if not self.headless and restart_gui: self.init_gui()
 
+        # Robot
+        if "robot" in self.config_data.keys(): 
+            self.robot = RobotAgent(self, self.config_data["robot"]["pos"].copy(), self.config_data["robot"]["yaw"], self.config_data["robot"]["radius"], self.config_data["robot"]["goals"].copy())
+        else: self.robot = RobotAgent(self)
+        
+        # Obstacles
         for wall in self.config_data["walls"]:
             self.walls.add(Obstacle(self, wall))
 
+        # Humans
         for key in self.config_data["humans"]:
             init_position = self.config_data["humans"][key]["pos"].copy()
             init_yaw = self.config_data["humans"][key]["yaw"]
@@ -131,9 +138,6 @@ class SocialNavSim:
         # Simulation stats
         self.show_stats = True
 
-        # Robot
-        self.robot = RobotAgent(self)
-
         # Human motion model
         self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
 
@@ -156,30 +160,92 @@ class SocialNavSim:
         headless = config_data[4]
         runge_kutta = config_data[5]
         insert_robot = config_data[6]
+        randomize_human_attributes = config_data[7]
         center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
         humans = {}
+        humans_des_speed = []
+        humans_radius = []
+        if randomize_human_attributes:
+            for i in range(n_actors):
+                humans_des_speed.append(np.random.uniform(0.5, 1.5))
+                humans_radius.append(np.random.uniform(0.3, 0.5))
+        else: #TODO: Load it from config
+            for i in range(n_actors):
+                humans_des_speed.append(1.0)
+                humans_radius.append(0.3)
         if not rand:
-            arch = (2 * math.pi) / (n_actors)
-            for i in range(n_actors):
-                center_pos = [radius * math.cos(arch * i), radius * math.sin(arch * i)]
-                humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
-                             "yaw": bound_angle(-math.pi + arch * i),
-                             "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]]}
+            if not insert_robot:
+                angle = (2 * math.pi) / (n_actors)
+                for i in range(n_actors):
+                    center_pos = [radius * math.cos(angle * i), radius * math.sin(angle * i)]
+                    humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
+                                "yaw": bound_angle(-math.pi + angle * i),
+                                "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]],
+                                "des_speed": humans_des_speed[i],
+                                "radius": humans_radius[i]}
+            else:
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": 0.25, "goals": [[center[0], center[1]+radius]]}
+                angle = (2 * math.pi) / (n_actors + 1)
+                for i in range(n_actors):
+                    center_pos = [radius * math.cos(-math.pi/2 + angle * i+1), radius * math.sin(-math.pi/2 + angle * i+1)]
+                    humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
+                                "yaw": bound_angle(math.pi/2 + angle * i+1),
+                                "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]],
+                                "des_speed": humans_des_speed[i],
+                                "radius": humans_radius[i]}
         else:
-            arch = math.acos(1-((0.7**2) / (2*(radius**2))))
-            rand_nums = []
-            for i in range(n_actors):
-                check = False
-                num = 0
-                while not check:
-                    num = np.random.randint(0,int(2*math.pi / arch))
-                    if (num in rand_nums): continue
-                    else: check = True, rand_nums.append(num)
-                center_pos = [radius * math.cos(arch * num), radius * math.sin(arch * num)]
-                humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
-                             "yaw": bound_angle(-math.pi + arch * num),
-                             "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]]}
-        data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
+            humans_pos = []
+            if not insert_robot:
+                for i in range(n_actors):
+                    while True:
+                        angle = np.random.random() * np.pi * 2
+                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=np.float64)
+                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=np.float64)
+                        collide = False 
+                        for j in range(len(humans_pos)):
+                            min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
+                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=np.float64)
+                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=np.float64)
+                            if np.linalg.norm(pos - other_human_pos) < min_dist or np.linalg.norm(pos - other_human_goal) < min_dist:
+                                collide = True
+                                break
+                        if not collide: 
+                            humans_pos.append([pos[0], pos[1]])
+                            humans[i] = {"pos": [pos[0], pos[1]],
+                                        "yaw": bound_angle(math.pi + angle),
+                                        "goals": [[center[0] * 2 - pos[0], center[1] * 2 - pos[1]], [pos[0], pos[1]]],
+                                        "des_speed": humans_des_speed[i],
+                                        "radius": humans_radius[i]}
+                            break
+            else:
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": 0.25, "goals": [[center[0], center[1]+radius]]}
+                for i in range(n_actors):
+                    while True:
+                        angle = np.random.random() * np.pi * 2
+                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=np.float64)
+                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=np.float64)
+                        collide = False 
+                        for j in range(len(humans_pos)):
+                            min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
+                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=np.float64)
+                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=np.float64)
+                            if np.linalg.norm(pos - other_human_pos) < min_dist or np.linalg.norm(pos - other_human_goal) < min_dist:
+                                collide = True
+                                break
+                        robot_pos = np.array([center[0], center[1]-radius], dtype=np.float64)
+                        robot_goal = np.array([center[0], center[1]+radius], dtype=np.float64)
+                        if np.linalg.norm(pos - robot_pos) < humans_radius[i] + 0.25 + 0.2 or np.linalg.norm(pos - robot_goal) < humans_radius[i] + 0.25 + 0.2:
+                            collide = True
+                        if not collide: 
+                            humans_pos.append([pos[0], pos[1]])
+                            humans[i] = {"pos": [pos[0], pos[1]],
+                                        "yaw": bound_angle(math.pi + angle),
+                                        "goals": [[center[0] * 2 - pos[0], center[1] * 2 - pos[1]], [pos[0], pos[1]]],
+                                        "des_speed": humans_des_speed[i],
+                                        "radius": humans_radius[i]}
+                            break
+        if insert_robot: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans, "robot": robot}
+        else: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
         return data
 
     def render_sim(self):
@@ -189,7 +255,7 @@ class SocialNavSim:
         # Change based on scroll and zoom
         if self.grid: self.display.blit(self.grid_surface, (SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[0], SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[1]))
         for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
-        for human in self.humans: human.render(self.display, self.display_scroll)
+        for human in self.humans: human.update(); human.render(self.display, self.display_scroll)
         if self.insert_robot: self.robot.render(self.display, self.display_scroll)
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
 
@@ -219,7 +285,6 @@ class SocialNavSim:
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-        for human in self.humans: human.update()
         if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
@@ -309,10 +374,11 @@ class SocialNavSim:
     def run_from_precomputed_states(self, human_states):
         self.config_data["headless"] = False
         self.reset_sim(restart_gui=True)
+        self.updates_time = SAMPLING_TIME * N_UPDATES_AVERAGE_TIME # Just to not give error
         for i in range(len(human_states)):
             self.motion_model_manager.set_human_states(human_states[i], just_visual=True)
             self.n_updates += 1
-            self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time - self.rewinded_time)
+            self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset)
             self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
             self.render_sim()
             for event in pygame.event.get():

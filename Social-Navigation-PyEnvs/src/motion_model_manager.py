@@ -91,7 +91,6 @@ class MotionModelManager:
                     self.humans[i].linear_velocity[0] = state[i,3]
                     self.humans[i].linear_velocity[1] = state[i,4]
                 self.humans[i].angular_velocity = state[i,5]
-                self.humans[i].update()
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
         else:
             # We only care about position and yaw [x, y, yaw], state can be of any form

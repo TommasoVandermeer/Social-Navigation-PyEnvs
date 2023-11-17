@@ -5,23 +5,23 @@ from src.utils import bound_angle
 import numpy as np
 
 class RobotAgent(Agent):
-    def __init__(self, game):
-        super().__init__(np.array([game.real_size / 2, game.real_size / 2], dtype=np.float64), 0.0, (255,0,0), 0.25, game.real_size, game.display_to_real_ratio)
+    def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.25, goals=None):
+        super().__init__(np.array(pos, dtype=np.float64), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio)
 
         display_radius = self.radius * self.ratio
         self.image = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)
-        #self.image.fill((0,0,0))
         pygame.draw.circle(self.image, self.color, (display_radius, display_radius), display_radius)
-  
+
+        self.goals = goals
         self.linear_velocity = np.array([0.0,0.0])
         self.angular_velocity = 0.0
 
         self.collisions = 0
 
-        pygame.draw.circle(self.image, (0,0,0), (display_radius + math.cos(self.yaw) * display_radius, display_radius - math.sin(self.yaw) * display_radius), display_radius / 3)
-        self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
-
+        pygame.draw.circle(self.image, (0,0,0), (display_radius + math.cos(0.0) * display_radius, display_radius - math.sin(0.0) * display_radius), display_radius / 3)
         self.original_image = self.image
+        self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))
+        self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
 
     def check_collisions(self, humans, walls):
         for human in humans:
@@ -36,10 +36,6 @@ class RobotAgent(Agent):
                 direction = (self.position - closest_point) / np.linalg.norm(closest_point - self.position)
                 self.position = closest_point + direction * self.radius
                 self.move()
-        if self.position[0] + self.radius > self.real_size: self.position[0] = self.real_size - self.radius
-        if self.position[0] - self.radius < 0.0: self.position[0] = self.radius
-        if self.position[1] + self.radius > self.real_size: self.position[1] = self.real_size - self.radius
-        if self.position[1] - self.radius < 0.0: self.position[1] = self.radius
         self.move()
 
     def move_with_keys(self, direction):    
