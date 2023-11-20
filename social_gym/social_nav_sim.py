@@ -8,6 +8,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import os
 
 ### GLOBAL VARIABLES
 WINDOW_SIZE = 700
@@ -44,8 +45,8 @@ class SocialNavSim:
     def init_gui(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE,WINDOW_SIZE))
         self.display = pygame.Surface((DISPLAY_SIZE, DISPLAY_SIZE))
-        self.font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.035 * WINDOW_SIZE))
-        self.small_font = pygame.font.Font('fonts/Roboto-Black.ttf', int(0.0245 * WINDOW_SIZE))
+        self.font = pygame.font.Font(os.path.join(os.path.dirname(__file__),'fonts/Roboto-Black.ttf'), int(0.035 * WINDOW_SIZE))
+        self.small_font = pygame.font.Font(os.path.join(os.path.dirname(__file__),'fonts/Roboto-Black.ttf'), int(0.0245 * WINDOW_SIZE))
         self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
         self.fps_text_rect = self.fps_text.get_rect(topright = (WINDOW_SIZE - WINDOW_SIZE/30, WINDOW_SIZE/60))
         self.x_axis_label = self.font.render("X", False, (0,0,255))

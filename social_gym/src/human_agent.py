@@ -1,6 +1,7 @@
 import pygame
 import math
 import numpy as np
+import os
 from .agent import Agent
 
 class HumanAgent(Agent):
@@ -28,7 +29,7 @@ class HumanAgent(Agent):
 
         self.set_parameters(self.motion_model)
 
-        self.font = pygame.font.Font('fonts/Roboto-Black.ttf',int(0.25 * self.ratio))
+        self.font = pygame.font.Font(os.path.join(os.path.dirname(__file__),'..','fonts/Roboto-Black.ttf'),int(0.25 * self.ratio))
         self.label = self.font.render(f"{label}", False, (0,0,0))
 
         self.image = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)

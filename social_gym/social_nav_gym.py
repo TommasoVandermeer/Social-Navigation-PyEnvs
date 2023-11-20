@@ -99,7 +99,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if test_case is not None:
             self.case_counter[phase] = test_case
         self.global_time = 0
-        # Removed initialization of self.human_times here
+        if phase == 'test': self.human_times = [0] * self.human_num
+        else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)
         if not self.robot.policy.multiagent_training:
             self.train_val_sim = 'circle_crossing'
         if self.config.get('humans', 'policy') == 'trajnet':
@@ -113,13 +114,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"hsfm_new_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.train_val_sim == 'square_crossing':
                         raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"hsfm_new_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.test_sim == 'square_crossing':
                         raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
@@ -188,39 +189,59 @@ class SocialNavGym(gym.Env, SocialNavSim):
         end_position = self.robot.compute_position(action, self.time_step)
         reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
 
-        # Compute Reward, done, and info
-        # TODO: done -> terminated, truncated
+        # Compute Reward, truncated, terminated, and info
         if self.global_time >= self.time_limit - 1:
             reward = 0
-            done = True
+            truncated = True
+            terminated = False
             info = Timeout()
         elif collision:
             reward = self.collision_penalty
-            done = True
+            truncated = False
+            terminated = True
             info = Collision()
         elif reaching_goal:
             reward = self.success_reward
-            done = True
+            truncated = False
+            terminated = True
             info = ReachGoal()
         elif dmin < self.discomfort_dist:
-            # only penalize agent for getting too close if it's visible
-            # adjust the reward based on FPS
-            reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * self.time_step
-            done = False
+            reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * self.time_step # adjust the reward based on FPS
+            truncated = False
+            terminated = False
             info = Danger(dmin)
         else:
             reward = 0
-            done = False
+            truncated = False
+            terminated = False
             info = Nothing()
 
-        # TODO: finish the update
         if update:
-            pass
+            # Store state, action value and attention weights
+            self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
+            if hasattr(self.robot.policy, 'action_values'):
+                self.action_values.append(self.robot.policy.action_values)
+            if hasattr(self.robot.policy, 'get_attention_weights'):
+                self.attention_weights.append(self.robot.policy.get_attention_weights())
 
-        # return ob, reward, done, info
-        
+            # Update all agents position
+            self.robot.step(action, self.time_step)
+            for i, human_action in enumerate(human_actions): self.humans[i].step(human_action, self.time_step)
+            self.global_time += self.time_step
+            # removed saving of human_times if agent reaches goal for the first time
 
-
+            # Compute observation
+            if self.robot.sensor == 'coordinates':
+                ob = [human.get_observable_state() for human in self.humans]
+            elif self.robot.sensor == 'RGB':
+                raise NotImplementedError
+        else:
+            # Compute observation
+            if self.robot.sensor == 'coordinates':
+                ob = [human.get_observable_state() for human in self.humans]
+            elif self.robot.sensor == 'RGB':
+                raise NotImplementedError
+        return ob, reward, terminated, truncated, info
 
     def render(self):
         self.render_sim()

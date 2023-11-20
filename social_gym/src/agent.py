@@ -62,7 +62,19 @@ class Agent():
         return position
 
     def get_goal_position(self):
-        return np.array(self.goals[0][0], self.goals[0][1])
+        return np.array([self.goals[0][0], self.goals[0][1]])
+
+    def step(self, action, delta_t):
+        """
+        Perform an action and update the state
+        """
+        self.check_validity(action)
+        self.position = self.compute_position(action, delta_t)
+        if self.kinematics == 'holonomic':
+            self.linear_velocity = np.array([action.vx, action.vy])
+        else:
+            self.yaw = (self.yaw + action.r) % (2 * np.pi)
+            self.linear_velocity = np.array([np.cos(self.yaw + action.r) * action.v, np.sin(self.yaw + action.r) * action.v])
 
     def move(self):
         self.rect.centerx = round(self.position[0] * self.ratio)
