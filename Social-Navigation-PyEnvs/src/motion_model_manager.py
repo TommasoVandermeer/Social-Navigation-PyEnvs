@@ -2,6 +2,7 @@ from src.utils import bound_angle
 from src.human_agent import HumanAgent
 from src.robot_agent import RobotAgent
 from scipy.integrate import solve_ivp
+from src.action import ActionXY, ActionRot
 import numpy as np
 
 GOAL_RADIUS = 0.35
@@ -268,3 +269,16 @@ class MotionModelManager:
                 ydot[i*N_NOT_HEADED_STATES+2] = self.humans[i].global_force[0]
                 ydot[i*N_NOT_HEADED_STATES+3] = self.humans[i].global_force[1]
         return ydot
+    
+    def predict_actions(self, dt:float):
+        self.compute_forces()
+        actions = []
+        if not self.headed:
+            for agent in self.humans:
+                if self.include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
+                else: agent.linear_velocity += agent.global_force * dt
+                agent.linear_velocity = self.bound_velocity(agent.linear_velocity, agent.desired_speed)
+                actions.append(ActionXY(agent.linear_velocity[0], agent.linear_velocity[1]))
+        else:
+            raise NotImplementedError
+        return actions

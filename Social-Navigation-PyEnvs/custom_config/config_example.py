@@ -10,8 +10,8 @@ motion_model = "hsfm_new"
 ## Decide wether to integrate with RKF45(True) or Euler(False)
 runge_kutta = False
 
-## Decide wether to insert the robot in the simulation
-insert_robot = True
+## Decide wether the robot must be considered by humans
+robot_visible = True
 
 ## Decide wether to print a unitary metric grid in the background
 grid = True
@@ -29,4 +29,4 @@ humans = {0: {"pos": [6.66,6.66], "yaw": -math.pi, "goals": [[5,5],[8,2]]},
 
 robot = {"pos": [7.5,7.5], "yaw": 0.0, "radius": 0.25, "goals": [[0,0]]}
 
-data = {"headless": headless, "motion_model": motion_model, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": grid, "humans": humans, "walls": walls, "robot": robot}
+data = {"headless": headless, "motion_model": motion_model, "runge_kutta": runge_kutta, "robot_visible": robot_visible, "grid": grid, "humans": humans, "walls": walls, "robot": robot}

@@ -15,9 +15,6 @@ class HumanAgent(Agent):
         self.obstacles = []
         self.mass = mass
 
-        self.linear_velocity = np.array([0.0,0.0], dtype=np.float64)
-        self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
-        self.angular_velocity = 0
         self.desired_force = np.array([0.0,0.0], dtype=np.float64)
         self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
         self.social_force = np.array([0.0,0.0], dtype=np.float64)

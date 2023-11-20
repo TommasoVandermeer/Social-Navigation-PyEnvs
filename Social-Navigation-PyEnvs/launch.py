@@ -1,6 +1,7 @@
 from social_nav_sim import SocialNavSim
-from config.config_example import data
-# from config.config_corridor import data
+from social_nav_gym import SocialNavGym
+from custom_config.config_example import data
+# from custom_config.config_corridor import data
 
 # Motion models: sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
 # hsfm_new, hsfm_new_guo, hsfm_new_moussaid
@@ -8,9 +9,8 @@ from config.config_example import data
 ## SIMULATOR INITIALIZATION
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
-# Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes]
-# social_nav = SocialNavSim([7,5,False,"hsfm_new_moussaid",False,False,False,False],scenario="circular_crossing")
-social_nav = SocialNavSim([4,5,False,"hsfm_new_guo",False,False,True,False],scenario="circular_crossing")
+# Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
+social_nav = SocialNavSim([7,5,False,"hsfm_new_moussaid",False,False,True,False,False],scenario="circular_crossing")
 
 ## SIMULATOR RUN
 # Infinite loop interactive live run (controlled speed)
@@ -28,3 +28,8 @@ social_nav.run_live()
 # Run from previously computed states (controlled speed)
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3)
 # social_nav.run_from_precomputed_states(social_nav.human_states)
+
+## GYM ENV INITIALIZATION
+# SocialNavGym()
+
+## GYM ENV RUN

@@ -13,8 +13,6 @@ class RobotAgent(Agent):
         pygame.draw.circle(self.image, self.color, (display_radius, display_radius), display_radius)
 
         self.goals = goals
-        self.linear_velocity = np.array([0.0,0.0])
-        self.angular_velocity = 0.0
 
         self.collisions = 0
 
@@ -38,7 +36,7 @@ class RobotAgent(Agent):
                 self.move()
         self.move()
 
-    def move_with_keys(self, direction):    
+    def move_with_keys(self, direction, humans, walls):    
         if direction == 'up':
             self.position[0] += math.cos(self.yaw) * 0.01
             self.position[1] += math.sin(self.yaw) * 0.01
@@ -51,6 +49,4 @@ class RobotAgent(Agent):
             self.yaw = bound_angle(self.yaw - 0.1)
         self.move()
         self.rotate()
-
-    def update(self, humans, walls):
         self.check_collisions(humans, walls)

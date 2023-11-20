@@ -68,7 +68,12 @@ class SocialNavSim:
         self.speedup_text_rect = self.reset_text.get_rect(midbottom = (WINDOW_SIZE/2, WINDOW_SIZE - WINDOW_SIZE/10))
         pygame.display.set_caption('Social Navigation')
 
-    def reset_sim(self, restart_gui=False):
+    def set_time_step(self, time_step:float):
+        global SAMPLING_TIME, MAX_FPS
+        SAMPLING_TIME = time_step
+        MAX_FPS = 1 / SAMPLING_TIME
+
+    def reset_sim(self, restart_gui=False, reset_robot=True):
         if not self.pygame_init: pygame.init(); self.pygame_init = True
         self.humans.clear()
         self.walls.empty()
@@ -79,17 +84,21 @@ class SocialNavSim:
         else: self.motion_model = "sfm_helbing"
         if "runge_kutta" in self.config_data.keys(): self.runge_kutta = self.config_data["runge_kutta"]
         else: self.runge_kutta = False
-        if "insert_robot" in self.config_data.keys(): self.insert_robot = self.config_data["insert_robot"]
-        else: self.insert_robot = False
         if "grid" in self.config_data.keys(): self.grid = self.config_data["grid"]
         else: self.grid = True
+        if "robot_visible" in self.config_data.keys(): self.robot_visible = self.config_data["robot_visible"]
+        else: self.robot_visible = False
 
         if not self.headless and restart_gui: self.init_gui()
 
         # Robot
-        if "robot" in self.config_data.keys(): 
-            self.robot = RobotAgent(self, self.config_data["robot"]["pos"].copy(), self.config_data["robot"]["yaw"], self.config_data["robot"]["radius"], self.config_data["robot"]["goals"].copy())
-        else: self.robot = RobotAgent(self)
+        if reset_robot:
+            if "robot" in self.config_data.keys(): 
+                self.robot = RobotAgent(self, self.config_data["robot"]["pos"].copy(), self.config_data["robot"]["yaw"], self.config_data["robot"]["radius"], self.config_data["robot"]["goals"].copy())
+                self.insert_robot = True
+            else: 
+                self.robot = RobotAgent(self)
+                self.insert_robot = False
         
         # Obstacles
         for wall in self.config_data["walls"]:
@@ -139,7 +148,7 @@ class SocialNavSim:
         self.show_stats = True
 
         # Human motion model
-        self.motion_model_manager = MotionModelManager(self.motion_model, self.insert_robot, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+        self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
 
         # Simulation variables
         self.n_updates = 0
@@ -161,6 +170,7 @@ class SocialNavSim:
         runge_kutta = config_data[5]
         insert_robot = config_data[6]
         randomize_human_attributes = config_data[7]
+        robot_visible = config_data[8]
         center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
         humans = {}
         humans_des_speed = []
@@ -244,8 +254,9 @@ class SocialNavSim:
                                         "des_speed": humans_des_speed[i],
                                         "radius": humans_radius[i]}
                             break
-        if insert_robot: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans, "robot": robot}
-        else: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "insert_robot": insert_robot, "grid": True, "walls": [], "humans": humans}
+        if insert_robot: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": robot_visible, "grid": True, "walls": [], "humans": humans, "robot": robot}
+        else: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "walls": [], "humans": humans}
+        self.config_data = data
         return data
 
     def render_sim(self):
@@ -285,14 +296,13 @@ class SocialNavSim:
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-        if self.insert_robot: self.robot.update(self.humans, self.walls.sprites())
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
-    def move_robot_with_keys(self):
-        if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
-        if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
-        if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
-        if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
+    def move_robot_with_keys(self, humans, walls):
+        if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', humans, walls)
+        if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', humans, walls)
+        if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', humans, walls)
+        if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', humans, walls)
 
     def rewind_human_state(self):
         if len(self.human_states) > 0:
@@ -307,7 +317,7 @@ class SocialNavSim:
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
             if not self.paused:
-                if self.insert_robot: self.move_robot_with_keys()
+                if self.insert_robot: self.move_robot_with_keys(self.humans, self.walls)
                 self.update()
                 if not self.headless: self.render_sim()
                 if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
