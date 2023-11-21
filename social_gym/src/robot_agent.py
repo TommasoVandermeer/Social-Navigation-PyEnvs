@@ -1,12 +1,13 @@
 import pygame
 import math
-from .agent import Agent
-from src.utils import bound_angle
-from src.policy.policy_factory import policy_factory
+from social_gym.src.agent import Agent
+from social_gym.src.utils import bound_angle
+from social_gym.src.state import JointState
+from social_gym.policy.policy_factory import policy_factory
 import numpy as np
 
 class RobotAgent(Agent):
-    def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.25, goals=None):
+    def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.25, goals=list()):
         super().__init__(np.array(pos, dtype=np.float64), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio)
 
         display_radius = self.radius * self.ratio
@@ -48,13 +49,18 @@ class RobotAgent(Agent):
             self.yaw = bound_angle(self.yaw + 0.1)
         elif direction == 'right':
             self.yaw = bound_angle(self.yaw - 0.1)
-        self.move()
-        self.rotate()
         self.check_collisions(humans, walls)
+
+    def act(self, ob):
+        if self.policy is None:
+            raise AttributeError('Policy attribute has to be set!')
+        state = JointState(self.get_full_state(), ob)
+        action = self.policy.predict(state)
+        return action
 
     def configure(self, config, section):
         self.visible = config.getboolean(section, 'visible')
-        self.desired = config.getfloat(section, 'v_pref')
+        self.desired_speed = config.getfloat(section, 'v_pref')
         self.radius = config.getfloat(section, 'radius')
         self.policy = policy_factory[config.get(section, 'policy')]()
         self.sensor = config.get(section, 'sensor')

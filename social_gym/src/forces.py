@@ -1,9 +1,9 @@
 import math
 import numpy as np
-from src.human_agent import HumanAgent
-from src.robot_agent import RobotAgent
-from src.utils import bound_angle
-from src.motion_model_manager import GOAL_RADIUS, Group
+from social_gym.src.human_agent import HumanAgent
+from social_gym.src.robot_agent import RobotAgent
+from social_gym.src.utils import bound_angle
+from social_gym.src.motion_model_manager import GOAL_RADIUS, Group
 
 def compute_desired_force(agent:HumanAgent):
     difference = agent.goals[0] - agent.position

@@ -1,9 +1,9 @@
 import gymnasium as gym
 import numpy as np
 import logging
-from social_nav_sim import SocialNavSim
-from src.utils import point_to_segment_dist
-from src.info import *
+from social_gym.social_nav_sim import SocialNavSim
+from social_gym.src.utils import point_to_segment_dist
+from social_gym.src.info import *
 
 
 class SocialNavGym(gym.Env, SocialNavSim):
@@ -23,15 +23,15 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.time_limit = None
         self.time_step = None
         self.robot = None
-        self.humans = None
+        # self.humans = None
         self.global_time = None
         self.human_times = None
-        # reward function
+        # Reward function
         self.success_reward = None
         self.collision_penalty = None
         self.discomfort_dist = None
         self.discomfort_penalty_factor = None
-        # simulation configuration
+        # Simulation configuration
         self.config = None
         self.case_capacity = None
         self.case_size = None
@@ -42,17 +42,21 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.square_width = None
         self.circle_radius = None
         self.human_num = None
-        # for visualization
+        # For visualization
         self.states = None
         self.action_values = None
         self.attention_weights = None
+        # Action and observation spaces - these are dummy spaces just for registration
+        self.action_space = gym.spaces.Discrete(1)
+        self.observation_space = gym.spaces.Discrete(1)
 
     def start_simulator(self):
         """
         Initializes the simulator with the specified parameters.
 
         """
-        super().__init__([7,5,False,"hsfm_new_moussaid",False,False,True,True],scenario="circular_crossing")
+        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
+        super().__init__([7,5,False,"hsfm_new_moussaid",True,False,True,False,True],scenario="circular_crossing")
         # self.run_live()
 
     def configure(self, config):
@@ -114,13 +118,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_guo",True,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.train_val_sim == 'square_crossing':
                         raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_moussaid",False,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_guo",True,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.test_sim == 'square_crossing':
                         raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
@@ -139,7 +143,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
                 else:
                     raise NotImplementedError      
         # Set sampling time for the simulation and reset the simulator
-        self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0], self.config_data["robot"]["goals"][1], 0, 0, self.config_data["robot"]["yaw"])
+        self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"])
         self.reset_sim(reset_robot=False)
         self.set_time_step(self.time_step)
         # Initialize some variables used later
@@ -148,13 +152,14 @@ class SocialNavGym(gym.Env, SocialNavSim):
             self.action_values = list()
         if hasattr(self.robot.policy, 'get_attention_weights'):
             self.attention_weights = list()
-        # Get current observation
+        # Get current observation and info
         if self.robot.sensor == 'coordinates':
             ob = [human.get_observable_state() for human in self.humans]
         elif self.robot.sensor == 'RGB':
             raise NotImplementedError
+        info = Nothing()
         
-        return ob
+        return ob, {0: info}
 
     def step(self, action, update=True):
         """
@@ -241,14 +246,14 @@ class SocialNavGym(gym.Env, SocialNavSim):
                 ob = [human.get_observable_state() for human in self.humans]
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
-        return ob, reward, terminated, truncated, info
+        return ob, reward, terminated, truncated, {0: info}
 
     def render(self):
         self.render_sim()
 
+    def onestep_lookahead(self, action):
+        return self.step(action, update=False)
+
     ### TO BE IMPLEMENTED
     def generate_square_crossing_human(self):
-        pass
-
-    def onestep_lookahead(self, action):
         pass

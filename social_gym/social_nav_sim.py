@@ -1,9 +1,9 @@
 import pygame
-from src.motion_model_manager import MotionModelManager, N_GENERAL_STATES, N_HEADED_STATES, N_NOT_HEADED_STATES
-from src.human_agent import HumanAgent
-from src.robot_agent import RobotAgent
-from src.obstacle import Obstacle
-from src.utils import round_time, bound_angle
+from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_STATES, N_HEADED_STATES, N_NOT_HEADED_STATES
+from social_gym.src.human_agent import HumanAgent
+from social_gym.src.robot_agent import RobotAgent
+from social_gym.src.obstacle import Obstacle
+from social_gym.src.utils import round_time, bound_angle
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -73,6 +73,8 @@ class SocialNavSim:
         global SAMPLING_TIME, MAX_FPS
         SAMPLING_TIME = time_step
         MAX_FPS = 1 / SAMPLING_TIME
+        self.robot.time_step = time_step
+        self.robot.policy.time_step = time_step
 
     def reset_sim(self, restart_gui=False, reset_robot=True):
         if not self.pygame_init: pygame.init(); self.pygame_init = True
@@ -268,7 +270,7 @@ class SocialNavSim:
         if self.grid: self.display.blit(self.grid_surface, (SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[0], SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[1]))
         for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
         for human in self.humans: human.update(); human.render(self.display, self.display_scroll)
-        if self.insert_robot: self.robot.render(self.display, self.display_scroll)
+        if self.insert_robot: self.robot.update(); self.robot.render(self.display, self.display_scroll)
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
 
         # Fixed on screen

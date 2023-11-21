@@ -3,9 +3,9 @@ import torch.nn as nn
 import numpy as np
 import itertools
 import logging
-from crowd_sim.envs.policy.policy import Policy
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
-from crowd_sim.envs.utils.state import ObservableState, FullState
+from social_gym.policy.policy import Policy
+from social_gym.src.action import ActionRot, ActionXY
+from social_gym.src.state import ObservableState, FullState
 
 
 def mlp(input_dim, mlp_dims, last_relu=False):
@@ -155,7 +155,7 @@ class CADRL(Policy):
             max_action = None
             for action in self.action_space:
                 next_self_state = self.propagate(state.self_state, action)
-                ob, reward, done, info = self.env.onestep_lookahead(action)
+                ob, reward, terminated, truncated, info = self.env.onestep_lookahead(action)
                 batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
                                               for next_human_state in ob], dim=0)
                 # VALUE UPDATE

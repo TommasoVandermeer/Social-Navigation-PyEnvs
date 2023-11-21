@@ -1,8 +1,9 @@
 import pygame
 import math
 import numpy as np
-from src.state import ObservableState, FullState
-from src.action import ActionXY, ActionRot
+import logging
+from social_gym.src.state import ObservableState, FullState
+from social_gym.src.action import ActionXY, ActionRot
 
 class Agent():
     def __init__(self, position:list[float], yaw:float, color:tuple, radius:float, real_size:float, display_ratio:float):
@@ -16,11 +17,16 @@ class Agent():
         self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
         self.angular_velocity = 0.0
         # These are initialized in the children classes
-        self.goals = None
+        self.goals = list()
         self.desired_speed = None
         self.policy = None
         self.kinematics = None
         self.sensor = None
+        self.visible = None
+
+    def print_info(self):
+        logging.info('Agent is {} and has {} kinematic constraint'.format(
+            'visible' if self.visible else 'invisible', self.kinematics))
 
     def get_observable_state(self):
         return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
@@ -35,8 +41,7 @@ class Agent():
     def set(self, px, py, gx, gy, vx, vy, theta, radius=None, v_pref=None):
         self.position[0] = px
         self.position[1] = py
-        self.goals[0][0] = gx
-        self.goals[0][1] = gy
+        self.goals.append([gx,gy])
         self.linear_velocity[0] = vx
         self.linear_velocity[1] = vy
         self.yaw = theta
@@ -79,6 +84,10 @@ class Agent():
     def move(self):
         self.rect.centerx = round(self.position[0] * self.ratio)
         self.rect.centery = round((self.real_size - self.position[1]) * self.ratio)
+
+    def update(self):
+        self.move()
+        self.rotate()
 
     def rotate(self):
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))

@@ -2,7 +2,7 @@ import pygame
 import math
 import numpy as np
 import os
-from .agent import Agent
+from social_gym.src.agent import Agent
 
 class HumanAgent(Agent):
     def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=80, des_speed=0.9, group_id=-1):
@@ -15,6 +15,7 @@ class HumanAgent(Agent):
         self.goals = goals
         self.obstacles = []
         self.mass = mass
+        self.kinematics = 'holonomic'
 
         self.desired_force = np.array([0.0,0.0], dtype=np.float64)
         self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
@@ -41,10 +42,6 @@ class HumanAgent(Agent):
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))
         self.rect = self.image.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
         self.label_rect = self.label.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
-
-    def update(self):
-        self.move()
-        self.rotate()
 
     def render(self, display, scroll:np.array):
         display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))

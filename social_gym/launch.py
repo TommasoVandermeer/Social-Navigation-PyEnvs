@@ -1,5 +1,5 @@
-from social_nav_sim import SocialNavSim
-from social_nav_gym import SocialNavGym
+from social_gym.social_nav_sim import SocialNavSim
+from social_gym.social_nav_gym import SocialNavGym
 from custom_config.config_example import data
 # from custom_config.config_corridor import data
 
