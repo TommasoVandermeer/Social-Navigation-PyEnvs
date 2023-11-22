@@ -262,6 +262,10 @@ class SocialNavSim:
         self.config_data = data
         return data
 
+    def generate_square_crossing_human(self, config_data:list):
+        ### TO BE IMPLEMENTED
+        pass
+
     def render_sim(self):
         self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
         self.display.fill((255,255,255))

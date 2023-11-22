@@ -46,7 +46,7 @@ class Explorer(object):
                 actions.append(action)
                 rewards.append(reward)
 
-                # self.env.render()
+                self.env.render()
 
                 if isinstance(info[0], Danger):
                     too_close += 1
@@ -113,7 +113,6 @@ class Explorer(object):
                 else:
                     next_state = states[i + 1]
                     gamma_bar = pow(self.gamma, self.robot.time_step * self.robot.desired_speed)
-                    #### The problem is self.target_model(next_state.unsqueeze(0)).data.item()
                     value = reward + gamma_bar * self.target_model(next_state.unsqueeze(0)).data.item()
             value = torch.Tensor([value]).to(self.device)
 
