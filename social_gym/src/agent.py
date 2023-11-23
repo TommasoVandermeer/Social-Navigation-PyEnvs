@@ -68,6 +68,9 @@ class Agent():
 
     def get_goal_position(self):
         return np.array([self.goals[0][0], self.goals[0][1]])
+    
+    def get_position(self):
+        return self.position
 
     def step(self, action, delta_t):
         """

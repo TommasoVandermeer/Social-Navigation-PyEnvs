@@ -275,10 +275,11 @@ class MotionModelManager:
         actions = []
         if not self.headed:
             for agent in self.humans:
-                if self.include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
-                else: agent.linear_velocity += agent.global_force * dt
-                agent.linear_velocity = self.bound_velocity(agent.linear_velocity, agent.desired_speed)
-                actions.append(ActionXY(agent.linear_velocity[0], agent.linear_velocity[1]))
+                linear_velocity = agent.linear_velocity.copy()
+                if self.include_mass: linear_velocity += (agent.global_force / agent.mass) * dt
+                else: linear_velocity += agent.global_force * dt
+                linear_velocity = self.bound_velocity(linear_velocity, agent.desired_speed)
+                actions.append(ActionXY(linear_velocity[0], linear_velocity[1]))
         else:
             raise NotImplementedError
         return actions

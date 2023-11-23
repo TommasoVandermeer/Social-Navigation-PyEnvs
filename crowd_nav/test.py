@@ -4,24 +4,24 @@ import configparser
 import os
 import torch
 import numpy as np
-import gym
+import gymnasium as gym
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from social_gym.src.robot_agent import RobotAgent
-from crowd_sim.envs.policy.orca import ORCA
+# from crowd_sim.envs.policy.orca import ORCA
 
 
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--env_config', type=str, default='configs/env.config')
-    parser.add_argument('--policy_config', type=str, default='configs/policy.config')
-    parser.add_argument('--policy', type=str, default='orca')
-    parser.add_argument('--model_dir', type=str, default=None)
+    parser.add_argument('--env_config', type=str, default='env.config')
+    parser.add_argument('--policy_config', type=str, default='policy.config')
+    parser.add_argument('--policy', type=str, default='cadrl')
+    parser.add_argument('--model_dir', type=str, default=os.path.join(os.path.dirname(__file__),'data/output'))
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('--visualize', default=False, action='store_true')
+    parser.add_argument('--visualize', default=True, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
-    parser.add_argument('--test_case', type=int, default=None)
+    parser.add_argument('--test_case', type=int, default=0)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)
@@ -61,7 +61,7 @@ def main():
     # configure environment
     env_config = configparser.RawConfigParser()
     env_config.read(env_config_file)
-    env = gym.make('CrowdSim-v0')
+    env = gym.make('SocialGym-v0')
     env.configure(env_config)
     if args.square:
         env.test_sim = 'square_crossing'
@@ -76,31 +76,29 @@ def main():
     policy.set_phase(args.phase)
     policy.set_device(device)
     # set safety space for ORCA in non-cooperative simulation
-    if isinstance(robot.policy, ORCA):
-        if robot.visible:
-            robot.policy.safety_space = 0
-        else:
-            # because invisible case breaks the reciprocal assumption
-            # adding some safety space improves ORCA performance. Tune this value based on your need.
-            robot.policy.safety_space = 0
-        logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
+    # if isinstance(robot.policy, ORCA):
+    #     if robot.visible:
+    #         robot.policy.safety_space = 0
+    #     else:
+    #         # because invisible case breaks the reciprocal assumption
+    #         # adding some safety space improves ORCA performance. Tune this value based on your need.
+    #         robot.policy.safety_space = 0
+    #     logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
 
     policy.set_env(env)
     robot.print_info()
     if args.visualize:
-        ob = env.reset(phase=args.phase, test_case=args.test_case)
-        done = False
+        ob, _ = env.reset(phase=args.phase, test_case=args.test_case)
+        terminated = False
+        truncated = False
         last_pos = np.array(robot.get_position())
-        while not done:
+        while (not terminated) and (not truncated):
             action = robot.act(ob)
-            ob, _, done, info = env.step(action)
+            ob, _, terminated, truncated, info = env.step(action)
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
-        if args.traj:
-            env.render(mode='traj', output_file=args.video_file)
-        else:
-            env.render(mode='video', output_file=args.video_file)
+            env.render()
 
         logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
         if robot.visible and info == 'reach goal':

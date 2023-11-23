@@ -3,7 +3,10 @@ from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_ST
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.obstacle import Obstacle
-from social_gym.src.utils import round_time, bound_angle
+from social_gym.src.utils import round_time, bound_angle, point_to_segment_dist
+from crowd_nav.policy.policy_factory import policy_factory
+import torch
+import configparser
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -305,11 +308,16 @@ class SocialNavSim:
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
-    def move_robot_with_keys(self, humans, walls):
-        if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', humans, walls)
-        if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', humans, walls)
+    def control_robot(self):
+        if self.robot.policy is None:
+            if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', self.humans, self.walls)
+            if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', self.humans, self.walls)
+            if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', self.humans, self.walls)
+            if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', self.humans, self.walls)
+        else:
+            ob = [human.get_observable_state() for human in self.humans]
+            action = self.robot.act(ob)
+            self.robot.step(action, SAMPLING_TIME)
 
     def rewind_human_state(self):
         if len(self.human_states) > 0:
@@ -324,7 +332,7 @@ class SocialNavSim:
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
             if not self.paused:
-                if self.insert_robot: self.move_robot_with_keys(self.humans, self.walls)
+                if self.insert_robot: self.control_robot()
                 self.update()
                 if not self.headless: self.render_sim()
                 if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
@@ -518,3 +526,66 @@ class SocialNavSim:
         self.print_walls_on_plot(ax)
         for i in range(len(self.humans)):
             ax.plot(human_states[:,i,0],human_states[:,i,1])
+
+    def set_robot_policy(self, model_dir:str, model='rl', policy_name='cadrl'):
+        # Set policy
+        if model == 'rl': model_weights = os.path.join(model_dir, 'rl_model.pth')
+        elif model == 'il': model_weights = os.path.join(model_dir, 'il_model.pth')
+        else: raise NotImplementedError
+        policy = policy_factory[policy_name]()
+        policy_config_file = os.path.join(model_dir, os.path.basename('policy.config'))
+        policy_config = configparser.RawConfigParser()
+        policy_config.read(policy_config_file)
+        policy.configure(policy_config)
+        if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights))
+        policy.set_phase('test')
+        policy.set_device('cpu')
+        policy.set_env(self)
+        # Configure robot
+        env_config_file = os.path.join(model_dir, os.path.basename('env.config'))
+        env_config = configparser.RawConfigParser()
+        env_config.read(env_config_file)
+        self.robot.configure(env_config, 'robot')
+        self.robot.set_policy(policy)
+        self.robot.policy.time_step = SAMPLING_TIME
+        
+    def onestep_lookahead(self, action):
+        """
+        This method is just required to use the trained policies of the robot.
+        """
+        # Collision detection
+        dmin = float('inf')
+        collision = False
+        for human in self.humans:
+            difference = human.position - self.robot.position
+            if self.robot.kinematics == 'holonomic':
+                robot_velocity = np.array([action.vx, action.vy])
+                velocity_difference = human.linear_velocity - robot_velocity
+            else:
+                robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
+                velocity_difference = human.linear_velocity - robot_velocity
+            e = difference + velocity_difference * SAMPLING_TIME
+            # closest distance between boundaries of two agents
+            closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
+            if closest_dist < 0:
+                collision = True
+                # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
+                break
+            elif closest_dist < dmin:
+                dmin = closest_dist
+
+        # Check if reaching goal
+        end_position = self.robot.compute_position(action, SAMPLING_TIME)
+        reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
+
+        # Compute Reward, truncated, terminated, and info
+        if self.sim_t >= 24: reward = 0
+        elif collision: reward = -0.25
+        elif reaching_goal: reward = 1
+        elif dmin < 0.2: reward = (dmin - 0.2) * 0.5 * SAMPLING_TIME # adjust the reward based on FPS
+        else: reward = 0
+
+        # State computation
+        ob = [human.get_observable_state() for human in self.humans]
+
+        return ob, reward, False, False, {}
