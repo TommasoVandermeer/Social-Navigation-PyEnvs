@@ -93,7 +93,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
     def set_robot(self, robot):
         self.robot = robot
 
-    def reset(self, phase='test', test_case = None):
+    def reset(self, phase='test', test_case=None):
         """
         Set px, py, gx, gy, vx, vy, theta for robot and humans
         :return:
@@ -164,7 +164,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
     def step(self, action, update=True):
         """
-        Compute actions for all agents, detect collision, update environment and return (ob, reward, done, info)
+        Compute actions for all agents, detect collision, update environment and return (ob, reward, terminated, truncated, info)
 
         """
         # Predict next action for each human
