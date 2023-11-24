@@ -12,7 +12,7 @@ def compute_desired_force(params:dict, state:FullState):
     if (distance > state.radius):
         desired_direction = difference / distance
         desired_force = params['mass'] * (desired_direction * state.v_pref - agent_velocity) / params['relaxation_time']
-    else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
+    else: desired_direction = np.array([0.0,0.0], dtype=np.float64); desired_force = np.array([0.0,0.0], dtype=np.float64)
     return desired_direction, desired_force
 
 def compute_social_force_helbing(params:dict, state:FullState, agents_state:list[ObservableState]):

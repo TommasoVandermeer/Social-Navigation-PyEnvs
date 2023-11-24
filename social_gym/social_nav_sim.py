@@ -303,6 +303,7 @@ class SocialNavSim:
 
     def update(self):
         self.n_updates += 1
+        if self.insert_robot: self.control_robot()
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
@@ -319,12 +320,18 @@ class SocialNavSim:
             action = self.robot.act(ob)
             self.robot.step(action, SAMPLING_TIME)
 
-    def rewind_human_state(self):
-        if len(self.human_states) > 0:
-            self.n_updates -= 1
-            state = self.human_states[self.n_updates]
-            self.motion_model_manager.set_human_states(state)
-            self.human_states = self.human_states[:-1]
+    def rewind_human_state(self, self_states=True, human_states=None, robot_poses=None):
+        if self_states:
+            if len(self.human_states) > 0:
+                self.n_updates -= 1
+                state = self.human_states[self.n_updates]
+                self.motion_model_manager.set_human_states(state)
+                self.human_states = self.human_states[:-1]
+        else:
+            if self.n_updates > 0:
+                self.n_updates -= 1
+                if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
+                self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
 
     def run_live(self):
         self.active = True
@@ -332,7 +339,6 @@ class SocialNavSim:
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
         while self.active:
             if not self.paused:
-                if self.insert_robot: self.control_robot()
                 self.update()
                 if not self.headless: self.render_sim()
                 if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
@@ -363,62 +369,99 @@ class SocialNavSim:
                             else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
                             pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
                         self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
-            for event in pygame.event.get():
-                # Exit
-                if event.type == pygame.QUIT:
-                    self.active = False
-                    pygame.quit()
-                # Pause
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.paused = not self.paused
-                    if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
-                    else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
-                # Reset scroll and zoom
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-                    self.scroll -= self.scroll
-                    self.display_scroll = self.scroll * self.display_to_window_ratio
-                    self.zoom = 1
-                # Hide/Show simulation stats
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
-                    self.show_stats = not self.show_stats
-                # Scroll
-                if event.type == pygame.MOUSEMOTION and event.buttons[1]:
-                    self.scroll -= event.rel
-                    self.scroll[0] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[0]))
-                    self.scroll[1] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[1]))
-                    self.display_scroll = self.scroll * self.display_to_window_ratio
-                # Zoom
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
-                    self.zoom += 0.1
-                    self.zoom = min(self.zoom, ZOOM_BOUNDS[1])
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
-                    self.zoom -= 0.1
-                    self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
+            self.event_handling()
             self.clock.tick(MAX_FPS)
     
-    def run_from_precomputed_states(self, human_states):
+    def run_from_precomputed_states(self, human_states, robot_poses=None):
         self.config_data["headless"] = False
         self.reset_sim(restart_gui=True)
-        self.updates_time = SAMPLING_TIME * N_UPDATES_AVERAGE_TIME # Just to not give error
-        for i in range(len(human_states)):
-            self.motion_model_manager.set_human_states(human_states[i], just_visual=True)
-            self.n_updates += 1
-            self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset)
-            self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-            self.render_sim()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: pygame.quit(); self.pygame_init = False
+        self.paused = True; self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
+        while self.n_updates < len(human_states)-1:
+            if not self.paused:
+                if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
+                self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
+                self.n_updates += 1
+                self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
+                self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
+                if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
+                self.render_sim()
+            else:
+                self.render_sim()
+                # Rewind
+                if pygame.key.get_pressed()[pygame.K_z]: 
+                    r_is_pressed = True
+                    while r_is_pressed:
+                        self.rewind_human_state(self_states=False, human_states=human_states, robot_poses=robot_poses)
+                        self.render_sim()
+                        pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
+                # Reset
+                if pygame.key.get_pressed()[pygame.K_r]: 
+                    self.n_updates = 0
+                    self.paused = False
+                    continue
+                # Speed up (or Resume)
+                if pygame.key.get_pressed()[pygame.K_s]:
+                    self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
+                    s_is_pressed = True
+                    while (s_is_pressed) and (self.n_updates < len(human_states)-1):
+                        if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
+                        self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
+                        self.n_updates += 1
+                        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
+                        self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
+                        if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
+                        self.render_sim()
+                        pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
+                    self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
+            self.event_handling()
             self.clock.tick(MAX_FPS)
         pygame.quit(); self.pygame_init = False
 
+    def event_handling(self):
+        for event in pygame.event.get():
+            # Exit
+            if event.type == pygame.QUIT:
+                self.active = False
+                self.pygame_init = False
+                pygame.quit()
+            # Pause
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.paused = not self.paused
+                if self.paused: self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
+                else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
+            # Reset scroll and zoom
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+                self.scroll -= self.scroll
+                self.display_scroll = self.scroll * self.display_to_window_ratio
+                self.zoom = 1
+            # Hide/Show simulation stats
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                self.show_stats = not self.show_stats
+            # Scroll
+            if event.type == pygame.MOUSEMOTION and event.buttons[1]:
+                self.scroll -= event.rel
+                self.scroll[0] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[0]))
+                self.scroll[1] = min(SCROLL_BOUNDS[1],max(SCROLL_BOUNDS[0], self.scroll[1]))
+                self.display_scroll = self.scroll * self.display_to_window_ratio
+            # Zoom
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
+                self.zoom += 0.1
+                self.zoom = min(self.zoom, ZOOM_BOUNDS[1])
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
+                self.zoom -= 0.1
+                self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
+
     def run_k_steps(self, steps, quit=True):
         human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
+        if self.insert_robot: robot_poses = np.empty((steps,3), dtype=np.float64)
         for step in range(steps):
             self.update()
             if not self.headless: self.render_sim()
             human_states[step] = self.motion_model_manager.get_human_states()
+            if self.insert_robot: robot_poses[step] = self.robot.get_pose()
         if not self.headless and quit: pygame.quit(); self.pygame_init = False
-        return human_states
+        if not self.insert_robot: return human_states
+        else: return human_states, robot_poses
 
     def run_single_test(self, n_updates):
         start_time = round_time((pygame.time.get_ticks() / 1000))
@@ -527,25 +570,28 @@ class SocialNavSim:
         for i in range(len(self.humans)):
             ax.plot(human_states[:,i,0],human_states[:,i,1])
 
-    def set_robot_policy(self, model_dir:str, model='rl', policy_name='cadrl'):
+    def set_robot_policy(self, model_dir=None, il=False, policy_name='sfm_helbing'):
         # Set policy
-        if model == 'rl': model_weights = os.path.join(model_dir, 'rl_model.pth')
-        elif model == 'il': model_weights = os.path.join(model_dir, 'il_model.pth')
-        else: raise NotImplementedError
         policy = policy_factory[policy_name]()
-        policy_config_file = os.path.join(model_dir, os.path.basename('policy.config'))
-        policy_config = configparser.RawConfigParser()
-        policy_config.read(policy_config_file)
-        policy.configure(policy_config)
+        if model_dir is not None:
+            if not il: model_weights = os.path.join(model_dir, 'rl_model.pth')
+            else: model_weights = os.path.join(model_dir, 'il_model.pth')
+            policy_config_file = os.path.join(model_dir, os.path.basename('policy.config'))
+            policy_config = configparser.RawConfigParser()
+            policy_config.read(policy_config_file)
+            policy.configure(policy_config)
         if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights))
         policy.set_phase('test')
         policy.set_device('cpu')
         policy.set_env(self)
         # Configure robot
-        env_config_file = os.path.join(model_dir, os.path.basename('env.config'))
-        env_config = configparser.RawConfigParser()
-        env_config.read(env_config_file)
-        self.robot.configure(env_config, 'robot')
+        if model_dir is not None:
+            env_config_file = os.path.join(model_dir, os.path.basename('env.config'))
+            env_config = configparser.RawConfigParser()
+            env_config.read(env_config_file)
+            self.robot.configure(env_config, 'robot')
+        else:
+            self.robot.desired_speed = 1
         self.robot.set_policy(policy)
         self.robot.policy.time_step = SAMPLING_TIME
         

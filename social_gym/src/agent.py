@@ -71,6 +71,14 @@ class Agent():
     
     def get_position(self):
         return self.position
+    
+    def get_pose(self):
+        pose = np.append(self.position, self.yaw)
+        return pose
+    
+    def set_pose(self, pose:np.array):
+        self.position = pose[0:2]
+        self.yaw = pose[2]
 
     def step(self, action, delta_t):
         """

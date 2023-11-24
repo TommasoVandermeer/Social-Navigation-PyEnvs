@@ -12,10 +12,16 @@ from custom_config.config_example import data
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
 social_nav = SocialNavSim([7,5,False,"sfm_guo",False,False,True,False,True],scenario="circular_crossing")
 
+## SIMULATION UTILS
+# Set robot motion model
+# social_nav.set_robot_policy(model_dir=os.path.join(os.path.dirname(__file__),'robot_model'), il=True, policy_name="cadrl")
+# social_nav.set_robot_policy(policy_name="sfm_guo")
+# Set sampling time (default is 1/60)
+# social_nav.set_time_step(0.05)
+
 ## SIMULATOR RUN
 # Infinite loop interactive live run (controlled speed)
 # Can be paused (SPACE), resetted (R), rewinded (Z) fast and speeded up (S), hide/show stats (H), origin view (O)
-# social_nav.set_robot_policy(os.path.join(os.path.dirname(__file__),'robot_model'), model='il') # Set robot motion model
 social_nav.run_live()
 # Run only k steps at max speed
 # social_nav.run_k_steps(1000)
@@ -26,6 +32,9 @@ social_nav.run_live()
 # social_nav.run_complete_rk45_simulation(final_time=32, sampling_time=1/60, plot_sample_time=1.5)
 # Run integration test at max speed
 # social_nav.run_integration_test(final_time=30)
-# Run from previously computed states (controlled speed)
-# social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3)
+# Run from previously computed states (controlled speed) - RKF45 Only humans
+# social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
+# Run from previously computed states (controlled speed) - Euler both humans and robot
+# human_states, robot_poses = social_nav.run_k_steps(2000)
+# social_nav.run_from_precomputed_states(human_states, robot_poses=robot_poses)
