@@ -8,7 +8,7 @@ import gymnasium as gym
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from social_gym.src.robot_agent import RobotAgent
-# from crowd_sim.envs.policy.orca import ORCA
+from social_gym.policy.orca import ORCA
 
 
 def main():
@@ -76,14 +76,14 @@ def main():
     policy.set_phase(args.phase)
     policy.set_device(device)
     # set safety space for ORCA in non-cooperative simulation
-    # if isinstance(robot.policy, ORCA):
-    #     if robot.visible:
-    #         robot.policy.safety_space = 0
-    #     else:
-    #         # because invisible case breaks the reciprocal assumption
-    #         # adding some safety space improves ORCA performance. Tune this value based on your need.
-    #         robot.policy.safety_space = 0
-    #     logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
+    if isinstance(robot.policy, ORCA):
+        if robot.visible:
+            robot.policy.safety_space = 0
+        else:
+            # because invisible case breaks the reciprocal assumption
+            # adding some safety space improves ORCA performance. Tune this value based on your need.
+            robot.policy.safety_space = 0
+        logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
 
     policy.set_env(env)
     robot.print_info()

@@ -580,7 +580,7 @@ class SocialNavSim:
             policy_config = configparser.RawConfigParser()
             policy_config.read(policy_config_file)
             policy.configure(policy_config)
-        if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights))
+        if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights, map_location=torch.device('cpu')))
         policy.set_phase('test')
         policy.set_device('cpu')
         policy.set_env(self)

@@ -10,14 +10,14 @@ from custom_config.config_example import data
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-social_nav = SocialNavSim([7,5,False,"hsfm_new_moussaid",False,False,True,False,True],scenario="circular_crossing")
+social_nav = SocialNavSim([4,10,False,"sfm_guo",True,False,True,False,False],scenario="circular_crossing")
 
 ## SIMULATION UTILS
 # Set robot motion model
-# social_nav.set_robot_policy(model_dir=os.path.join(os.path.dirname(__file__),'robot_model'), il=True, policy_name="cadrl")
-social_nav.set_robot_policy(policy_name="orca")
+social_nav.set_robot_policy(model_dir=os.path.join(os.path.dirname(__file__),'robot_models/Cadrl_on_sfm_guo'), il=False, policy_name="cadrl")
+# social_nav.set_robot_policy(policy_name="orca")
 # Set sampling time (default is 1/60)
-# social_nav.set_time_step(0.05)
+social_nav.set_time_step(0.25)
 
 ## SIMULATOR RUN
 # Infinite loop interactive live run (controlled speed)
@@ -36,5 +36,5 @@ social_nav.set_robot_policy(policy_name="orca")
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
 # Run from previously computed states (controlled speed) - Euler both humans and robot
-human_states, robot_poses = social_nav.run_k_steps(2000)
+human_states, robot_poses = social_nav.run_k_steps(250)
 social_nav.run_from_precomputed_states(human_states, robot_poses=robot_poses)
