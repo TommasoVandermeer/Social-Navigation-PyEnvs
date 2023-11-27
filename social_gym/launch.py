@@ -3,6 +3,9 @@ from social_gym.social_nav_sim import SocialNavSim
 from custom_config.config_example import data
 # from custom_config.config_corridor import data
 
+STEP_TIME = 0.033
+SIMULATION_SECONDS = 25
+
 # Motion models: sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
 # hsfm_new, hsfm_new_guo, hsfm_new_moussaid
 
@@ -10,19 +13,20 @@ from custom_config.config_example import data
 # Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-social_nav = SocialNavSim([4,10,False,"sfm_guo",True,False,True,False,False],scenario="circular_crossing")
+social_nav = SocialNavSim([4,5,False,"sfm_guo",False,False,True,False,True],scenario="circular_crossing")
 
 ## SIMULATION UTILS
-# Set robot motion model
-social_nav.set_robot_policy(model_dir=os.path.join(os.path.dirname(__file__),'robot_models/Cadrl_on_sfm_guo'), il=False, policy_name="cadrl")
+# Set robot policy - trainable policy
+# social_nav.set_robot_policy(model_dir=os.path.join(os.path.dirname(__file__),'robot_models/Sarl_on_sfm_guo'), il=False, policy_name="sarl")
+# Set robot policy - non trainable policy
 # social_nav.set_robot_policy(policy_name="orca")
 # Set sampling time (default is 1/60)
-social_nav.set_time_step(0.25)
+social_nav.set_time_step(STEP_TIME)
 
 ## SIMULATOR RUN
 # Infinite loop interactive live run (controlled speed)
 # Can be paused (SPACE), resetted (R), rewinded (Z) fast and speeded up (S), hide/show stats (H), origin view (O)
-# social_nav.run_live()
+social_nav.run_live()
 # Run only k steps at max speed
 # social_nav.run_k_steps(1000)
 # Run multiple models test at max speed
@@ -36,5 +40,5 @@ social_nav.set_time_step(0.25)
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
 # Run from previously computed states (controlled speed) - Euler both humans and robot
-human_states, robot_poses = social_nav.run_k_steps(250)
-social_nav.run_from_precomputed_states(human_states, robot_poses=robot_poses)
+# human_states, robot_poses = social_nav.run_k_steps(int(SIMULATION_SECONDS/STEP_TIME))
+# social_nav.run_from_precomputed_states(human_states, robot_poses=robot_poses)

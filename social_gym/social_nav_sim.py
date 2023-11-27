@@ -76,8 +76,9 @@ class SocialNavSim:
         global SAMPLING_TIME, MAX_FPS
         SAMPLING_TIME = time_step
         MAX_FPS = 1 / SAMPLING_TIME
-        self.robot.time_step = time_step
-        self.robot.policy.time_step = time_step
+        if self.robot.policy is not None:
+            self.robot.time_step = time_step
+            self.robot.policy.time_step = time_step
 
     def reset_sim(self, restart_gui=False, reset_robot=True):
         if not self.pygame_init: pygame.init(); self.pygame_init = True

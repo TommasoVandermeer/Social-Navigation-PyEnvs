@@ -3,6 +3,7 @@ from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.action import ActionXY, ActionRot
 from scipy.integrate import solve_ivp
+import rvo2
 import numpy as np
 
 GOAL_RADIUS = 0.35
@@ -31,6 +32,8 @@ class MotionModelManager:
         self.humans = humans
         self.robot = robot
         self.walls = walls
+        self.orca = False
+        if (runge_kutta == True or len(walls)>0) and motion_model_title=="orca": raise NotImplementedError
         self.set_motion_model(motion_model_title)
 
     def set_motion_model(self, motion_model_title:str):
@@ -46,8 +49,18 @@ class MotionModelManager:
         elif self.motion_model_title == "hsfm_new": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
         elif self.motion_model_title == "hsfm_new_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
         elif self.motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
+        elif self.motion_model_title == "orca": 
+            self.orca = True; self.headed = False; self.include_mass = False
+            self.sim = rvo2.PyRVOSimulator(1/60, 1.5, 5, 1.5, 2, 0.3, 0.9)
+            self.agents = []
+            for i, agent in enumerate(self.humans):
+                # Adding agents to the simulator: parameters ((poistion_x, position_y), agents_neighbor_dist, agents_max_neighbors, safety_time_horizon, safety_time_horizon_obstacles, agents_radius, agent_max_speed, (velocity_x, velocity_y))
+                self.agents.append(self.sim.addAgent((agent.position[0], agent.position[1]), 1.5, 5, 1.5, 2, agent.radius, agent.desired_speed, (agent.linear_velocity[0], agent.linear_velocity[1])))
+                self.update_goals_orca(i)
+            if self.consider_robot: self.agents.append(self.sim.addAgent((self.robot.position[0], self.robot.position[1])))
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
-        for human in self.humans: human.set_parameters(motion_model_title)
+        if self.motion_model_title != "orca": 
+            for human in self.humans: human.set_parameters(motion_model_title)
 
     def get_human_states(self, include_goal=True, headed=False):
         if include_goal:
@@ -114,13 +127,33 @@ class MotionModelManager:
             agent.goals.remove(goal)
             agent.goals.append(goal)
 
+    def update_goals_orca(self, agent_idx:int):
+        self.update_goals(self.humans[agent_idx])
+        goal_position = np.array(self.humans[agent_idx].goals[0], dtype=np.float64)
+        agent_pref_speed = ((goal_position - self.humans[agent_idx].position) / np.linalg.norm(goal_position - self.humans[agent_idx].position)) * self.humans[agent_idx].desired_speed
+        self.sim.setAgentPrefVelocity(self.agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
+
     def bound_velocity(self, velocity:np.array, desired_speed:float):
         if (np.linalg.norm(velocity) > desired_speed): velocity = (velocity / np.linalg.norm(velocity)) * desired_speed
         return velocity
 
     def update(self, t:float, dt:float):
-        if not self.runge_kutta: self.update_positions_euler(dt)
-        else: self.update_positions_rk45(t,dt)
+        if not self.orca: # SFM
+            if not self.runge_kutta: self.update_positions_euler(dt)
+            else: self.update_positions_rk45(t,dt)
+        else: # ORCA
+            self.sim.setTimeStep(dt)
+            self.sim.doStep()
+            for i, agent in enumerate(self.agents):
+                if self.consider_robot and i == len(self.humans): break
+                self.humans[i].linear_velocity[0] = self.sim.getAgentVelocity(agent)[0]
+                self.humans[i].linear_velocity[1] = self.sim.getAgentVelocity(agent)[1]
+                self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
+                self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
+                self.update_goals_orca(i)
+            if self.consider_robot: 
+                self.sim.setAgentPosition(self.agents[len(self.humans)], (self.robot.position[0], self.robot.position[1]))
+                self.sim.setAgentVelocity(self.agents[len(self.humans)], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
 
     def compute_rotational_matrix(self, agent:HumanAgent):
         agent.rotational_matrix = np.array([[np.cos(agent.yaw), -np.sin(agent.yaw)],[np.sin(agent.yaw), np.cos(agent.yaw)]], dtype=np.float64)
