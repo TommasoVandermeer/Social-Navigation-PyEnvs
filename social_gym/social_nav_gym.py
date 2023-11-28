@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
-HEADLESS = True
+HEADLESS = False
 
 class SocialNavGym(gym.Env, SocialNavSim):
     def __init__(self):
@@ -119,13 +119,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"sfm_guo",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"orca",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.train_val_sim == 'square_crossing':
                         raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,"sfm_guo",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,"orca",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
                     elif self.test_sim == 'square_crossing':
                         raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
