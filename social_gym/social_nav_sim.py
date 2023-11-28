@@ -204,9 +204,9 @@ class SocialNavSim:
                 robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": 0.25, "goals": [[center[0], center[1]+radius]]}
                 angle = (2 * math.pi) / (n_actors + 1)
                 for i in range(n_actors):
-                    center_pos = [radius * math.cos(-math.pi/2 + angle * i+1), radius * math.sin(-math.pi/2 + angle * i+1)]
+                    center_pos = [radius * math.cos(-(math.pi/2) + angle * (i+1)), radius * math.sin(-(math.pi/2) + angle * (i+1))]
                     humans[i] = {"pos": [center[0] + center_pos[0], center[1] + center_pos[1]],
-                                "yaw": bound_angle(math.pi/2 + angle * i+1),
+                                "yaw": bound_angle((math.pi/2) + angle * (i+1)),
                                 "goals": [[center[0] - center_pos[0], center[1] - center_pos[1]], [center[0] + center_pos[0], center[1] + center_pos[1]]],
                                 "des_speed": humans_des_speed[i],
                                 "radius": humans_radius[i]}
@@ -321,29 +321,40 @@ class SocialNavSim:
             action = self.robot.act(ob)
             self.robot.step(action, SAMPLING_TIME)
 
-    def rewind_human_state(self, self_states=True, human_states=None, robot_poses=None):
+    def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
             if len(self.human_states) > 0:
                 self.n_updates -= 1
                 state = self.human_states[self.n_updates]
                 self.motion_model_manager.set_human_states(state)
                 self.human_states = self.human_states[:-1]
+                if self.insert_robot: 
+                    self.motion_model_manager.set_robot_state(self.robot_states[self.n_updates])
+                    self.robot_states = self.robot_states[:-1]
         else:
             if self.n_updates > 0:
                 self.n_updates -= 1
                 if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
                 self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
 
+    def save_simulation_states(self):
+        if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
+        else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
+        if self.insert_robot and self.robot.headed: self.robot_states = np.append(self.robot_states, [self.motion_model_manager.get_robot_state(headed=True)], axis=0)
+        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.append(self.robot_states, [self.motion_model_manager.get_robot_state(headed=False)], axis=0)
+        else: pass
+
     def run_live(self):
         self.active = True
         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
+        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=np.float64)
+        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=np.float64)
         while self.active:
             if not self.paused:
                 self.update()
                 if not self.headless: self.render_sim()
-                if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
-                else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
+                self.save_simulation_states()
             else:
                 if not self.headless: 
                     self.render_sim()
@@ -351,7 +362,7 @@ class SocialNavSim:
                     if pygame.key.get_pressed()[pygame.K_z]: 
                         r_is_pressed = True
                         while r_is_pressed:
-                            self.rewind_human_state()
+                            self.rewind_states()
                             self.render_sim()
                             pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
                     # Reset
@@ -366,8 +377,7 @@ class SocialNavSim:
                         while s_is_pressed:
                             self.update()
                             self.render_sim()
-                            if self.motion_model_manager.headed: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= True)], axis=0)
-                            else: self.human_states = np.append(self.human_states, [self.motion_model_manager.get_human_states(include_goal=True, headed= False)], axis=0)
+                            self.save_simulation_states()
                             pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
                         self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)
             self.event_handling()
@@ -392,7 +402,7 @@ class SocialNavSim:
                 if pygame.key.get_pressed()[pygame.K_z]: 
                     r_is_pressed = True
                     while r_is_pressed:
-                        self.rewind_human_state(self_states=False, human_states=human_states, robot_poses=robot_poses)
+                        self.rewind_states(self_states=False, human_states=human_states, robot_poses=robot_poses)
                         self.render_sim()
                         pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
                 # Reset
@@ -573,6 +583,8 @@ class SocialNavSim:
 
     def set_robot_policy(self, model_dir=None, il=False, policy_name='sfm_helbing'):
         # Set policy
+        if "hsfm" in policy_name: self.robot.headed = True
+        if policy_name == "orca": self.robot.orca = True
         policy = policy_factory[policy_name]()
         if model_dir is not None:
             if not il: model_weights = os.path.join(model_dir, 'rl_model.pth')

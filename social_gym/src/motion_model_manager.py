@@ -1,6 +1,7 @@
 from social_gym.src.utils import bound_angle
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
+from social_gym.src.agent import Agent
 from social_gym.src.action import ActionXY, ActionRot
 from scipy.integrate import solve_ivp
 import rvo2
@@ -33,7 +34,7 @@ class MotionModelManager:
         self.robot = robot
         self.walls = walls
         self.orca = False
-        if (runge_kutta == True or len(walls)>0) and motion_model_title=="orca": raise NotImplementedError
+        if runge_kutta and motion_model_title=="orca": raise NotImplementedError
         self.set_motion_model(motion_model_title)
 
     def set_motion_model(self, motion_model_title:str):
@@ -58,6 +59,9 @@ class MotionModelManager:
                 self.agents.append(self.sim.addAgent((agent.position[0], agent.position[1]), 1.5, 5, 1.5, 2, agent.radius, agent.desired_speed, (agent.linear_velocity[0], agent.linear_velocity[1])))
                 self.update_goals_orca(i)
             if self.consider_robot: self.agents.append(self.sim.addAgent((self.robot.position[0], self.robot.position[1])))
+            for wall in self.walls:
+                self.sim.addObstacle(list(wall.vertices))
+            self.sim.processObstacles()
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if self.motion_model_title != "orca": 
             for human in self.humans: human.set_parameters(motion_model_title)
@@ -91,6 +95,15 @@ class MotionModelManager:
                     state[i] = human_state
         return state
 
+    def get_robot_state(self, headed=False):
+        if headed:
+            # State: [x, y, yaw, BVx, BVy, Omega, Gx, Gy] - Pose (x,y,yaw), Body velocity (body_linear_x,body_linear_y,angular), and Goal (goal_x, goal_y)
+            state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.body_velocity[0],self.robot.body_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=np.float64)
+        else:
+            # State: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] - Pose (x,y,yaw), Velocity (linear_x,linear_y,angular), and Goal (goal_x, goal_y)
+            state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.linear_velocity[0],self.robot.linear_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=np.float64)
+        return state
+
     def set_human_states(self, state:np.array, just_visual=False):
         if not just_visual:
             # State must be of the form: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] or [x, y, yaw, BVx, BVy, Omega, Gx, Gy]
@@ -106,6 +119,7 @@ class MotionModelManager:
                     self.humans[i].linear_velocity[1] = state[i,4]
                 self.humans[i].angular_velocity = state[i,5]
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
+                if self.orca: self.set_state_orca(i)
         else:
             # We only care about position and yaw [x, y, yaw], state can be of any form
             for i in range(len(self.humans)):
@@ -114,14 +128,37 @@ class MotionModelManager:
                 self.humans[i].yaw = state[i,2]
                 self.humans[i].update()
 
-    def rewind_goals(self, agent:HumanAgent, goal:list):
+    def set_robot_state(self, state:np.array):
+        self.robot.position[0] = state[0]
+        self.robot.position[1] = state[1]
+        self.robot.yaw = state[2]
+        if not self.robot.headed:
+            self.robot.linear_velocity[0] = state[3]
+            self.robot.linear_velocity[1] = state[4]
+        else:
+            self.robot.body_velocity[0] = state[3]
+            self.robot.body_velocity[1] = state[4]
+        self.robot.angular_velocity = state[5]
+        self.rewind_goals(self.robot, [state[6],state[7]])
+        if self.robot.orca: self.set_state_orca(len(self.humans))
+
+    def set_state_orca(self, agent_idx:int):
+        if agent_idx < len(self.humans):
+            self.sim.setAgentPosition(self.agents[agent_idx], (self.humans[agent_idx].position[0], self.humans[agent_idx].position[1]))
+            self.sim.setAgentVelocity(self.agents[agent_idx], (self.humans[agent_idx].linear_velocity[0], self.humans[agent_idx].linear_velocity[1]))
+            self.update_goals_orca(agent_idx)
+        else:
+            self.sim.setAgentPosition(self.agents[agent_idx], (self.robot.position[0], self.robot.position[1]))
+            self.sim.setAgentVelocity(self.agents[agent_idx], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
+
+    def rewind_goals(self, agent:Agent, goal:list):
         if ((agent.goals) and (agent.goals[0] != goal)):
             while agent.goals[0] != goal:
                 goal_back = agent.goals[0]
                 agent.goals.remove(goal_back)
                 agent.goals.append(goal_back)
     
-    def update_goals(self, agent:HumanAgent):
+    def update_goals(self, agent:Agent):
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < GOAL_RADIUS)):
             goal = agent.goals[0]
             agent.goals.remove(goal)
@@ -145,15 +182,12 @@ class MotionModelManager:
             self.sim.setTimeStep(dt)
             self.sim.doStep()
             for i, agent in enumerate(self.agents):
-                if self.consider_robot and i == len(self.humans): break
+                if i == len(self.humans): self.set_state_orca(i); continue # Robot
                 self.humans[i].linear_velocity[0] = self.sim.getAgentVelocity(agent)[0]
                 self.humans[i].linear_velocity[1] = self.sim.getAgentVelocity(agent)[1]
                 self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
                 self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
                 self.update_goals_orca(i)
-            if self.consider_robot: 
-                self.sim.setAgentPosition(self.agents[len(self.humans)], (self.robot.position[0], self.robot.position[1]))
-                self.sim.setAgentVelocity(self.agents[len(self.humans)], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
 
     def compute_rotational_matrix(self, agent:HumanAgent):
         agent.rotational_matrix = np.array([[np.cos(agent.yaw), -np.sin(agent.yaw)],[np.sin(agent.yaw), np.cos(agent.yaw)]], dtype=np.float64)
