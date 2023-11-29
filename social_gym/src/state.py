@@ -18,9 +18,18 @@ class FullState(object):
         return other + (self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta)
 
     def __str__(self):
-        return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy,
-                                          self.v_pref, self.theta]])
+        return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta]])
+    
+class FullStateHeaded(FullState): # Added for HSFM
+    def __init__(self, px, py, vx, vy, radius, gx, gy, v_pref, theta, w):
+        super().__init__(px, py, vx, vy, radius, gx, gy, v_pref, theta) # velocity refers to BODY_VELOCITY
+        self.w = w # Angular velocity
 
+    def __add__(self, other):
+        return other + (self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta, self.w)
+
+    def __str__(self):
+        return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta, self.w]])
 
 class ObservableState(object):
     def __init__(self, px, py, vx, vy, radius):
@@ -39,10 +48,9 @@ class ObservableState(object):
     def __str__(self):
         return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius]])
 
-
 class JointState(object):
     def __init__(self, self_state, human_states):
-        assert isinstance(self_state, FullState)
+        assert isinstance(self_state, (FullState, FullStateHeaded))
         for human_state in human_states:
             assert isinstance(human_state, ObservableState)
 

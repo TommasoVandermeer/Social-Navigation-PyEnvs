@@ -2,7 +2,7 @@ from social_gym.src.utils import bound_angle
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
-from social_gym.src.action import ActionXY, ActionRot
+from social_gym.src.action import ActionXY, ActionXYW
 from scipy.integrate import solve_ivp
 import rvo2
 import numpy as np
@@ -341,28 +341,31 @@ class MotionModelManager:
         actions = []
         if not self.orca:
             self.compute_forces()
-            if not self.headed: # SFM
+            # SFM - holonomic kinematics
+            if not self.headed: 
                 for agent in self.humans:
                     linear_velocity = agent.linear_velocity.copy()
                     if self.include_mass: linear_velocity += (agent.global_force / agent.mass) * dt
                     else: linear_velocity += agent.global_force * dt
                     linear_velocity = self.bound_velocity(linear_velocity, agent.desired_speed)
                     actions.append(ActionXY(linear_velocity[0], linear_velocity[1]))
-            else: # HSFM
-                raise NotImplementedError
-                # for agent in self.humans:
-                #     body_velocity = agent.body_velocity.copy()
-                #     angular_velocity = agent.angular_velocity
-                #     body_velocity += (agent.global_force / agent.mass) * dt
-                #     angular_velocity += (agent.torque_force / agent.inertia) * dt
-                #     body_velocity = self.bound_velocity(body_velocity, agent.desired_speed)
-                #     actions.append()
-        else: # ORCA
-            for i in range(len(self.humans)): self.update_goals_orca(i)
+            else:
+            # HSFM - holonomic3 kinematics
+                for agent in self.humans:
+                    body_velocity = agent.body_velocity.copy()
+                    angular_velocity = agent.angular_velocity
+                    body_velocity += (agent.global_force / agent.mass) * dt
+                    angular_velocity += (agent.torque_force / agent.inertia) * dt
+                    body_velocity = self.bound_velocity(body_velocity, agent.desired_speed)
+                    actions.append(ActionXYW(body_velocity[0], body_velocity[1], angular_velocity))
+        else:
+            # ORCA - holonomic kinematics
+            for i, human in enumerate(self.humans):
+                self.sim.setAgentVelocity(self.agents[i], (human.linear_velocity[0], human.linear_velocity[1])) # Set current velocity
+                self.sim.setAgentPosition(self.agents[i], (human.position[0], human.position[1])) # Set current position
+                self.update_goals_orca(i)
             self.sim.setTimeStep(dt)
             self.sim.doStep()
             for i, human in enumerate(self.humans):
                 actions.append(ActionXY(*self.sim.getAgentVelocity(self.agents[i]))) # Get the action predicted
-                self.sim.setAgentVelocity(self.agents[i], (human.linear_velocity[0], human.linear_velocity[1])) # Set previous velocity
-                self.sim.setAgentPosition(self.agents[i], (human.position[0], human.position[1])) # Set previous position
         return actions

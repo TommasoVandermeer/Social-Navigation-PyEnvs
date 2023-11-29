@@ -21,7 +21,7 @@ MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
 N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
-                 "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
+                 "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
 ZOOM_BOUNDS = [0.5, 2]
 SCROLL_BOUNDS = [-500,500]
@@ -168,7 +168,7 @@ class SocialNavSim:
         self.updates_time = 0.0
         self.previous_updates_time = 0.0
 
-    def generate_circular_crossing_setting(self, config_data:list):
+    def generate_circular_crossing_setting(self, config_data:list, robot_radius=None):
         radius = config_data[0]
         n_actors = config_data[1]
         rand = config_data[2]
@@ -178,6 +178,8 @@ class SocialNavSim:
         insert_robot = config_data[6]
         randomize_human_attributes = config_data[7]
         robot_visible = config_data[8]
+        if robot_radius is not None: robot_r = 0.3 
+        else: robot_r = 0.25
         center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
         humans = {}
         humans_des_speed = []
@@ -201,7 +203,7 @@ class SocialNavSim:
                                 "des_speed": humans_des_speed[i],
                                 "radius": humans_radius[i]}
             else:
-                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": 0.25, "goals": [[center[0], center[1]+radius]]}
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius]]}
                 angle = (2 * math.pi) / (n_actors + 1)
                 for i in range(n_actors):
                     center_pos = [radius * math.cos(-(math.pi/2) + angle * (i+1)), radius * math.sin(-(math.pi/2) + angle * (i+1))]
@@ -235,7 +237,7 @@ class SocialNavSim:
                                         "radius": humans_radius[i]}
                             break
             else:
-                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": 0.25, "goals": [[center[0], center[1]+radius]]}
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius]]}
                 for i in range(n_actors):
                     while True:
                         angle = np.random.random() * np.pi * 2
@@ -251,7 +253,7 @@ class SocialNavSim:
                                 break
                         robot_pos = np.array([center[0], center[1]-radius], dtype=np.float64)
                         robot_goal = np.array([center[0], center[1]+radius], dtype=np.float64)
-                        if np.linalg.norm(pos - robot_pos) < humans_radius[i] + 0.25 + 0.2 or np.linalg.norm(pos - robot_goal) < humans_radius[i] + 0.25 + 0.2:
+                        if np.linalg.norm(pos - robot_pos) < humans_radius[i] + robot_r + 0.2 or np.linalg.norm(pos - robot_goal) < humans_radius[i] + robot_r + 0.2:
                             collide = True
                         if not collide: 
                             humans_pos.append([pos[0], pos[1]])
@@ -603,6 +605,11 @@ class SocialNavSim:
             env_config = configparser.RawConfigParser()
             env_config.read(env_config_file)
             self.robot.configure(env_config, 'robot')
+            self.time_limit = env_config.getint('env', 'time_limit')
+            self.success_reward = env_config.getfloat('reward', 'success_reward')
+            self.collision_penalty = env_config.getfloat('reward', 'collision_penalty')
+            self.discomfort_dist = env_config.getfloat('reward', 'discomfort_dist')
+            self.discomfort_penalty_factor = env_config.getfloat('reward', 'discomfort_penalty_factor')
         else:
             self.robot.desired_speed = 1
         self.robot.set_policy(policy)
@@ -638,10 +645,10 @@ class SocialNavSim:
         reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
 
         # Compute Reward, truncated, terminated, and info
-        if self.sim_t >= 24: reward = 0
-        elif collision: reward = -0.25
-        elif reaching_goal: reward = 1
-        elif dmin < 0.2: reward = (dmin - 0.2) * 0.5 * SAMPLING_TIME # adjust the reward based on FPS
+        if self.sim_t >= self.time_limit-1: reward = 0
+        elif collision: reward = self.collision_penalty
+        elif reaching_goal: reward = self.success_reward
+        elif dmin < 0.2: reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * SAMPLING_TIME # adjust the reward based on FPS
         else: reward = 0
 
         # State computation

@@ -1,9 +1,10 @@
 import numpy as np
 import math
-from social_gym.src.state import ObservableState, FullState
+from typing import Union
+from social_gym.src.state import ObservableState, FullState, FullStateHeaded
 from social_gym.src.utils import bound_angle
 
-def compute_desired_force(params:dict, state:FullState):
+def compute_desired_force(params:dict, state:Union[FullState,FullStateHeaded]):
     goal_position = np.array([state.gx, state.gy], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
     agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
@@ -15,7 +16,7 @@ def compute_desired_force(params:dict, state:FullState):
     else: desired_direction = np.array([0.0,0.0], dtype=np.float64); desired_force = np.array([0.0,0.0], dtype=np.float64)
     return desired_direction, desired_force
 
-def compute_social_force_helbing(params:dict, state:FullState, agents_state:list[ObservableState]):
+def compute_social_force_helbing(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
     agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
@@ -31,7 +32,7 @@ def compute_social_force_helbing(params:dict, state:FullState, agents_state:list
         social_force += (params['Ai'] * math.exp(real_distance / params['Bi']) + params['k1'] * max(0, real_distance)) * n_ij + params['k2'] * max(0, real_distance) * delta_v_ij * t_ij
     return social_force
 
-def compute_social_force_guo(params:dict, state:FullState, agents_state:list[ObservableState]):
+def compute_social_force_guo(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
     agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
@@ -50,7 +51,7 @@ def compute_social_force_guo(params:dict, state:FullState, agents_state:list[Obs
         # social_force += (params['Ai'] * math.exp(real_distance / params['Bi'])) * n_ij + (params['Ci'] * math.exp(real_distance / params['Di'])) * t_ij
     return social_force
 
-def compute_social_force_moussaid(params:dict, state:FullState, agents_state:list[ObservableState]):
+def compute_social_force_moussaid(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
     agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
@@ -78,3 +79,10 @@ def compute_social_force_moussaid(params:dict, state:FullState, agents_state:lis
         ## MOUSSAID no compression and friction
         # social_force -= params['Ei'] * math.exp(-distance/F_ij) * (math.exp(-(params['ns1'] * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(params['ns'] * F_ij * theta_ij)**2) * h_ij)
     return social_force
+
+def compute_torque_force_farina(params:dict, state:FullStateHeaded, inertia:float, desired_force:np.array):
+    desired_force_norm = np.linalg.norm(desired_force)
+    params['k_theta'] = inertia * params['k_lambda'] * desired_force_norm
+    params['k_omega'] = inertia * (1 + params['alpha']) * math.sqrt((params['k_lambda'] * desired_force_norm) / params['alpha'])
+    torque_force = - params['k_theta'] * bound_angle(state.theta - math.atan2(desired_force[1],desired_force[0])) - params['k_omega'] * state.w
+    return torque_force

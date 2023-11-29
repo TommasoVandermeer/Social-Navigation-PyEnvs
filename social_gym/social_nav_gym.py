@@ -6,6 +6,8 @@ from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
 HEADLESS = False
+HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
+                 "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
 class SocialNavGym(gym.Env, SocialNavSim):
     def __init__(self):
@@ -69,7 +71,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.collision_penalty = config.getfloat('reward', 'collision_penalty')
         self.discomfort_dist = config.getfloat('reward', 'discomfort_dist')
         self.discomfort_penalty_factor = config.getfloat('reward', 'discomfort_penalty_factor')
-        if self.config.get('humans', 'policy') == 'orca':
+        self.human_policy = config.get('humans', 'policy')
+        self.robot_radius = config.getfloat('robot', 'radius')
+        if self.human_policy in HUMAN_MODELS:
             self.case_capacity = {'train': np.iinfo(np.uint32).max - 2000, 'val': 1000, 'test': 1000}
             self.case_size = {'train': np.iinfo(np.uint32).max - 2000, 'val': config.getint('env', 'val_size'),
                               'test': config.getint('env', 'test_size')}
@@ -78,20 +82,23 @@ class SocialNavGym(gym.Env, SocialNavSim):
             self.square_width = config.getfloat('sim', 'square_width')
             self.circle_radius = config.getfloat('sim', 'circle_radius')
             self.human_num = config.getint('sim', 'human_num')
-        else:
-            raise NotImplementedError
+        else: raise NotImplementedError
         self.case_counter = {'train': 0, 'test': 0, 'val': 0}
 
         logging.info('human number: {}'.format(self.human_num))
-        if self.randomize_attributes:
-            logging.info("Randomize human's radius and preferred speed")
-        else:
-            logging.info("Not randomize human's radius and preferred speed")
+        logging.info('Human policy: {}'.format(self.human_policy))
+        if self.randomize_attributes: logging.info("Randomize human's radius and preferred speed")
+        else: logging.info("Not randomize human's radius and preferred speed")
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_sim, self.test_sim))
         logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
 
     def set_robot(self, robot):
         self.robot = robot
+
+    def compute_humans_observable_state(self):
+        if self.robot.sensor == 'coordinates': ob = [human.get_observable_state() for human in self.humans]
+        elif self.robot.sensor == 'RGB': raise NotImplementedError
+        return ob
 
     def reset(self, phase='test', test_case=None):
         """
@@ -119,13 +126,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,"orca",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.train_val_sim == 'square_crossing':
                         raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,"orca",HEADLESS,False,True,self.randomize_attributes,self.robot.visible])
+                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.test_sim == 'square_crossing':
                         raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
@@ -149,15 +156,10 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.set_time_step(self.time_step)
         # Initialize some variables used later
         self.states = list()
-        if hasattr(self.robot.policy, 'action_values'):
-            self.action_values = list()
-        if hasattr(self.robot.policy, 'get_attention_weights'):
-            self.attention_weights = list()
+        if hasattr(self.robot.policy, 'action_values'): self.action_values = list()
+        if hasattr(self.robot.policy, 'get_attention_weights'): self.attention_weights = list()
         # Get current observation and info
-        if self.robot.sensor == 'coordinates':
-            ob = [human.get_observable_state() for human in self.humans]
-        elif self.robot.sensor == 'RGB':
-            raise NotImplementedError
+        ob = self.compute_humans_observable_state()
         info = Nothing()
         
         return ob, {0: info}
@@ -175,12 +177,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
         collision = False
         for i, human in enumerate(self.humans):
             difference = human.position - self.robot.position
-            if self.robot.kinematics == 'holonomic':
-                robot_velocity = np.array([action.vx, action.vy])
-                velocity_difference = human.linear_velocity - robot_velocity
-            else:
-                robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
-                velocity_difference = human.linear_velocity - robot_velocity
+            if self.robot.kinematics == 'holonomic': robot_velocity = np.array([action.vx, action.vy])
+            elif self.robot.kinematics == 'holonomic3':
+                robot_body_velocity = np.array([action.bvx, action.bvy])
+                rotational_matrix = np.array([[np.cos(self.robot.yaw), -np.sin(self.robot.yaw)],[np.sin(self.robot.yaw), np.cos(self.robot.yaw)]], dtype=np.float64)
+                robot_velocity = np.matmul(rotational_matrix, robot_body_velocity)
+            else: robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
+            velocity_difference = human.linear_velocity - robot_velocity
             e = difference + velocity_difference * self.time_step
             # closest distance between boundaries of two agents
             closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
@@ -188,8 +191,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
                 collision = True
                 # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
                 break
-            elif closest_dist < dmin:
-                dmin = closest_dist
+            elif closest_dist < dmin: dmin = closest_dist
 
         # Check if reaching the goal
         end_position = self.robot.compute_position(action, self.time_step)
@@ -225,10 +227,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if update:
             # Store state, action value and attention weights
             self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
-            if hasattr(self.robot.policy, 'action_values'):
-                self.action_values.append(self.robot.policy.action_values)
-            if hasattr(self.robot.policy, 'get_attention_weights'):
-                self.attention_weights.append(self.robot.policy.get_attention_weights())
+            if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)
+            if hasattr(self.robot.policy, 'get_attention_weights'): self.attention_weights.append(self.robot.policy.get_attention_weights())
 
             # Update all agents position
             self.robot.step(action, self.time_step)
@@ -237,16 +237,10 @@ class SocialNavGym(gym.Env, SocialNavSim):
             # removed saving of human_times if agent reaches goal for the first time
 
             # Compute observation
-            if self.robot.sensor == 'coordinates':
-                ob = [human.get_observable_state() for human in self.humans]
-            elif self.robot.sensor == 'RGB':
-                raise NotImplementedError
+            ob = self.compute_humans_observable_state()
         else:
             # Compute observation
-            if self.robot.sensor == 'coordinates':
-                ob = [human.get_observable_state() for human in self.humans]
-            elif self.robot.sensor == 'RGB':
-                raise NotImplementedError
+            ob = self.compute_humans_observable_state()
         return ob, reward, terminated, truncated, {0: info}
 
     def render(self):

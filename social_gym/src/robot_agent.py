@@ -16,9 +16,6 @@ class RobotAgent(Agent):
 
         self.goals = goals
 
-        self.headed = False
-        self.orca = False
-
         self.collisions = 0 # Unused
 
         pygame.draw.circle(self.image, (0,0,0), (display_radius + math.cos(0.0) * display_radius, display_radius - math.sin(0.0) * display_radius), display_radius / 3)

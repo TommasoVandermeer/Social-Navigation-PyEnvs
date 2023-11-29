@@ -92,10 +92,8 @@ class CADRL(Policy):
 
         action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
         for rotation, speed in itertools.product(rotations, speeds):
-            if holonomic:
-                action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
-            else:
-                action_space.append(ActionRot(speed, rotation))
+            if holonomic: action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
+            else: action_space.append(ActionRot(speed, rotation))
 
         self.speeds = speeds
         self.rotations = rotations
