@@ -105,18 +105,14 @@ class SocialNavGym(gym.Env, SocialNavSim):
         Set px, py, gx, gy, vx, vy, theta for robot and humans
         :return:
         """
-        if self.robot is None:
-            raise AttributeError('robot has to be set!')
+        if self.robot is None: raise AttributeError('robot has to be set!')
         assert phase in ['train', 'val', 'test']
-        if test_case is not None:
-            self.case_counter[phase] = test_case
+        if test_case is not None: self.case_counter[phase] = test_case
         self.global_time = 0
         if phase == 'test': self.human_times = [0] * self.human_num
         else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)
-        if not self.robot.policy.multiagent_training:
-            self.train_val_sim = 'circle_crossing'
-        if self.config.get('humans', 'policy') == 'trajnet':
-            raise NotImplementedError
+        if not self.robot.policy.multiagent_training: self.train_val_sim = 'circle_crossing'
+        if self.config.get('humans', 'policy') == 'trajnet': raise NotImplementedError
         else:
             counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],
                               'val': 0, 'test': self.case_capacity['val']}
@@ -127,14 +123,12 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
                         self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
-                    elif self.train_val_sim == 'square_crossing':
-                        raise NotImplementedError
+                    elif self.train_val_sim == 'square_crossing': raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
                         self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
-                    elif self.test_sim == 'square_crossing':
-                        raise NotImplementedError
+                    elif self.test_sim == 'square_crossing': raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
             else:
                 assert phase == 'test'
@@ -148,8 +142,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     data = {"headless": False, "motion_model": "sfm_helbing", "runge_kutta": False, "insert_robot": True,
                             "grid": True, "humans": humans, "walls": [[]], "robot": robot}
                     self.config_data = data
-                else:
-                    raise NotImplementedError      
+                else: raise NotImplementedError      
         # Set sampling time for the simulation and reset the simulator
         self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"])
         self.reset_sim(reset_robot=False)

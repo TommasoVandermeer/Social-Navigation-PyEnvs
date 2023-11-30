@@ -37,9 +37,7 @@ class HumanAgent(Agent):
         self.image = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)
         pygame.draw.circle(self.image, (255,255,255), (display_radius, display_radius), display_radius)
         pygame.draw.circle(self.image, self.color, (display_radius, display_radius), display_radius, int(0.05 * self.ratio))
-        if 'hsfm' in self.motion_model: 
-            pygame.draw.circle(self.image, (0,0,255), (display_radius + math.cos(0.0) * display_radius, display_radius - math.sin(0.0) * display_radius), display_radius / 3)
-            self.headed = True
+        if 'hsfm' in self.motion_model: pygame.draw.circle(self.image, (0,0,255), (display_radius + math.cos(0.0) * display_radius, display_radius - math.sin(0.0) * display_radius), display_radius / 3)
         self.original_image = self.image
 
         self.image = pygame.transform.rotate(self.original_image, math.degrees(self.yaw))

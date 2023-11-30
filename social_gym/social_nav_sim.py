@@ -308,6 +308,9 @@ class SocialNavSim:
         self.n_updates += 1
         if self.insert_robot: self.control_robot()
         self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
+        self.update_times()
+
+    def update_times(self):
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
         self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
@@ -394,9 +397,7 @@ class SocialNavSim:
                 if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
                 self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
                 self.n_updates += 1
-                self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
-                self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-                if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
+                self.update_times()
                 self.render_sim()
             else:
                 self.render_sim()
@@ -420,9 +421,7 @@ class SocialNavSim:
                         if robot_poses is not None: self.robot.set_pose(robot_poses[self.n_updates])
                         self.motion_model_manager.set_human_states(human_states[self.n_updates], just_visual=True)
                         self.n_updates += 1
-                        self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
-                        self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
-                        if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
+                        self.update_times()
                         self.render_sim()
                         pygame.event.get(); s_is_pressed = pygame.key.get_pressed()[pygame.K_s]
                     self.last_pause_start = round_time(pygame.time.get_ticks() / 1000)

@@ -115,10 +115,8 @@ def main():
         il_epochs = train_config.getint('imitation_learning', 'il_epochs')
         il_learning_rate = train_config.getfloat('imitation_learning', 'il_learning_rate')
         trainer.set_learning_rate(il_learning_rate)
-        if robot.visible:
-            safety_space = 0
-        else:
-            safety_space = train_config.getfloat('imitation_learning', 'safety_space')
+        if robot.visible: safety_space = 0
+        else: safety_space = train_config.getfloat('imitation_learning', 'safety_space')
         il_policy = policy_factory[il_policy]()
         il_policy.multiagent_training = policy.multiagent_training
         il_policy.safety_space = safety_space

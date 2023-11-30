@@ -134,19 +134,15 @@ class CADRL(Policy):
         thus the reward function is needed
 
         """
-        if self.phase is None or self.device is None:
-            raise AttributeError('Phase, device attributes have to be set!')
-        if self.phase == 'train' and self.epsilon is None:
-            raise AttributeError('Epsilon attribute has to be set in training phase')
+        if self.phase is None or self.device is None: raise AttributeError('Phase, device attributes have to be set!')
+        if self.phase == 'train' and self.epsilon is None: raise AttributeError('Epsilon attribute has to be set in training phase')
 
-        if self.reach_destination(state):
+        if self.reach_destination(state): 
             return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
-        if self.action_space is None:
-            self.build_action_space(state.self_state.v_pref)
+        if self.action_space is None: self.build_action_space(state.self_state.v_pref)
 
         probability = np.random.random()
-        if self.phase == 'train' and probability < self.epsilon:
-            max_action = self.action_space[np.random.choice(len(self.action_space))]
+        if self.phase == 'train' and probability < self.epsilon: max_action = self.action_space[np.random.choice(len(self.action_space))]
         else:
             self.action_values = list()
             max_min_value = float('-inf')
@@ -164,8 +160,7 @@ class CADRL(Policy):
                     max_min_value = min_value
                     max_action = action
 
-        if self.phase == 'train':
-            self.last_state = self.transform(state)
+        if self.phase == 'train': self.last_state = self.transform(state)
 
         return max_action
 

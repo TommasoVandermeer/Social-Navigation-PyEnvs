@@ -1,15 +1,15 @@
 import numpy as np
-from social_gym.policy.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
+from social_gym.policy.forces import compute_desired_force, compute_social_force_guo as compute_social_force, compute_torque_force
 from social_gym.policy.policy import Policy
 from social_gym.src.action import ActionXYW
 
-class HSFMFarina(Policy):
+class HSFMGuo(Policy):
     def __init__(self):
         """
-        The Headed Social Force Model defined by Farina.    
+        The Headed Social Force Model defined by Farina with a modification proposed by Guo.    
         """
         super().__init__()
-        self.name = 'hsfm_farina'
+        self.name = 'hsfm_guo'
         self.trainable = False
         self.multiagent_training = None
         self.kinematics = 'holonomic3'
@@ -18,6 +18,10 @@ class HSFMFarina(Policy):
                        'Aw': 2000.0, # For obstacles, not used
                        'Bi': 0.08,
                        'Bw': 0.08, # For obstacles, not used
+                       'Ci': 120.0,
+                       'Cw': 120.0, # For obstacles, not used
+                       'Di': 0.6,
+                       'Dw': 0.6, # For obstacles, not used
                        'k1': 120000.0,
                        'k2': 240000.0,
                        'ko': 1.0,

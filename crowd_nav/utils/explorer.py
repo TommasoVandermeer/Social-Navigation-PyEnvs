@@ -129,7 +129,5 @@ class Explorer(object):
 
 
 def average(input_list):
-    if input_list:
-        return sum(input_list) / len(input_list)
-    else:
-        return 0
+    if input_list: return sum(input_list) / len(input_list)
+    else: return 0

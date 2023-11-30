@@ -7,7 +7,11 @@ from social_gym.src.utils import bound_angle
 def compute_desired_force(params:dict, state:Union[FullState,FullStateHeaded]):
     goal_position = np.array([state.gx, state.gy], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
-    agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    if not state.headed: agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    else: 
+        agent_body_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
+        agent_velocity = np.matmul(rotational_matrix, agent_body_velocity)
     difference = goal_position - agent_position
     distance = np.linalg.norm(difference)
     if (distance > state.radius):
@@ -19,7 +23,11 @@ def compute_desired_force(params:dict, state:Union[FullState,FullStateHeaded]):
 def compute_social_force_helbing(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
-    agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    if not state.headed: agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    else: 
+        agent_body_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
+        agent_velocity = np.matmul(rotational_matrix, agent_body_velocity)
     for other_state in agents_state:
         other_agent_position = np.array([other_state.px, other_state.py], dtype=np.float64)
         other_agent_velocity = np.array([other_state.vx, other_state.vy], dtype=np.float64)
@@ -35,7 +43,11 @@ def compute_social_force_helbing(params:dict, state:Union[FullState,FullStateHea
 def compute_social_force_guo(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
-    agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    if not state.headed: agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    else: 
+        agent_body_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
+        agent_velocity = np.matmul(rotational_matrix, agent_body_velocity)
     for other_state in agents_state:
         other_agent_position = np.array([other_state.px, other_state.py], dtype=np.float64)
         other_agent_velocity = np.array([other_state.vx, other_state.vy], dtype=np.float64)
@@ -54,7 +66,11 @@ def compute_social_force_guo(params:dict, state:Union[FullState,FullStateHeaded]
 def compute_social_force_moussaid(params:dict, state:Union[FullState,FullStateHeaded], agents_state:list[ObservableState]):
     social_force = np.array([0.0,0.0], dtype=np.float64)
     agent_position = np.array([state.px, state.py], dtype=np.float64)
-    agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    if not state.headed: agent_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+    else: 
+        agent_body_velocity = np.array([state.vx, state.vy], dtype=np.float64)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
+        agent_velocity = np.matmul(rotational_matrix, agent_body_velocity)
     for other_state in agents_state:
         other_agent_position = np.array([other_state.px, other_state.py], dtype=np.float64)
         other_agent_velocity = np.array([other_state.vx, other_state.vy], dtype=np.float64)
@@ -80,9 +96,9 @@ def compute_social_force_moussaid(params:dict, state:Union[FullState,FullStateHe
         # social_force -= params['Ei'] * math.exp(-distance/F_ij) * (math.exp(-(params['ns1'] * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(params['ns'] * F_ij * theta_ij)**2) * h_ij)
     return social_force
 
-def compute_torque_force_farina(params:dict, state:FullStateHeaded, inertia:float, desired_force:np.array):
-    desired_force_norm = np.linalg.norm(desired_force)
-    params['k_theta'] = inertia * params['k_lambda'] * desired_force_norm
-    params['k_omega'] = inertia * (1 + params['alpha']) * math.sqrt((params['k_lambda'] * desired_force_norm) / params['alpha'])
-    torque_force = - params['k_theta'] * bound_angle(state.theta - math.atan2(desired_force[1],desired_force[0])) - params['k_omega'] * state.w
+def compute_torque_force(params:dict, state:FullStateHeaded, inertia:float, driving_force:np.array):
+    driving_force_norm = np.linalg.norm(driving_force)
+    k_theta = inertia * params['k_lambda'] * driving_force_norm
+    k_omega = inertia * (1 + params['alpha']) * math.sqrt((params['k_lambda'] * driving_force_norm) / params['alpha'])
+    torque_force = - k_theta * bound_angle(state.theta - math.atan2(driving_force[1], driving_force[0])) - k_omega * state.w
     return torque_force

@@ -1,22 +1,26 @@
 import numpy as np
-from social_gym.policy.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
+from social_gym.policy.forces import compute_desired_force, compute_social_force_moussaid as compute_social_force, compute_torque_force
 from social_gym.policy.policy import Policy
 from social_gym.src.action import ActionXYW
 
-class HSFMFarina(Policy):
+class HSFMNewMoussaid(Policy):
     def __init__(self):
         """
-        The Headed Social Force Model defined by Farina.    
+        The Headed Social Force Model defined by Farina with a new modification affecting the torqie force and with a
+        modification proposed by Moussaid.
         """
         super().__init__()
-        self.name = 'hsfm_farina'
+        self.name = 'hsfm_new_moussaid'
         self.trainable = False
         self.multiagent_training = None
         self.kinematics = 'holonomic3'
         self.params = {'relaxation_time': 0.5,
-                       'Ai': 2000.0,
+                       'Ei': 360,
+                       'agent_lambda': 2.0,
+                       'gamma': 0.35,
+                       'ns': 2.0,
+                       'ns1': 3.0,
                        'Aw': 2000.0, # For obstacles, not used
-                       'Bi': 0.08,
                        'Bw': 0.08, # For obstacles, not used
                        'k1': 120000.0,
                        'k2': 240000.0,
@@ -46,7 +50,8 @@ class HSFMFarina(Policy):
         ## Compute forces
         _, desired_force = compute_desired_force(self.params, self_state)
         social_force = compute_social_force(self.params, self_state, other_states)
-        torque_force = compute_torque_force(self.params, self_state, inertia, desired_force)
+        driving_force = desired_force + social_force
+        torque_force = compute_torque_force(self.params, self_state, inertia, driving_force)
         rotational_matrix = np.array([[np.cos(self_state.theta), -np.sin(self_state.theta)],[np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)
         global_force = np.empty((2,), dtype=np.float64)
         global_force[0] = np.dot(desired_force + social_force, rotational_matrix[:,0])
