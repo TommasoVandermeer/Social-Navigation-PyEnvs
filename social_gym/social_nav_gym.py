@@ -112,6 +112,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if phase == 'test': self.human_times = [0] * self.human_num
         else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)
         if not self.robot.policy.multiagent_training: self.train_val_sim = 'circle_crossing'
+        if (self.time_step > 0.05) and ('hsfm' in self.human_policy): self.rk45 = True
+        else: self.rk45 = False
         if self.config.get('humans', 'policy') == 'trajnet': raise NotImplementedError
         else:
             counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],
@@ -122,12 +124,12 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,self.rk45,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.train_val_sim == 'square_crossing': raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
+                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,self.rk45,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.test_sim == 'square_crossing': raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
             else:
@@ -163,7 +165,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
         """
         # Predict next action for each human
-        human_actions = self.motion_model_manager.predict_actions(self.time_step) # The observation is not passed as it is can be accessed without passing it
+        human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as it is can be accessed without passing it
 
         # Collision detection
         dmin = float('inf')
