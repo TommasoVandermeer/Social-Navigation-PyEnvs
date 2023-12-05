@@ -164,9 +164,6 @@ class SocialNavGym(gym.Env, SocialNavSim):
         Compute actions for all agents, detect collision, update environment and return (ob, reward, terminated, truncated, info)
 
         """
-        # Predict next action for each human
-        human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as it is can be accessed without passing it
-
         # Collision detection
         dmin = float('inf')
         collision = False
@@ -220,6 +217,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
             info = Nothing()
 
         if update:
+            # Predict next action for each human
+            human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as it is can be accessed without passing it
             # Store state, action value and attention weights
             self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
             if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)

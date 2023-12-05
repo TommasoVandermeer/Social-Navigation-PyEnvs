@@ -203,7 +203,7 @@ class SocialNavSim:
                                 "des_speed": humans_des_speed[i],
                                 "radius": humans_radius[i]}
             else:
-                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius]]}
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius],[center[0],center[1]-radius]]}
                 angle = (2 * math.pi) / (n_actors + 1)
                 for i in range(n_actors):
                     center_pos = [radius * math.cos(-(math.pi/2) + angle * (i+1)), radius * math.sin(-(math.pi/2) + angle * (i+1))]
@@ -237,7 +237,7 @@ class SocialNavSim:
                                         "radius": humans_radius[i]}
                             break
             else:
-                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius]]}
+                robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius],[center[0],center[1]-radius]]}
                 for i in range(n_actors):
                     while True:
                         angle = np.random.random() * np.pi * 2
@@ -269,8 +269,7 @@ class SocialNavSim:
         return data
 
     def generate_square_crossing_human(self, config_data:list):
-        ### TO BE IMPLEMENTED
-        pass
+        raise NotImplementedError
 
     def render_sim(self):
         self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming
@@ -322,6 +321,10 @@ class SocialNavSim:
             if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', self.humans, self.walls)
             if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', self.humans, self.walls)
         else:
+            if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
+                robot_goal = self.robot.goals[0]
+                self.robot.goals.remove(robot_goal)
+                self.robot.goals.append(robot_goal)
             ob = [human.get_observable_state() for human in self.humans]
             action = self.robot.act(ob)
             self.robot.step(action, SAMPLING_TIME)

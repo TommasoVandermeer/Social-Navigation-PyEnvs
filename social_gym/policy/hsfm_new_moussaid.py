@@ -1,9 +1,9 @@
 import numpy as np
 from social_gym.policy.forces import compute_desired_force, compute_social_force_moussaid as compute_social_force, compute_torque_force
-from social_gym.policy.policy import Policy
+from social_gym.policy.hsfm_farina import HSFMFarina
 from social_gym.src.action import ActionXYW
 
-class HSFMNewMoussaid(Policy):
+class HSFMNewMoussaid(HSFMFarina):
     def __init__(self):
         """
         The Headed Social Force Model defined by Farina with a new modification affecting the torqie force and with a
@@ -36,31 +36,13 @@ class HSFMNewMoussaid(Policy):
     def set_phase(self, phase):
         return
     
-    def predict(self, state):
-        """
-        Predict new velocity on the basis of the current state. The HSFM Forces are computed 
-        and then integrated with Euler to find the new velocity.
-        """
-        # Goals should be updated outside this loop beacuse the goal position is embedded in the state passed as an argument
-        # Obstacles are not taken into account
-        # Group forces are not taken into account
-        self_state = state.self_state
-        other_states = state.human_states
-        inertia =  0.5 * self.params['mass'] * self_state.radius * self_state.radius
-        ## Compute forces
-        _, desired_force = compute_desired_force(self.params, self_state)
-        social_force = compute_social_force(self.params, self_state, other_states)
+    def compute_forces(self, state, other_states):
+        _, desired_force = compute_desired_force(self.params, state)
+        social_force = compute_social_force(self.params, state, other_states)
         driving_force = desired_force + social_force
-        torque_force = compute_torque_force(self.params, self_state, inertia, driving_force)
-        rotational_matrix = np.array([[np.cos(self_state.theta), -np.sin(self_state.theta)],[np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)
+        torque_force = compute_torque_force(self.params, state, self.inertia, driving_force)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
         global_force = np.empty((2,), dtype=np.float64)
         global_force[0] = np.dot(desired_force + social_force, rotational_matrix[:,0])
-        global_force[1] = self.params['ko'] * np.dot(social_force, rotational_matrix[:,1]) - self.params['kd'] * self_state.vy
-        ## Compute action
-        new_body_velocity = np.array([self_state.vx, self_state.vy], dtype=np.float64) + (global_force / self.params['mass']) * self.time_step
-        if (np.linalg.norm(new_body_velocity) > self_state.v_pref): new_body_velocity = (new_body_velocity / np.linalg.norm(new_body_velocity)) * self_state.v_pref
-        new_angular_velocity = self_state.w + ((torque_force / inertia) * self.time_step)
-        action = ActionXYW(new_body_velocity[0],new_body_velocity[1],new_angular_velocity)
-        ## Saving last state
-        self.last_state = state
-        return action
+        global_force[1] = self.params['ko'] * np.dot(social_force, rotational_matrix[:,1]) - self.params['kd'] * state.vy
+        return global_force, torque_force, rotational_matrix

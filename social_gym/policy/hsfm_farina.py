@@ -2,6 +2,10 @@ import numpy as np
 from social_gym.policy.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
 from social_gym.policy.policy import Policy
 from social_gym.src.action import ActionXYW
+from scipy.integrate import solve_ivp
+from social_gym.src.state import FullStateHeaded
+
+RUNGE_KUTTA_STEP_TIME_LIMIT = 0.05
 
 class HSFMFarina(Policy):
     def __init__(self):
@@ -42,20 +46,50 @@ class HSFMFarina(Policy):
         # Group forces are not taken into account
         self_state = state.self_state
         other_states = state.human_states
-        inertia =  0.5 * self.params['mass'] * self_state.radius * self_state.radius
-        ## Compute forces
-        _, desired_force = compute_desired_force(self.params, self_state)
-        social_force = compute_social_force(self.params, self_state, other_states)
-        torque_force = compute_torque_force(self.params, self_state, inertia, desired_force)
-        rotational_matrix = np.array([[np.cos(self_state.theta), -np.sin(self_state.theta)],[np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)
-        global_force = np.empty((2,), dtype=np.float64)
-        global_force[0] = np.dot(desired_force + social_force, rotational_matrix[:,0])
-        global_force[1] = self.params['ko'] * np.dot(social_force, rotational_matrix[:,1]) - self.params['kd'] * self_state.vy
-        ## Compute action
-        new_body_velocity = np.array([self_state.vx, self_state.vy], dtype=np.float64) + (global_force / self.params['mass']) * self.time_step
-        if (np.linalg.norm(new_body_velocity) > self_state.v_pref): new_body_velocity = (new_body_velocity / np.linalg.norm(new_body_velocity)) * self_state.v_pref
-        new_angular_velocity = self_state.w + ((torque_force / inertia) * self.time_step)
-        action = ActionXYW(new_body_velocity[0],new_body_velocity[1],new_angular_velocity)
+        self.current_state = state.self_state # Save current state for RK45 integration
+        self.current_other_states = state.human_states # Save current other state for RK45 integration
+        self.inertia =  0.5 * self.params['mass'] * self_state.radius * self_state.radius
+        if self.time_step <= RUNGE_KUTTA_STEP_TIME_LIMIT: ## EULER
+            ## Compute forces
+            global_force, torque_force, _ = self.compute_forces(self_state, other_states)
+            ## Compute action
+            new_body_velocity = np.array([self_state.vx, self_state.vy], dtype=np.float64) + (global_force / self.params['mass']) * self.time_step
+            if (np.linalg.norm(new_body_velocity) > self_state.v_pref): new_body_velocity = (new_body_velocity / np.linalg.norm(new_body_velocity)) * self_state.v_pref
+            new_angular_velocity = self_state.w + ((torque_force / self.inertia) * self.time_step)
+            action = ActionXYW(new_body_velocity[0],new_body_velocity[1],new_angular_velocity)
+        else: ## RK45
+            current_y = np.array([self_state.px, self_state.py, self_state.theta, self_state.vx, self_state.vy, self_state.w], dtype=np.float64)
+            solution = solve_ivp(self.f_rk45, (0, self.time_step), current_y, method='RK45')
+            current_inverse_rotational_matrix = np.array([[np.cos(self_state.theta), np.sin(self_state.theta)],[-np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)
+            final_position = np.array([solution.y[0][-1],solution.y[1][-1]])
+            current_position = np.array([self_state.px,self_state.py])
+            action_body_velocity = np.matmul(current_inverse_rotational_matrix, ((final_position - current_position) / self.time_step))
+            action_angular_velocity = (solution.y[2][-1] - self_state.theta) / self.time_step
+            action = ActionXYW(action_body_velocity[0],action_body_velocity[1],action_angular_velocity)
         ## Saving last state
         self.last_state = state
         return action
+    
+    def compute_forces(self, state, other_states):
+        _, desired_force = compute_desired_force(self.params, state)
+        social_force = compute_social_force(self.params, state, other_states)
+        torque_force = compute_torque_force(self.params, state, self.inertia, desired_force)
+        rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
+        global_force = np.empty((2,), dtype=np.float64)
+        global_force[0] = np.dot(desired_force + social_force, rotational_matrix[:,0])
+        global_force[1] = self.params['ko'] * np.dot(social_force, rotational_matrix[:,1]) - self.params['kd'] * state.vy
+        return global_force, torque_force, rotational_matrix
+
+    def f_rk45(self, t, y):
+        # y: [px, py, theta, bvx, bvy, w]
+        # state: [px, py, bvx, bvy, radius, gx, gy, v_pref, theta, w]
+        self_state = FullStateHeaded(y[0],y[1],y[3],y[4],self.current_state.radius,self.current_state.gx,self.current_state.gy,self.current_state.v_pref,y[2],y[5])
+        global_force, torque_force, rotational_matrix = self.compute_forces(self_state, self.current_other_states)
+        ydot = np.empty((6,), dtype=np.float64)
+        ydot[0] = np.dot(rotational_matrix[0,:], np.array([self_state.vx,self_state.vy], dtype=np.float64))
+        ydot[1] = np.dot(rotational_matrix[1,:], np.array([self_state.vx,self_state.vy], dtype=np.float64))
+        ydot[2] = self_state.w
+        ydot[3] = global_force[0] / self.params['mass']
+        ydot[4] = global_force[1] / self.params['mass']
+        ydot[5] = torque_force / self.inertia
+        return ydot

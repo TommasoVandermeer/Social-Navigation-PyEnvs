@@ -39,9 +39,7 @@ class SFMHelbing(Policy):
         self_state = state.self_state
         other_states = state.human_states
         ## Compute forces
-        _, desired_force = compute_desired_force(self.params, self_state)
-        social_force = compute_social_force(self.params, self_state, other_states)
-        global_force = desired_force + social_force
+        global_force = self.compute_forces(self_state, other_states)
         ## Compute action
         new_velocity = np.array([self_state.vx, self_state.vy], dtype=np.float64) + (global_force / self.params['mass']) * self.time_step
         if (np.linalg.norm(new_velocity) > self_state.v_pref): new_velocity = (new_velocity / np.linalg.norm(new_velocity)) * self_state.v_pref
@@ -49,3 +47,9 @@ class SFMHelbing(Policy):
         ## Saving last state
         self.last_state = state
         return action
+    
+    def compute_forces(self, state, other_states):
+        _, desired_force = compute_desired_force(self.params, state)
+        social_force = compute_social_force(self.params, state, other_states)
+        global_force = desired_force + social_force
+        return global_force
