@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
-HEADLESS = False
+HEADLESS = True
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -99,6 +99,11 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if self.robot.sensor == 'coordinates': ob = [human.get_observable_state() for human in self.humans]
         elif self.robot.sensor == 'RGB': raise NotImplementedError
         return ob
+    
+    def compute_next_humans_observable_state(self, human_actions, time_step):
+        if self.robot.sensor == 'coordinates': ob = [human.get_next_observable_state(action, time_step) for human, action in zip(self.humans, human_actions)]
+        elif self.robot.sensor == 'RGB': raise NotImplementedError
+        return ob
 
     def reset(self, phase='test', test_case=None):
         """
@@ -116,8 +121,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         else: self.rk45 = False
         if self.config.get('humans', 'policy') == 'trajnet': raise NotImplementedError
         else:
-            counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],
-                              'val': 0, 'test': self.case_capacity['val']}
+            counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],'val': 0, 'test': self.case_capacity['val']}
             if self.case_counter[phase] >= 0:
                 np.random.seed(counter_offset[phase] + self.case_counter[phase])
                 if phase in ['train', 'val']:
@@ -146,7 +150,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     self.config_data = data
                 else: raise NotImplementedError      
         # Set sampling time for the simulation and reset the simulator
-        self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"])
+        self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"], w=0)
         self.reset_sim(reset_robot=False)
         self.set_time_step(self.time_step)
         # Initialize some variables used later
@@ -156,7 +160,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
         # Get current observation and info
         ob = self.compute_humans_observable_state()
         info = Nothing()
-        
+        self.updated = True
+
         return ob, {0: info}
 
     def step(self, action, update=True):
@@ -164,6 +169,13 @@ class SocialNavGym(gym.Env, SocialNavSim):
         Compute actions for all agents, detect collision, update environment and return (ob, reward, terminated, truncated, info)
 
         """
+        # Predict next action for each human
+        # If we are doing one_step_lookahead for each action in the robot's action space,
+        # it is just necessary to compute human_actions the first time, they will not change since the enviornment's state remains the same.
+        if not self.updated: human_actions = self.last_human_actions.copy()
+        else:
+            human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as ardument as it can be accessed without passing it
+            self.last_human_actions = human_actions.copy()
         # Collision detection
         dmin = float('inf')
         collision = False
@@ -215,10 +227,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
             truncated = False
             terminated = False
             info = Nothing()
-
+        
         if update:
-            # Predict next action for each human
-            human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as it is can be accessed without passing it
+            self.updated = True
             # Store state, action value and attention weights
             self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
             if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)
@@ -233,8 +244,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
             # Compute observation
             ob = self.compute_humans_observable_state()
         else:
+            self.updated = False
             # Compute observation
-            ob = self.compute_humans_observable_state()
+            ob = self.compute_next_humans_observable_state(human_actions, self.time_step)
         return ob, reward, terminated, truncated, {0: info}
 
     def render(self):

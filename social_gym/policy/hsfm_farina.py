@@ -57,7 +57,7 @@ class HSFMFarina(Policy):
             if (np.linalg.norm(new_body_velocity) > self_state.v_pref): new_body_velocity = (new_body_velocity / np.linalg.norm(new_body_velocity)) * self_state.v_pref
             new_angular_velocity = self_state.w + ((torque_force / self.inertia) * self.time_step)
             action = ActionXYW(new_body_velocity[0],new_body_velocity[1],new_angular_velocity)
-        else: ## RK45
+        else: ## RUNGE-KUTTA-45
             current_y = np.array([self_state.px, self_state.py, self_state.theta, self_state.vx, self_state.vy, self_state.w], dtype=np.float64)
             solution = solve_ivp(self.f_rk45, (0, self.time_step), current_y, method='RK45')
             current_inverse_rotational_matrix = np.array([[np.cos(self_state.theta), np.sin(self_state.theta)],[-np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)

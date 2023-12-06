@@ -15,7 +15,7 @@ from policy.policy_factory import policy_factory
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/env.config'))
-    parser.add_argument('--policy', type=str, default='sarl')
+    parser.add_argument('--policy', type=str, default='cadrl')
     parser.add_argument('--policy_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/policy.config'))
     parser.add_argument('--train_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/train.config'))
     parser.add_argument('--output_dir', type=str, default=os.path.join(os.path.dirname(__file__),'data/output'))

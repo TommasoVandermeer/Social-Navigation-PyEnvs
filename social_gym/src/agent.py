@@ -32,6 +32,24 @@ class Agent():
 
     def get_observable_state(self):
         return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
+    
+    def get_next_observable_state(self, action, delta_t):
+        self.check_validity(action)
+        pos = self.compute_position(action, delta_t)
+        if self.kinematics == 'holonomic':
+            next_vx = action.vx
+            next_vy = action.vy
+        elif self.kinematics == 'holonomic3':
+            rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+            next_body_velocity = np.array([action.bvx, action.bvy])
+            next_linear_velocity = np.matmul(rotational_matrix, next_body_velocity)
+            next_vx = next_linear_velocity[0]
+            next_vy = next_linear_velocity[1]
+        else:
+            next_theta = self.theta + action.r
+            next_vx = action.v * np.cos(next_theta)
+            next_vy = action.v * np.sin(next_theta)
+        return ObservableState(pos[0], pos[1], next_vx, next_vy, self.radius)
 
     def get_full_state(self):
         if not self.headed: return FullState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius, self.goals[0][0], self.goals[0][1], self.desired_speed, self.yaw)
@@ -96,7 +114,9 @@ class Agent():
         if self.kinematics == 'holonomic':
             self.linear_velocity = np.array([action.vx, action.vy])
         elif self.kinematics == 'holonomic3':
+            rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
             self.body_velocity = np.array([action.bvx, action.bvy])
+            self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
             self.angular_velocity = action.w
             self.yaw = bound_angle(self.yaw + self.angular_velocity * delta_t)
         else:
