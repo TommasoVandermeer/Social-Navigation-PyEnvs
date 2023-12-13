@@ -106,6 +106,7 @@ class SocialNavSim:
             else: 
                 self.robot = RobotAgent(self)
                 self.insert_robot = False
+        self.robot_updated = True
         
         # Obstacles
         for wall in self.config_data["walls"]:
@@ -328,6 +329,7 @@ class SocialNavSim:
             ob = [human.get_observable_state() for human in self.humans]
             action = self.robot.act(ob)
             self.robot.step(action, SAMPLING_TIME)
+            self.robot_updated = True
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
@@ -621,6 +623,12 @@ class SocialNavSim:
         """
         This method is just required to use the trained policies of the robot.
         """
+        # Predict next action for each human
+        if not self.robot_updated: human_actions = self.last_human_actions.copy()
+        else:
+            human_actions = self.motion_model_manager.predict_actions(self.sim_t, SAMPLING_TIME, update_goals=False) # The observation is not passed as ardument as it can be accessed without passing it
+            self.last_human_actions = human_actions.copy()
+            self.motion_model_manager.update_targets = True
         # Collision detection
         dmin = float('inf')
         collision = False
@@ -654,6 +662,7 @@ class SocialNavSim:
         else: reward = 0
 
         # State computation
-        ob = [human.get_observable_state() for human in self.humans]
+        ob = [human.get_next_observable_state(action, SAMPLING_TIME) for human, action in zip(self.humans, human_actions)]
+        self.robot_updated = False
 
         return ob, reward, False, False, {}

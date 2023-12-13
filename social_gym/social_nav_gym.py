@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
-HEADLESS = True
+HEADLESS = False
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -164,6 +164,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
         return ob, {0: info}
 
+    def onestep_lookahead(self, action):
+        return self.step(action, update=False)
+
     def step(self, action, update=True):
         """
         Compute actions for all agents, detect collision, update environment and return (ob, reward, terminated, truncated, info)
@@ -251,6 +254,3 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
     def render(self):
         if not HEADLESS: self.render_sim()
-
-    def onestep_lookahead(self, action):
-        return self.step(action, update=False)

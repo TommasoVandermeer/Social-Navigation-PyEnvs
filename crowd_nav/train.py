@@ -157,7 +157,7 @@ def main():
         explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
         if len(trainer.memory.memory) > 0:
             trainer.optimize_batch(train_batches)
-        episode += 1
+        episode += sample_episodes
 
         if episode % target_update_interval == 0:
             explorer.update_target_model(model)
