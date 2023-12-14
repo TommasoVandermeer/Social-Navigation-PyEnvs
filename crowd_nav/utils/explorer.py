@@ -40,10 +40,13 @@ class Explorer(object):
             actions = []
             rewards = []
             while (not terminated) and (not truncated):
+                # if imitation_learning: pass
+                # else:
                 action = self.robot.act(ob)
                 ob, reward, terminated, truncated, info = self.env.step(action)
                 states.append(self.robot.policy.last_state)
                 actions.append(action)
+
                 rewards.append(reward)
 
                 self.env.render()

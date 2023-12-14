@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from social_gym.src.human_agent import HumanAgent
+from social_gym.src.agent import Agent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.utils import bound_angle
 from social_gym.src.motion_model_manager import GOAL_RADIUS, Group

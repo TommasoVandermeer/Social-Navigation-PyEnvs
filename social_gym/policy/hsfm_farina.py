@@ -1,7 +1,7 @@
 import numpy as np
 from social_gym.policy.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
 from social_gym.policy.policy import Policy
-from social_gym.src.action import ActionXYW
+from social_gym.src.action import ActionXYW, NewHeadedState
 from scipy.integrate import solve_ivp
 from social_gym.src.state import FullStateHeaded
 
@@ -60,12 +60,7 @@ class HSFMFarina(Policy):
         else: ## RUNGE-KUTTA-45
             current_y = np.array([self_state.px, self_state.py, self_state.theta, self_state.vx, self_state.vy, self_state.w], dtype=np.float64)
             solution = solve_ivp(self.f_rk45, (0, self.time_step), current_y, method='RK45')
-            current_inverse_rotational_matrix = np.array([[np.cos(self_state.theta), np.sin(self_state.theta)],[-np.sin(self_state.theta), np.cos(self_state.theta)]], dtype=np.float64)
-            final_position = np.array([solution.y[0][-1],solution.y[1][-1]])
-            current_position = np.array([self_state.px,self_state.py])
-            action_body_velocity = np.matmul(current_inverse_rotational_matrix, ((final_position - current_position) / self.time_step))
-            action_angular_velocity = (solution.y[2][-1] - self_state.theta) / self.time_step
-            action = ActionXYW(action_body_velocity[0],action_body_velocity[1],action_angular_velocity)
+            action = NewHeadedState(solution.y[0][-1],solution.y[1][-1],solution.y[2][-1],solution.y[3][-1],solution.y[4][-1],solution.y[5][-1])
         ## Saving last state
         self.last_state = state
         return action

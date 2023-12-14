@@ -149,7 +149,7 @@ class CADRL(Policy):
             max_action = None
             for action in self.action_space:
                 next_self_state = self.propagate(state.self_state, action)
-                ob, reward, terminated, truncated, info = self.env.onestep_lookahead(action)
+                ob, reward = self.env.onestep_lookahead(action, self.time_step)
                 batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device) for next_human_state in ob], dim=0)
                 # VALUE UPDATE
                 outputs = self.model(self.rotate(batch_next_states))

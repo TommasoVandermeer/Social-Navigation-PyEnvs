@@ -1,4 +1,6 @@
 import pygame
+from social_gym.src.state import ObservableState
+from social_gym.src.info import *
 from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_STATES, N_HEADED_STATES, N_NOT_HEADED_STATES
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
@@ -106,7 +108,7 @@ class SocialNavSim:
             else: 
                 self.robot = RobotAgent(self)
                 self.insert_robot = False
-        self.robot_updated = True
+        self.updated = True
         
         # Obstacles
         for wall in self.config_data["walls"]:
@@ -329,7 +331,7 @@ class SocialNavSim:
             ob = [human.get_observable_state() for human in self.humans]
             action = self.robot.act(ob)
             self.robot.step(action, SAMPLING_TIME)
-            self.robot_updated = True
+            self.updated = True
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
@@ -587,7 +589,9 @@ class SocialNavSim:
         for i in range(len(self.humans)):
             ax.plot(human_states[:,i,0],human_states[:,i,1])
 
-    def set_robot_policy(self, model_dir=None, il=False, policy_name='sfm_helbing'):
+    ### METHODS FOR ROBOT CROWDNAV POLICIES
+
+    def set_robot_policy(self, policy_name, model_dir=None, il=False):
         # Set policy
         if "hsfm" in policy_name: self.robot.headed = True
         if policy_name == "orca": self.robot.orca = True
@@ -618,51 +622,119 @@ class SocialNavSim:
             self.robot.desired_speed = 1
         self.robot.set_policy(policy)
         self.robot.policy.time_step = SAMPLING_TIME
+
+    def transform_human_states(self, state:np.array):
+        """
+        Transforms the states from the configuration of MotionModelManager to the
+        configuration used in CrowdNav.
+
+        params:
+        - state: np.array((n_humans,4))
         
-    def onestep_lookahead(self, action):
+        output:
+        - output_state: list(ObservableState)
         """
-        This method is just required to use the trained policies of the robot.
+        output_state = []
+        for i, human_state in enumerate(state): output_state.append(ObservableState(human_state[0],human_state[1],human_state[2],human_state[3],self.humans[i].radius))
+        return output_state
+
+    def collision_detection_and_reaching_goal(self, action, time_step):
+        """"
+        This function, based on the next robot action, computes if there will be a collision 
+        (assuming that humans move at a constant velocity which is the last observed one) and if the robot
+        reaches the goal.
+
+        params:
+        - action: robot action
+        - time_step: time step to use for the computation
+
+        returns:
+        - collision: bool telling if the robot will collide
+        - dmin: minimum distance of the robot from humans
+        - reaching_goal: bool telling if the robot will reach the goal
         """
-        # Predict next action for each human
-        if not self.robot_updated: human_actions = self.last_human_actions.copy()
-        else:
-            human_actions = self.motion_model_manager.predict_actions(self.sim_t, SAMPLING_TIME, update_goals=False) # The observation is not passed as ardument as it can be accessed without passing it
-            self.last_human_actions = human_actions.copy()
-            self.motion_model_manager.update_targets = True
         # Collision detection
         dmin = float('inf')
         collision = False
         for human in self.humans:
             difference = human.position - self.robot.position
-            if self.robot.kinematics == 'holonomic':
-                robot_velocity = np.array([action.vx, action.vy])
-                velocity_difference = human.linear_velocity - robot_velocity
-            else:
-                robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
-                velocity_difference = human.linear_velocity - robot_velocity
-            e = difference + velocity_difference * SAMPLING_TIME
+            if self.robot.kinematics == 'holonomic': robot_velocity = np.array([action.vx, action.vy])
+            elif self.robot.kinematics == 'holonomic3':
+                robot_body_velocity = np.array([action.bvx, action.bvy])
+                rotational_matrix = np.array([[np.cos(self.robot.yaw), -np.sin(self.robot.yaw)],[np.sin(self.robot.yaw), np.cos(self.robot.yaw)]], dtype=np.float64)
+                robot_velocity = np.matmul(rotational_matrix, robot_body_velocity)
+            else: robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
+            velocity_difference = human.linear_velocity - robot_velocity
+            e = difference + velocity_difference * time_step
             # closest distance between boundaries of two agents
             closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
             if closest_dist < 0:
                 collision = True
                 # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
                 break
-            elif closest_dist < dmin:
-                dmin = closest_dist
-
-        # Check if reaching goal
-        end_position = self.robot.compute_position(action, SAMPLING_TIME)
+            elif closest_dist < dmin: dmin = closest_dist
+        # Check if reaching the goal
+        end_position = self.robot.compute_position(action, time_step)
         reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
+        return collision, dmin, reaching_goal
 
+    def compute_reward_and_infos(self, collision, dmin, reaching_goal, current_time, time_step):
+        """"
+        Computes the reward, if the episode is truncated or terminated and info.
+
+        params:
+        - collision: bool telling if the robot will collide
+        - dmin: minimum distance of the robot from humans
+        - reaching_goal: bool telling if the robot will reach the goal
+        - current_time: float indicating the current time
+        - time_step: time step to use for the computation
+
+        returns:
+        - reward (float)
+        - terminated (bool)
+        - truncated (bool)
+        - info (one object between Timeout(), Collision(), ReachGoal(), Danger())
+        """
         # Compute Reward, truncated, terminated, and info
-        if self.sim_t >= self.time_limit-1: reward = 0
-        elif collision: reward = self.collision_penalty
-        elif reaching_goal: reward = self.success_reward
-        elif dmin < 0.2: reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * SAMPLING_TIME # adjust the reward based on FPS
-        else: reward = 0
+        if current_time >= self.time_limit - 1:
+            reward = 0
+            truncated = True
+            terminated = False
+            info = Timeout()
+        elif collision:
+            reward = self.collision_penalty
+            truncated = False
+            terminated = True
+            info = Collision()
+        elif reaching_goal:
+            reward = self.success_reward
+            truncated = False
+            terminated = True
+            info = ReachGoal()
+        elif dmin < self.discomfort_dist:
+            reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * time_step # adjust the reward based on FPS
+            truncated = False
+            terminated = False
+            info = Danger(dmin)
+        else:
+            reward = 0
+            truncated = False
+            terminated = False
+            info = Nothing()
+        return reward, terminated, truncated, info
 
-        # State computation
-        ob = [human.get_next_observable_state(action, SAMPLING_TIME) for human, action in zip(self.humans, human_actions)]
-        self.robot_updated = False
-
-        return ob, reward, False, False, {}
+    def onestep_lookahead(self, action, time_step=SAMPLING_TIME):
+        """
+        This method is just required to use the trained policies of the robot.
+        """
+        # Detect collision and reaching goal
+        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, time_step)
+        # Compute reward, terminated, truncated, and info
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.sim_t, time_step)
+        # Next state computation
+        if not self.updated: ob = self.last_observation.copy()
+        else:
+            ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
+            self.last_observation = ob.copy()
+        self.updated = False
+        return ob, reward

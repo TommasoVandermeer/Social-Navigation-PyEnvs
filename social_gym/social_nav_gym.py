@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
-HEADLESS = False
+HEADLESS = True
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -20,7 +20,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
         """
         ## Start the Social-Nav-Simulator
-        self.start_simulator()
+        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
+        super().__init__([7,5,False,"hsfm_new_moussaid",HEADLESS,False,True,False,True],scenario="circular_crossing")
 
         ## Initialize attributes
         self.time_limit = None
@@ -52,15 +53,6 @@ class SocialNavGym(gym.Env, SocialNavSim):
         # Action and observation spaces - these are dummy spaces just for registration
         self.action_space = gym.spaces.Discrete(1)
         self.observation_space = gym.spaces.Discrete(1)
-
-    def start_simulator(self):
-        """
-        Initializes the simulator with the specified parameters.
-
-        """
-        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-        super().__init__([7,5,False,"hsfm_new_moussaid",HEADLESS,False,True,False,True],scenario="circular_crossing")
-        # self.run_live()
 
     def configure(self, config):
         self.config = config
@@ -97,11 +89,6 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
     def compute_humans_observable_state(self):
         if self.robot.sensor == 'coordinates': ob = [human.get_observable_state() for human in self.humans]
-        elif self.robot.sensor == 'RGB': raise NotImplementedError
-        return ob
-    
-    def compute_next_humans_observable_state(self, human_actions, time_step):
-        if self.robot.sensor == 'coordinates': ob = [human.get_next_observable_state(action, time_step) for human, action in zip(self.humans, human_actions)]
         elif self.robot.sensor == 'RGB': raise NotImplementedError
         return ob
 
@@ -160,97 +147,38 @@ class SocialNavGym(gym.Env, SocialNavSim):
         # Get current observation and info
         ob = self.compute_humans_observable_state()
         info = Nothing()
-        self.updated = True
 
         return ob, {0: info}
 
-    def onestep_lookahead(self, action):
-        return self.step(action, update=False)
-
-    def step(self, action, update=True):
+    def step(self, action):
         """
-        Compute actions for all agents, detect collision, update environment and return (ob, reward, terminated, truncated, info)
-
+        Detect collision, compute reward and info, update environment and return (ob, reward, terminated, truncated, info)
         """
-        # Predict next action for each human
-        # If we are doing one_step_lookahead for each action in the robot's action space,
-        # it is just necessary to compute human_actions the first time, they will not change since the enviornment's state remains the same.
-        if not self.updated: human_actions = self.last_human_actions.copy()
-        else:
-            human_actions = self.motion_model_manager.predict_actions(self.global_time, self.time_step, update_goals=update) # The observation is not passed as ardument as it can be accessed without passing it
-            self.last_human_actions = human_actions.copy()
-        # Collision detection
-        dmin = float('inf')
-        collision = False
-        for i, human in enumerate(self.humans):
-            difference = human.position - self.robot.position
-            if self.robot.kinematics == 'holonomic': robot_velocity = np.array([action.vx, action.vy])
-            elif self.robot.kinematics == 'holonomic3':
-                robot_body_velocity = np.array([action.bvx, action.bvy])
-                rotational_matrix = np.array([[np.cos(self.robot.yaw), -np.sin(self.robot.yaw)],[np.sin(self.robot.yaw), np.cos(self.robot.yaw)]], dtype=np.float64)
-                robot_velocity = np.matmul(rotational_matrix, robot_body_velocity)
-            else: robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
-            velocity_difference = human.linear_velocity - robot_velocity
-            e = difference + velocity_difference * self.time_step
-            # closest distance between boundaries of two agents
-            closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
-            if closest_dist < 0:
-                collision = True
-                # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
-                break
-            elif closest_dist < dmin: dmin = closest_dist
-
-        # Check if reaching the goal
-        end_position = self.robot.compute_position(action, self.time_step)
-        reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
-
+        # Collision detection and check if reaching the goal
+        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.time_step)
         # Compute Reward, truncated, terminated, and info
-        if self.global_time >= self.time_limit - 1:
-            reward = 0
-            truncated = True
-            terminated = False
-            info = Timeout()
-        elif collision:
-            reward = self.collision_penalty
-            truncated = False
-            terminated = True
-            info = Collision()
-        elif reaching_goal:
-            reward = self.success_reward
-            truncated = False
-            terminated = True
-            info = ReachGoal()
-        elif dmin < self.discomfort_dist:
-            reward = (dmin - self.discomfort_dist) * self.discomfort_penalty_factor * self.time_step # adjust the reward based on FPS
-            truncated = False
-            terminated = False
-            info = Danger(dmin)
-        else:
-            reward = 0
-            truncated = False
-            terminated = False
-            info = Nothing()
-        
-        if update:
-            self.updated = True
-            # Store state, action value and attention weights
-            self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
-            if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)
-            if hasattr(self.robot.policy, 'get_attention_weights'): self.attention_weights.append(self.robot.policy.get_attention_weights())
-
-            # Update all agents position
-            self.robot.step(action, self.time_step)
-            for i, human_action in enumerate(human_actions): self.humans[i].step(human_action, self.time_step)
-            self.global_time += self.time_step
-            # removed saving of human_times if agent reaches goal for the first time
-
-            # Compute observation
-            ob = self.compute_humans_observable_state()
-        else:
-            self.updated = False
-            # Compute observation
-            ob = self.compute_next_humans_observable_state(human_actions, self.time_step)
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.time_step)
+        # Store state, action value and attention weights
+        self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
+        if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)
+        if hasattr(self.robot.policy, 'get_attention_weights'): self.attention_weights.append(self.robot.policy.get_attention_weights())
+        # Update robot state
+        self.robot.step(action, self.time_step)
+        # Update humans state
+        self.motion_model_manager.update(self.global_time, self.time_step)
+        self.global_time += self.time_step
+        # Compute observation
+        ob = self.compute_humans_observable_state()
+        self.updated = True
         return ob, reward, terminated, truncated, {0: info}
+
+    def imitation_learning_step(self):
+        """
+        Makes a step of the environment when the robot is moving following a human policy.
+        """
+        # New way to check collisions and goal reaching, not based on actions
+        # New method of motion_model_manager to update robot state
+        pass
 
     def render(self):
         if not HEADLESS: self.render_sim()

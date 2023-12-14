@@ -3,7 +3,7 @@ import math
 import numpy as np
 import logging
 from social_gym.src.state import ObservableState, FullState, FullStateHeaded
-from social_gym.src.action import ActionXY, ActionRot, ActionXYW
+from social_gym.src.action import ActionXY, ActionRot, ActionXYW, NewState, NewHeadedState
 from social_gym.src.utils import bound_angle
 
 class Agent():
@@ -40,7 +40,10 @@ class Agent():
             next_vx = action.vx
             next_vy = action.vy
         elif self.kinematics == 'holonomic3':
-            rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+            if isinstance(action, ActionXYW):
+                rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+            elif isinstance(action, NewHeadedState):
+                rotational_matrix = np.array([[np.cos(action.theta), -np.sin(action.theta)],[np.sin(action.theta), np.cos(action.theta)]], dtype=np.float64)
             next_body_velocity = np.array([action.bvx, action.bvy])
             next_linear_velocity = np.matmul(rotational_matrix, next_body_velocity)
             next_vx = next_linear_velocity[0]
@@ -73,8 +76,8 @@ class Agent():
         if w is not None: self.angular_velocity = w
 
     def check_validity(self, action):
-        if self.kinematics == 'holonomic': assert isinstance(action, ActionXY)
-        elif self.kinematics == 'holonomic3': assert isinstance(action, ActionXYW)
+        if self.kinematics == 'holonomic': assert isinstance(action, (ActionXY, NewState))
+        elif self.kinematics == 'holonomic3': assert isinstance(action, (ActionXYW, NewHeadedState))
         else: assert isinstance(action, ActionRot)
     
     def compute_position(self, action, delta_t):
@@ -83,9 +86,12 @@ class Agent():
             act = np.array([action.vx, action.vy])
             position = self.position + act * delta_t
         elif self.kinematics == 'holonomic3':
-            rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
-            body_velocity = np.array([action.bvx, action.bvy])
-            position = self.position + np.matmul(rotational_matrix, body_velocity) * delta_t
+            if isinstance(action, ActionXYW):
+                rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+                body_velocity = np.array([action.bvx, action.bvy])
+                position = self.position + np.matmul(rotational_matrix, body_velocity) * delta_t
+            elif isinstance(action, NewHeadedState):
+                position = np.array([action.px, action.py], dtype=np.float64)
         else:
             act = np.array([np.cos(self.yaw + action.r) * action.v, np.sin(self.yaw + action.r) * action.v])
             position = self.position + act * delta_t
@@ -114,11 +120,18 @@ class Agent():
         if self.kinematics == 'holonomic':
             self.linear_velocity = np.array([action.vx, action.vy])
         elif self.kinematics == 'holonomic3':
-            rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
-            self.body_velocity = np.array([action.bvx, action.bvy])
-            self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
-            self.angular_velocity = action.w
-            self.yaw = bound_angle(self.yaw + self.angular_velocity * delta_t)
+            if isinstance(action, ActionXYW):
+                rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+                self.body_velocity = np.array([action.bvx, action.bvy])
+                self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
+                self.angular_velocity = action.w
+                self.yaw = bound_angle(self.yaw + self.angular_velocity * delta_t)
+            if isinstance(action, NewHeadedState):
+                rotational_matrix = np.array([[np.cos(action.theta), -np.sin(action.theta)],[np.sin(action.theta), np.cos(action.theta)]], dtype=np.float64)
+                self.body_velocity = np.array([action.bvx, action.bvy])
+                self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
+                self.angular_velocity = action.w
+                self.yaw = action.theta
         else:
             self.yaw = (self.yaw + action.r) % (2 * np.pi)
             self.linear_velocity = np.array([np.cos(self.yaw) * action.v, np.sin(self.yaw) * action.v])

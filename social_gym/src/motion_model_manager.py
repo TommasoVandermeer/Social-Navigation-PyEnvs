@@ -2,7 +2,6 @@ from social_gym.src.utils import bound_angle
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
-from social_gym.src.action import ActionXY, ActionXYW
 from scipy.integrate import solve_ivp
 import rvo2
 import numpy as np
@@ -243,7 +242,8 @@ class MotionModelManager:
                 agent.body_velocity += (agent.global_force / agent.mass) * dt
                 agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
                 agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
-                agent.position += np.matmul(agent.rotational_matrix, agent.body_velocity) * dt
+                agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
+                agent.position += agent.linear_velocity * dt
                 agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
 
     def update_positions_rk45(self, t:float, dt:float):
@@ -338,60 +338,17 @@ class MotionModelManager:
                 ydot[i*N_NOT_HEADED_STATES+3] = self.humans[i].global_force[1]
         return ydot
     
-    def predict_actions(self, t:float, dt:float, update_goals=True):
-        actions = []
-        self.update_targets = update_goals
-        if not self.orca:
-            if not self.headed:
-            # SFM - holonomic kinematics
-                if not self.runge_kutta: # Euler
-                    self.compute_forces()
-                    for agent in self.humans:
-                        linear_velocity = agent.linear_velocity.copy()
-                        if self.include_mass: linear_velocity += (agent.global_force / agent.mass) * dt
-                        else: linear_velocity += agent.global_force * dt
-                        linear_velocity = self.bound_velocity(linear_velocity, agent.desired_speed)
-                        actions.append(ActionXY(linear_velocity[0], linear_velocity[1]))
-                else: # Runge-Kutta-45
-                    raise NotImplementedError
-            else:
-            # HSFM - holonomic3 kinematics
-                if not self.runge_kutta: # Euler
-                    self.compute_forces()
-                    for agent in self.humans:
-                        body_velocity = agent.body_velocity.copy()
-                        angular_velocity = agent.angular_velocity
-                        body_velocity += (agent.global_force / agent.mass) * dt
-                        angular_velocity += (agent.torque_force / agent.inertia) * dt
-                        body_velocity = self.bound_velocity(body_velocity, agent.desired_speed)
-                        actions.append(ActionXYW(body_velocity[0], body_velocity[1], angular_velocity))
-                else: # Runge-Kutta-45
-                    current_state = np.reshape(self.get_human_states(include_goal=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
-                    solution = solve_ivp(self.f_rk45_headed, (t, t+dt), current_state, method='RK45')
-                    for i, agent in enumerate(self.humans):
-                        agent.position[0] = current_state[i*N_HEADED_STATES]
-                        agent.position[1] = current_state[i*N_HEADED_STATES+1]
-                        agent.yaw = current_state[i*N_HEADED_STATES+2]
-                        agent.body_velocity[0] = current_state[i*N_HEADED_STATES+3]
-                        agent.body_velocity[1] = current_state[i*N_HEADED_STATES+4]
-                        agent.angular_velocity = current_state[i*N_HEADED_STATES+5]
-                        # The action is computed by derivating the position and yaw using the given dt
-                        current_inverse_rotational_matrix = np.array([[np.cos(agent.yaw), np.sin(agent.yaw)],[-np.sin(agent.yaw), np.cos(agent.yaw)]], dtype=np.float64)
-                        final_position = np.array([solution.y[i*N_HEADED_STATES][-1],solution.y[i*N_HEADED_STATES+1][-1]])
-                        action_body_velocity = np.matmul(current_inverse_rotational_matrix, ((final_position - agent.position) / dt))
-                        action_angular_velocity = (solution.y[i*N_HEADED_STATES+2][-1] - agent.yaw) / dt
-                        actions.append(ActionXYW(action_body_velocity[0],action_body_velocity[1],action_angular_velocity))
-        else:
-            # ORCA - holonomic kinematics
-            if not self.runge_kutta: # Euler
-                for i, human in enumerate(self.humans):
-                    self.sim.setAgentVelocity(self.agents[i], (human.linear_velocity[0], human.linear_velocity[1])) # Set current velocity
-                    self.sim.setAgentPosition(self.agents[i], (human.position[0], human.position[1])) # Set current position
-                    self.update_goals_orca(i)
-                self.sim.setTimeStep(dt)
-                self.sim.doStep()
-                for i, human in enumerate(self.humans):
-                    actions.append(ActionXY(*self.sim.getAgentVelocity(self.agents[i]))) # Get the action predicted
-            else: # Runge-Kutta-45
-                raise NotImplementedError
-        return actions
+    ### METHODS FOR ROBOT CROWDNAV POLICIES
+
+    def get_next_human_observable_states(self, dt:float):
+        """
+        This function returns next humans states (in the form [px, py, vx, vy]) without actually updating it.
+        Initially, it saves the human states, then makes an update and saves the next state.
+        Finally, humans' state is set as the previous one.
+        """
+        if self.headed: current_human_states = self.get_human_states(include_goal=True, headed=True)
+        else: current_human_states = self.get_human_states(include_goal=True, headed=False)
+        self.update(0, dt)
+        next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
+        self.set_human_states(current_human_states)
+        return next_human_observable_states

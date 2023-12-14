@@ -35,7 +35,7 @@ class MultiHumanRL(CADRL):
             for action in self.action_space:
                 next_self_state = self.propagate(state.self_state, action)
                 if self.query_env:
-                    next_human_states, reward, terminated, truncated, info = self.env.onestep_lookahead(action)
+                    next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
                 else:
                     next_human_states = [self.propagate(human_state, ActionXY(human_state.vx, human_state.vy))
                                        for human_state in state.human_states]
