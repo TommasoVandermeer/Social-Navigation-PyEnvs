@@ -20,7 +20,7 @@ social_nav = SocialNavSim([4,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS
 
 ### SIMULATION UTILS
 ## Set robot policy - trainable policy
-social_nav.set_robot_policy(policy_name="sarl", model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo_7000ep'), il=False)
+# social_nav.set_robot_policy(policy_name="sarl", model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo_7000ep'), il=False)
 ## Set robot policy - non trainable policy
 # social_nav.set_robot_policy(policy_name="hsfm_new_guo")
 ## Set sampling time (default is 0.01666666)

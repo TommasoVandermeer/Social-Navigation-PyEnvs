@@ -7,8 +7,8 @@ from social_gym.policy.policy_factory import policy_factory
 import numpy as np
 
 class RobotAgent(Agent):
-    def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.25, goals=list()):
-        super().__init__(np.array(pos, dtype=np.float64), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio)
+    def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.25, goals=list(), mass=80, desired_speed=1):
+        super().__init__(np.array(pos, dtype=np.float64), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio, mass=mass, desired_speed=desired_speed)
 
         display_radius = self.radius * self.ratio
         self.image = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)

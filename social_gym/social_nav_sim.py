@@ -309,7 +309,7 @@ class SocialNavSim:
     def update(self):
         self.n_updates += 1
         if self.insert_robot: self.control_robot()
-        self.motion_model_manager.update(self.sim_t, SAMPLING_TIME)
+        self.motion_model_manager.update_humans(self.sim_t, SAMPLING_TIME)
         self.update_times()
 
     def update_times(self):
@@ -495,7 +495,7 @@ class SocialNavSim:
             test_times = np.empty((len(models),), dtype=np.float64)
             for i in range(len(models)):
                 self.reset_sim()
-                self.motion_model_manager.set_motion_model(models[i])
+                self.motion_model_manager.set_human_motion_model(models[i])
                 self.human_states[i], test_times[i] = self.run_single_test(n_updates)
                 figure, ax = plt.subplots()
                 figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
@@ -508,11 +508,11 @@ class SocialNavSim:
             test_times = np.empty((len(models),2), dtype=np.float64)
             for i in range(len(models)):
                 self.reset_sim()
-                self.motion_model_manager.set_motion_model(models[i])
+                self.motion_model_manager.set_human_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = False
                 self.human_states[i,0], test_times[i,0] = self.run_single_test(n_updates)
                 self.reset_sim()
-                self.motion_model_manager.set_motion_model(models[i])
+                self.motion_model_manager.set_human_motion_model(models[i])
                 self.motion_model_manager.runge_kutta = True
                 self.human_states[i,1], test_times[i,1] = self.run_single_test(n_updates)
                 figure, ax = plt.subplots(1,2)
