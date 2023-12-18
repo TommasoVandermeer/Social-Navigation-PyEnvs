@@ -99,6 +99,11 @@ def main():
     trainer = Trainer(model, memory, device, batch_size)
     explorer = Explorer(env, robot, device, memory, policy.gamma, target_policy=policy)
 
+    ## Set robot policy (RL policy)
+    policy.set_env(env)
+    robot.set_policy(policy)
+    robot.print_info()
+
     ## Imitation learning
     if args.resume:
         if not os.path.exists(rl_weight_file):
@@ -117,10 +122,8 @@ def main():
         trainer.set_learning_rate(il_learning_rate)
         if robot.visible: safety_space = 0
         else: safety_space = train_config.getfloat('imitation_learning', 'safety_space')
-        il_policy = policy_factory[il_policy]()
-        il_policy.multiagent_training = policy.multiagent_training
-        il_policy.safety_space = safety_space
-        robot.set_policy(il_policy)
+        if 'hsfm' in il_policy: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=True)
+        else: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=False)
         explorer.run_k_episodes(il_episodes, 'train', update_memory=True, imitation_learning=True)
         trainer.optimize_epoch(il_epochs)
         torch.save(model.state_dict(), il_weight_file)
@@ -129,9 +132,6 @@ def main():
     explorer.update_target_model(model)
 
     ## Reinforcement learning
-    policy.set_env(env)
-    robot.set_policy(policy)
-    robot.print_info()
     trainer.set_learning_rate(rl_learning_rate)
     # fill the memory pool with some RL experience
     if args.resume:

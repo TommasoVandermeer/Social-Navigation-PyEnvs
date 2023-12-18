@@ -6,7 +6,6 @@ from scipy.integrate import solve_ivp
 import rvo2
 import numpy as np
 
-GOAL_RADIUS = 0.35
 N_GENERAL_STATES = 8
 N_HEADED_STATES = 6
 N_NOT_HEADED_STATES = 4
@@ -51,7 +50,7 @@ class MotionModelManager:
                 agent.goals.append(goal_back)
     
     def update_goals(self, agent:Agent):
-        if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < GOAL_RADIUS)):
+        if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < agent.radius)):
             goal = agent.goals[0]
             agent.goals.remove(goal)
             agent.goals.append(goal)
@@ -90,6 +89,38 @@ class MotionModelManager:
         agent.body_velocity[1] = y[4]
         agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
         agent.angular_velocity = y[5]
+
+    def set_state_orca(self, agent_idx:int, robot_sim=False):
+        if not robot_sim:
+            if agent_idx < len(self.humans):
+                self.sim.setAgentPosition(self.agents[agent_idx], (self.humans[agent_idx].position[0], self.humans[agent_idx].position[1]))
+                self.sim.setAgentVelocity(self.agents[agent_idx], (self.humans[agent_idx].linear_velocity[0], self.humans[agent_idx].linear_velocity[1]))
+                self.update_goals_orca(agent_idx, robot_sim=robot_sim)
+            else:
+                self.sim.setAgentPosition(self.agents[agent_idx], (self.robot.position[0], self.robot.position[1]))
+                self.sim.setAgentVelocity(self.agents[agent_idx], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
+        else:
+            if agent_idx < len(self.humans):
+                self.robot_sim.setAgentPosition(self.robot_sim_agents[agent_idx], (self.humans[agent_idx].position[0], self.humans[agent_idx].position[1]))
+                self.robot_sim.setAgentVelocity(self.robot_sim_agents[agent_idx], (self.humans[agent_idx].linear_velocity[0], self.humans[agent_idx].linear_velocity[1]))
+                self.update_goals_orca(agent_idx, robot_sim=robot_sim)
+            else:
+                self.robot_sim.setAgentPosition(self.robot_sim_agents[agent_idx], (self.robot.position[0], self.robot.position[1]))
+                self.robot_sim.setAgentVelocity(self.robot_sim_agents[agent_idx], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
+                self.update_goals_orca(agent_idx, robot_sim=robot_sim, robot=True)
+
+    def update_goals_orca(self, agent_idx:int, robot_sim=False, robot=False):
+        if not robot:
+            if self.update_targets: self.update_goals(self.humans[agent_idx])
+            goal_position = np.array(self.humans[agent_idx].goals[0], dtype=np.float64)
+            agent_pref_speed = ((goal_position - self.humans[agent_idx].position) / np.linalg.norm(goal_position - self.humans[agent_idx].position)) * self.humans[agent_idx].desired_speed
+            if not robot_sim: self.sim.setAgentPrefVelocity(self.agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
+            else: self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
+        else:
+            if self.update_targets: self.update_goals(self.robot) # Pay attention to this
+            goal_position = np.array(self.robot.goals[0], dtype=np.float64)
+            robot_pref_speed = ((goal_position - self.robot.position) / np.linalg.norm(goal_position - self.robot.position)) * self.robot.desired_speed
+            self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (robot_pref_speed[0], robot_pref_speed[1]))
 
     ### METHODS ONLY FOR HUMANS
 
@@ -175,31 +206,26 @@ class MotionModelManager:
                 self.humans[i].yaw = state[i,2]
                 self.humans[i].update()
 
-    def set_state_orca(self, agent_idx:int):
-        if agent_idx < len(self.humans):
-            self.sim.setAgentPosition(self.agents[agent_idx], (self.humans[agent_idx].position[0], self.humans[agent_idx].position[1]))
-            self.sim.setAgentVelocity(self.agents[agent_idx], (self.humans[agent_idx].linear_velocity[0], self.humans[agent_idx].linear_velocity[1]))
-            self.update_goals_orca(agent_idx)
-        else:
-            self.sim.setAgentPosition(self.agents[agent_idx], (self.robot.position[0], self.robot.position[1]))
-            self.sim.setAgentVelocity(self.agents[agent_idx], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
-
-    def update_goals_orca(self, agent_idx:int):
-        if self.update_targets: self.update_goals(self.humans[agent_idx])
-        goal_position = np.array(self.humans[agent_idx].goals[0], dtype=np.float64)
-        agent_pref_speed = ((goal_position - self.humans[agent_idx].position) / np.linalg.norm(goal_position - self.humans[agent_idx].position)) * self.humans[agent_idx].desired_speed
-        self.sim.setAgentPrefVelocity(self.agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
-
     def update_humans(self, t:float, dt:float):
-        if not self.orca: # SFM & HSFM (both Euler and RK45)
+        if not self.orca: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
                 self.compute_forces()
-                if not self.headed:
+                if not self.headed: # SFM Euler
                     for agent in self.humans: self.euler_not_headed_single_agent_update(agent, dt, self.include_mass)
-                else:
+                else: # HSFM Euler
                     for agent in self.humans: self.euler_headed_single_agent_update(agent, dt)
-            else: self.update_humans_positions_rk45(t,dt)
-        else: # ORCA (only Euler)
+            else:
+                if not self.headed: # SFM RK45
+                    current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
+                    solution = solve_ivp(self.f_rk45_not_headed, (t, t+dt), current_state, method='RK45')
+                    for i in range(len(self.humans)): self.set_new_not_headed_state_from_rk45_solution(self.humans[i], solution.y[i*N_NOT_HEADED_STATES:i*N_NOT_HEADED_STATES+N_NOT_HEADED_STATES,-1])
+                else: # HSFM RK45
+                    current_state = np.reshape(self.get_human_states(include_goal=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
+                    solution = solve_ivp(self.f_rk45_headed, (t, t+dt), current_state, method='RK45')
+                    for i in range(len(self.humans)):
+                        self.set_new_headed_state_from_rk45_solution(self.humans[i], solution.y[i*N_HEADED_STATES:i*N_HEADED_STATES+N_HEADED_STATES,-1])
+                        self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
+        else: ## ORCA (only Euler)
             self.sim.setTimeStep(dt)
             self.sim.doStep()
             for i, agent in enumerate(self.agents):
@@ -247,30 +273,6 @@ class MotionModelManager:
                 self.humans[i].global_force[0] = np.dot(self.humans[i].desired_force + self.humans[i].obstacle_force + self.humans[i].social_force, self.humans[i].rotational_matrix[:,0]) + self.humans[i].group_force[0]
                 self.humans[i].global_force[1] = self.humans[i].ko * np.dot(self.humans[i].obstacle_force + self.humans[i].social_force, self.humans[i].rotational_matrix[:,1]) - self.humans[i].kd * self.humans[i].body_velocity[1] + self.humans[i].group_force[1]
 
-    def update_humans_positions_rk45(self, t:float, dt:float):
-        if self.headed: 
-            current_state = np.reshape(self.get_human_states(include_goal=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
-            solution = solve_ivp(self.f_rk45_headed, (t, t+dt), current_state, method='RK45')
-            for i in range(len(self.humans)):
-                self.humans[i].position[0] = solution.y[i*N_HEADED_STATES][-1]
-                self.humans[i].position[1] = solution.y[i*N_HEADED_STATES+1][-1]
-                self.humans[i].yaw = bound_angle(solution.y[i*N_HEADED_STATES+2][-1])
-                self.humans[i].body_velocity[0] = solution.y[i*N_HEADED_STATES+3][-1]
-                self.humans[i].body_velocity[1] = solution.y[i*N_HEADED_STATES+4][-1]
-                self.humans[i].body_velocity = self.bound_velocity(self.humans[i].body_velocity, self.humans[i].desired_speed)
-                self.humans[i].angular_velocity = solution.y[i*N_HEADED_STATES+5][-1]
-                # self.set_new_headed_state_from_rk45_solution(self.humans[i], solution.y[(i*N_HEADED_STATES):(i*N_HEADED_STATES+6)][-1])
-                self.humans[i].linear_velocity = np.matmul(self.humans[i].rotational_matrix, self.humans[i].body_velocity)
-        else: 
-            current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
-            solution = solve_ivp(self.f_rk45_not_headed, (t, t+dt), current_state, method='RK45')
-            for i in range(len(self.humans)):
-                self.humans[i].position[0] = solution.y[i*N_NOT_HEADED_STATES][-1]
-                self.humans[i].position[1] = solution.y[i*N_NOT_HEADED_STATES+1][-1]
-                self.humans[i].linear_velocity[0] = solution.y[i*N_NOT_HEADED_STATES+2][-1]
-                self.humans[i].linear_velocity[1] = solution.y[i*N_NOT_HEADED_STATES+3][-1]
-                self.humans[i].linear_velocity = self.bound_velocity(self.humans[i].linear_velocity, self.humans[i].desired_speed)
-
     def complete_rk45_simulation(self, t:float, dt:float, final_time:float):
         evaluation_times = np.arange(t,final_time,dt, dtype=np.float64)
         if self.headed: 
@@ -298,15 +300,7 @@ class MotionModelManager:
         return human_states
 
     def f_rk45_headed(self, t, y):
-        for i in range(len(self.humans)):
-            self.humans[i].position[0] = y[i*N_HEADED_STATES]
-            self.humans[i].position[1] = y[i*N_HEADED_STATES+1]
-            self.humans[i].yaw = bound_angle(y[i*N_HEADED_STATES+2])
-            self.humans[i].body_velocity[0] = y[i*N_HEADED_STATES+3]
-            self.humans[i].body_velocity[1] = y[i*N_HEADED_STATES+4]
-            self.humans[i].body_velocity = self.bound_velocity(self.humans[i].body_velocity, self.humans[i].desired_speed)
-            self.humans[i].angular_velocity = y[i*N_HEADED_STATES+5]
-            # self.set_new_headed_state_from_rk45_solution(self.humans[i], y[(i*N_HEADED_STATES):(i*N_HEADED_STATES+6)])
+        for i in range(len(self.humans)): self.set_new_headed_state_from_rk45_solution(self.humans[i], y[(i*N_HEADED_STATES):(i*N_HEADED_STATES+N_HEADED_STATES)])
         self.compute_forces()
         ydot = np.empty((len(self.humans) * N_HEADED_STATES,), dtype=np.float64)
         for i in range(len(self.humans)):
@@ -319,12 +313,7 @@ class MotionModelManager:
         return ydot
     
     def f_rk45_not_headed(self, t, y):
-        for i in range(len(self.humans)):
-            self.humans[i].position[0] = y[i*N_NOT_HEADED_STATES]
-            self.humans[i].position[1] = y[i*N_NOT_HEADED_STATES+1]
-            self.humans[i].linear_velocity[0] = y[i*N_NOT_HEADED_STATES+2]
-            self.humans[i].linear_velocity[1] = y[i*N_NOT_HEADED_STATES+3]
-            self.humans[i].linear_velocity = self.bound_velocity(self.humans[i].linear_velocity, self.humans[i].desired_speed)
+        for i in range(len(self.humans)): self.set_new_not_headed_state_from_rk45_solution(self.humans[i], y[(i*N_NOT_HEADED_STATES):(i*N_NOT_HEADED_STATES+N_NOT_HEADED_STATES)])
         self.compute_forces()
         ydot = np.empty((len(self.humans) * N_NOT_HEADED_STATES,), dtype=np.float64)
         if self.include_mass:
@@ -389,24 +378,25 @@ class MotionModelManager:
         self.robot_runge_kutta = runge_kutta
         self.robot_motion_model_title = motion_model_title
         global compute_robot_desired_force, compute_robot_obstacle_force, compute_robot_social_force, compute_robot_torque_force
-        if self.robot_motion_model_title == "sfm_helbing": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "sfm_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "sfm_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "sfm_roboticsupo": from social_gym.src.forces import compute_desired_force_roboticsupo as compute_robot_desired_force, compute_obstacle_force_roboticsupo as compute_robot_obstacle_force, compute_social_force_roboticsupo as compute_robot_social_force; self.robot_headed = False; self.robot_include_mass = False; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_farina": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_new": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_new_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
-        elif self.robot_motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        if self.robot_motion_model_title == "sfm_helbing": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force; self.robot.headed=False; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "sfm_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force; self.robot.headed=False; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "sfm_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force; self.robot.headed=False; self.robot_headed = False; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "sfm_roboticsupo": from social_gym.src.forces import compute_desired_force_roboticsupo as compute_robot_desired_force, compute_obstacle_force_roboticsupo as compute_robot_obstacle_force, compute_social_force_roboticsupo as compute_robot_social_force; self.robot.headed=False; self.robot_headed = False; self.robot_include_mass = False; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_farina": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force, compute_torque_force_farina as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_new": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_helbing as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_new_guo": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_guo as compute_robot_obstacle_force, compute_social_force_guo as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
+        elif self.robot_motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force as compute_robot_desired_force, compute_obstacle_force_helbing as compute_robot_obstacle_force, compute_social_force_moussaid as compute_robot_social_force, compute_torque_force_new as compute_robot_torque_force; self.robot.headed=True; self.robot_headed = True; self.robot_include_mass = True; self.robot_orca = False
         elif self.robot_motion_model_title == "orca": 
-            self.robot_orca = True; self.robot_headed = False; self.include_mass = False
+            if runge_kutta: raise NotImplementedError
+            self.robot_orca = True; self.robot.headed=False; self.robot_headed = False; self.include_mass = False
             self.robot_sim = rvo2.PyRVOSimulator(1/60, 1.5, 5, 1.5, 2, 0.3, 0.9)
             self.robot_sim_agents = []
             for i, agent in enumerate(self.humans):
                 # Adding agents to the simulator: parameters ((poistion_x, position_y), agents_neighbor_dist, agents_max_neighbors, safety_time_horizon, safety_time_horizon_obstacles, agents_radius, agent_max_speed, (velocity_x, velocity_y))
                 self.robot_sim_agents.append(self.robot_sim.addAgent((agent.position[0], agent.position[1]), 1.5, 5, 1.5, 2, agent.radius, agent.desired_speed, (agent.linear_velocity[0], agent.linear_velocity[1])))
-                self.update_goals_orca(i)
+                self.update_goals_orca(i, robot_sim=True)
             self.robot_sim_agents.append(self.robot_sim.addAgent((self.robot.position[0], self.robot.position[1])))
             for wall in self.walls: self.robot_sim.addObstacle(list(wall.vertices))
             self.robot_sim.processObstacles()
@@ -418,7 +408,7 @@ class MotionModelManager:
         Computes the forces based on the selected robot Social Force Model (No ORCA).
         """
         # Update goals
-        if self.update_targets: self.update_goals(self.robot)
+        if self.update_targets: self.update_goals(self.robot) # Pay attention to this
         # Update obstacles
         self.robot.obstacles.clear()
         for wall in self.walls:
@@ -439,7 +429,7 @@ class MotionModelManager:
 
     def update_robot(self, t:float, dt:float):
         """
-        Makes a step to update the robot state based on the timestep given (dt)
+        Makes a step to update the robot state based on the timestep given (dt) and the selected motion model.
 
         params:
         - t (float): current time
@@ -447,42 +437,33 @@ class MotionModelManager:
 
         output: None
         """
-        if not self.robot_orca: # SFM & HSFM (both Euler and RK45)
+        if not self.robot_orca: ## SFM & HSFM (both Euler and RK45)
             if not self.robot_runge_kutta:
                 self.compute_robot_forces()
-                if not self.robot_headed: self.euler_not_headed_single_agent_update(self.robot, dt, self.robot_include_mass)
-                else: self.euler_headed_single_agent_update(self.robot, dt)
+                if not self.robot_headed: self.euler_not_headed_single_agent_update(self.robot, dt, self.robot_include_mass) # SFM Euler
+                else: self.euler_headed_single_agent_update(self.robot, dt) # HSFM Euler
             else:
-                if not self.robot_headed:
-                    current_state = self.get_human_states(include_goal=False, headed=False)
+                if not self.robot_headed: # SFM RK45
+                    current_state = self.get_robot_state(include_goal=False, headed=False)
                     solution = solve_ivp(self.f_rk45_robot_not_headed, (t, t+dt), current_state, method='RK45')
-                    self.robot.position[0] = solution.y[0][-1]
-                    self.robot.position[1] = solution.y[1][-1]
-                    self.robot.linear_velocity[0] = solution.y[2][-1]
-                    self.robot.linear_velocity[1] = solution.y[3][-1]
-                    self.robot.linear_velocity = self.bound_velocity(self.robot.linear_velocity, self.robot.desired_speed)
-                else: 
-                    current_state = self.get_human_states(include_goal=False, headed=True)
+                    self.set_new_not_headed_state_from_rk45_solution(self.robot, solution.y[:,-1])
+                else: # HSFM RK45
+                    current_state = self.get_robot_state(include_goal=False, headed=True)
                     solution = solve_ivp(self.f_rk45_robot_headed, (t, t+dt), current_state, method='RK45')
-                    self.robot.position[0] = solution.y[0][-1]
-                    self.robot.position[1] = solution.y[1][-1]
-                    self.robot.yaw = bound_angle(solution.y[2][-1])
-                    self.robot.body_velocity[0] = solution.y[3][-1]
-                    self.robot.body_velocity[1] = solution.y[4][-1]
-                    self.robot.body_velocity = self.bound_velocity(self.robot.body_velocity, self.robot.desired_speed)
-                    self.robot.angular_velocity = solution.y[5][-1]
-                    self.robot.linear_velocity = np.matmul(self.robot.rotational_matrix, self.robot.body_velocity)                    
-        else: # ORCA (only Euler)
-            raise NotImplementedError
+                    self.set_new_headed_state_from_rk45_solution(self.robot, solution.y[:,-1])                  
+        else: ## ORCA (only Euler)
+            self.robot_sim.setTimeStep(dt)
+            for i in range(len(self.robot_sim_agents)):
+                if i < len(self.humans): self.set_state_orca(i, robot_sim=True); # Human
+            self.robot_sim.doStep()
+            self.robot.linear_velocity[0] = self.robot_sim.getAgentVelocity(self.robot_sim_agents[len(self.humans)])[0]
+            self.robot.linear_velocity[1] = self.robot_sim.getAgentVelocity(self.robot_sim_agents[len(self.humans)])[1]
+            self.robot.position[0] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[0]
+            self.robot.position[1] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[1]
+            self.update_goals_orca(self.robot_sim_agents[len(self.humans)], robot_sim=True, robot=True)
 
     def f_rk45_robot_headed(self, t, y):
-        self.robot.position[0] = y[0]
-        self.robot.position[1] = y[1]
-        self.robot.yaw = bound_angle(y[2])
-        self.robot.body_velocity[0] = y[3]
-        self.robot.body_velocity[1] = y[4]
-        self.robot.body_velocity = self.bound_velocity(self.robot.body_velocity, self.robot.desired_speed)
-        self.robot.angular_velocity = y[5]
+        self.set_new_headed_state_from_rk45_solution(self.robot, y)
         self.compute_robot_forces()
         ydot = np.empty((N_HEADED_STATES,), dtype=np.float64)
         ydot[0] = np.dot(self.robot.rotational_matrix[0,:], self.robot.body_velocity)
@@ -494,11 +475,7 @@ class MotionModelManager:
         return ydot
 
     def f_rk45_robot_not_headed(self, t, y):
-        self.robot.position[0] = y[0]
-        self.robot.position[1] = y[1]
-        self.robot.linear_velocity[0] = y[2]
-        self.robot.linear_velocity[1] = y[3]
-        self.robot.linear_velocity = self.bound_velocity(self.robot.linear_velocity, self.robot.desired_speed)
+        self.set_new_not_headed_state_from_rk45_solution(self.robot, y)
         self.compute_robot_forces()
         ydot = np.empty((N_NOT_HEADED_STATES,), dtype=np.float64)
         if self.robot_include_mass:
@@ -527,3 +504,23 @@ class MotionModelManager:
         next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
         self.set_human_states(current_human_states)
         return next_human_observable_states
+    
+    def get_next_robot_full_state(self, dt:float):
+        """
+        This function computes the next robot full state without actually modifying its state.
+
+        params:
+        - dt (float): time step used for the update
+
+        output:
+        - next_robot_full_state (np.array): next full state of the robot
+        - next_robot_linear_velocity (np.array): next robot velocity
+        """
+        if self.robot_headed: current_robot_state = self.get_robot_state(include_goal=True, headed=True)
+        else: current_robot_state = self.get_robot_state(include_goal=True, headed=False)
+        self.update_robot(0, dt)
+        if self.robot_headed: next_robot_full_state = self.get_robot_state(include_goal=True, headed=True)
+        else: next_robot_full_state = self.get_robot_state(include_goal=True, headed=False)
+        next_robot_linear_velocity = self.robot.linear_velocity.copy()
+        self.set_robot_state(current_robot_state)
+        return next_robot_full_state, next_robot_linear_velocity

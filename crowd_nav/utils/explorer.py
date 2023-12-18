@@ -2,6 +2,7 @@ import logging
 import copy
 import torch
 from social_gym.src.info import *
+from social_gym.src.state import JointState
 
 
 class Explorer(object):
@@ -20,7 +21,7 @@ class Explorer(object):
     # @profile
     def run_k_episodes(self, k, phase, update_memory=False, imitation_learning=False, episode=None,
                        print_failure=False):
-        self.robot.policy.set_phase(phase)
+        if not imitation_learning: self.robot.policy.set_phase(phase)
         success_times = []
         collision_times = []
         timeout_times = []
@@ -40,12 +41,15 @@ class Explorer(object):
             actions = []
             rewards = []
             while (not terminated) and (not truncated):
-                # if imitation_learning: pass
-                # else:
-                action = self.robot.act(ob)
-                ob, reward, terminated, truncated, info = self.env.step(action)
-                states.append(self.robot.policy.last_state)
-                actions.append(action)
+                if imitation_learning:
+                    state = JointState(self.robot.get_full_state(), ob)
+                    states.append(state)
+                    ob, reward, terminated, truncated, info = self.env.imitation_learning_step()
+                else:
+                    action = self.robot.act(ob)
+                    ob, reward, terminated, truncated, info = self.env.step(action)
+                    states.append(self.robot.policy.last_state)
+                    actions.append(action)
 
                 rewards.append(reward)
 

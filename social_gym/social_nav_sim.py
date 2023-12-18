@@ -158,7 +158,12 @@ class SocialNavSim:
         self.show_stats = True
 
         # Human motion model
-        self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+        if not reset_robot and self.motion_model_manager.robot_motion_model_title is not None:
+            robot_motion_model_title = self.motion_model_manager.robot_motion_model_title
+            robot_runge_kutta = self.motion_model_manager.robot_runge_kutta
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+            self.motion_model_manager.set_robot_motion_model(robot_motion_model_title, robot_runge_kutta)
+        else: self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
 
         # Simulation variables
         self.n_updates = 0
@@ -324,13 +329,16 @@ class SocialNavSim:
             if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', self.humans, self.walls)
             if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', self.humans, self.walls)
         else:
-            if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
-                robot_goal = self.robot.goals[0]
-                self.robot.goals.remove(robot_goal)
-                self.robot.goals.append(robot_goal)
-            ob = [human.get_observable_state() for human in self.humans]
-            action = self.robot.act(ob)
-            self.robot.step(action, SAMPLING_TIME)
+            if self.robot_crowdnav_policy:
+                if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
+                    robot_goal = self.robot.goals[0]
+                    self.robot.goals.remove(robot_goal)
+                    self.robot.goals.append(robot_goal)
+                ob = [human.get_observable_state() for human in self.humans]
+                action = self.robot.act(ob)
+                self.robot.step(action, SAMPLING_TIME)
+            else:
+                self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
             self.updated = True
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
@@ -378,7 +386,7 @@ class SocialNavSim:
                             self.render_sim()
                             pygame.event.get(); r_is_pressed = pygame.key.get_pressed()[pygame.K_z]
                     # Reset
-                    if pygame.key.get_pressed()[pygame.K_r]: 
+                    if pygame.key.get_pressed()[pygame.K_r]:
                         self.reset_sim()
                         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
                         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
@@ -589,39 +597,67 @@ class SocialNavSim:
         for i in range(len(self.humans)):
             ax.plot(human_states[:,i,0],human_states[:,i,1])
 
-    ### METHODS FOR ROBOT CROWDNAV POLICIES
+    def set_human_motion_model_as_robot_policy(self, policy_name, runge_kutta):
+        """
+        Sets a human motion model as the policy the robot will follow to move towards its goals.
 
-    def set_robot_policy(self, policy_name, model_dir=None, il=False):
-        # Set policy
-        if "hsfm" in policy_name: self.robot.headed = True
-        if policy_name == "orca": self.robot.orca = True
-        policy = policy_factory[policy_name]()
-        if model_dir is not None:
-            if not il: model_weights = os.path.join(model_dir, 'rl_model.pth')
-            else: model_weights = os.path.join(model_dir, 'il_model.pth')
-            policy_config_file = os.path.join(model_dir, os.path.basename('policy.config'))
-            policy_config = configparser.RawConfigParser()
-            policy_config.read(policy_config_file)
-            policy.configure(policy_config)
-        if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights, map_location=torch.device('cpu')))
-        policy.set_phase('test')
-        policy.set_device('cpu')
-        policy.set_env(self)
-        # Configure robot
-        if model_dir is not None:
-            env_config_file = os.path.join(model_dir, os.path.basename('env.config'))
-            env_config = configparser.RawConfigParser()
-            env_config.read(env_config_file)
-            self.robot.configure(env_config, 'robot')
-            self.time_limit = env_config.getint('env', 'time_limit')
-            self.success_reward = env_config.getfloat('reward', 'success_reward')
-            self.collision_penalty = env_config.getfloat('reward', 'collision_penalty')
-            self.discomfort_dist = env_config.getfloat('reward', 'discomfort_dist')
-            self.discomfort_penalty_factor = env_config.getfloat('reward', 'discomfort_penalty_factor')
-        else:
-            self.robot.desired_speed = 1
-        self.robot.set_policy(policy)
-        self.robot.policy.time_step = SAMPLING_TIME
+        params:
+        - policy_name (str): name of the policy.
+        - runge_kutta (bool): if True, integration uses Runge-Kutta-45. Only valid for NON-crowdnav policies.
+        
+        output: None
+        """
+        self.motion_model_manager.set_robot_motion_model(policy_name, runge_kutta)
+
+    ### METHODS FOR CROWDNAV ROBOT POLICIES
+
+    def set_robot_policy(self, policy_name:str, runge_kutta=False, crowdnav_policy=False, model_dir=None, il=False):
+        """"
+        Sets the policy the robot will follow to move towards its goals.
+
+        params:
+        - policy_name (str): name of the policy.
+        - runge_kutta (bool): if True, integration uses Runge-Kutta-45. Only valid for NON-crowdnav policies.
+        - crowdnav_policy (bool): specify if the policy is a crowdnav one (True) or a human motion model of MotionModelManager (false)
+        - model_dir (str): specifies the directory where the crowdnav model is stored
+        - il (bool): if True, the Imitation Learning model is taken. Else, the reinforcement learning model is selected.
+
+        output: None
+        """
+        if crowdnav_policy:
+            # Set policy
+            policy = policy_factory[policy_name]()
+            if model_dir is not None:
+                if not il: model_weights = os.path.join(model_dir, 'rl_model.pth')
+                else: model_weights = os.path.join(model_dir, 'il_model.pth')
+                policy_config_file = os.path.join(model_dir, os.path.basename('policy.config'))
+                policy_config = configparser.RawConfigParser()
+                policy_config.read(policy_config_file)
+                policy.configure(policy_config)
+            if policy.trainable: policy.get_model().load_state_dict(torch.load(model_weights, map_location=torch.device('cpu')))
+            policy.set_phase('test')
+            policy.set_device('cpu')
+            policy.set_env(self)
+            # Configure robot
+            if model_dir is not None:
+                env_config_file = os.path.join(model_dir, os.path.basename('env.config'))
+                env_config = configparser.RawConfigParser()
+                env_config.read(env_config_file)
+                self.robot.configure(env_config, 'robot')
+                self.time_limit = env_config.getint('env', 'time_limit')
+                self.success_reward = env_config.getfloat('reward', 'success_reward')
+                self.collision_penalty = env_config.getfloat('reward', 'collision_penalty')
+                self.discomfort_dist = env_config.getfloat('reward', 'discomfort_dist')
+                self.discomfort_penalty_factor = env_config.getfloat('reward', 'discomfort_penalty_factor')
+            else:
+                self.robot.desired_speed = 1
+            self.robot.set_policy(policy)
+            self.robot.policy.time_step = SAMPLING_TIME
+            self.robot_crowdnav_policy = True
+        else: 
+            self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
+            self.robot.policy = policy_name
+            self.robot_crowdnav_policy = False
 
     def transform_human_states(self, state:np.array):
         """
@@ -645,7 +681,7 @@ class SocialNavSim:
         reaches the goal.
 
         params:
-        - action: robot action
+        - action: robot action (either a crowdnav action or a np.array)
         - time_step: time step to use for the computation
 
         returns:
@@ -658,23 +694,20 @@ class SocialNavSim:
         collision = False
         for human in self.humans:
             difference = human.position - self.robot.position
-            if self.robot.kinematics == 'holonomic': robot_velocity = np.array([action.vx, action.vy])
-            elif self.robot.kinematics == 'holonomic3':
-                robot_body_velocity = np.array([action.bvx, action.bvy])
-                rotational_matrix = np.array([[np.cos(self.robot.yaw), -np.sin(self.robot.yaw)],[np.sin(self.robot.yaw), np.cos(self.robot.yaw)]], dtype=np.float64)
-                robot_velocity = np.matmul(rotational_matrix, robot_body_velocity)
-            else: robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
+            if isinstance(action, np.ndarray):
+                robot_velocity = action
+            else:
+                if self.robot.kinematics == 'holonomic': robot_velocity = np.array([action.vx, action.vy])
+                else: robot_velocity = np.array([action.v * np.cos(action.r + self.robot.theta), action.v * np.sin(action.r + self.robot.theta)])
             velocity_difference = human.linear_velocity - robot_velocity
             e = difference + velocity_difference * time_step
             # closest distance between boundaries of two agents
             closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
-            if closest_dist < 0:
-                collision = True
-                # logging.debug("Collision: distance between robot and p{} is {:.2E}".format(i, closest_dist))
-                break
+            if closest_dist < 0: collision = True; break
             elif closest_dist < dmin: dmin = closest_dist
         # Check if reaching the goal
-        end_position = self.robot.compute_position(action, time_step)
+        if isinstance(action, np.ndarray): end_position = self.robot.position + action * time_step
+        else: end_position = self.robot.compute_position(action, time_step)
         reaching_goal = np.linalg.norm(end_position - self.robot.get_goal_position()) < self.robot.radius
         return collision, dmin, reaching_goal
 

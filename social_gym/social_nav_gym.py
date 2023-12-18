@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
-HEADLESS = True
+HEADLESS = False
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -165,7 +165,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         # Update robot state
         self.robot.step(action, self.time_step)
         # Update humans state
-        self.motion_model_manager.update(self.global_time, self.time_step)
+        self.motion_model_manager.update_humans(self.global_time, self.time_step)
         self.global_time += self.time_step
         # Compute observation
         ob = self.compute_humans_observable_state()
@@ -176,9 +176,23 @@ class SocialNavGym(gym.Env, SocialNavSim):
         """
         Makes a step of the environment when the robot is moving following a human policy.
         """
-        # New way to check collisions and goal reaching, not based on actions
-        # New method of motion_model_manager to update robot state
-        pass
+        # Collision detection and check if reaching the goal
+        next_robot_state, action = self.motion_model_manager.get_next_robot_full_state(self.time_step)
+        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.time_step)
+        # Compute Reward, truncated, terminated, and info
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.time_step)
+        # Store state, action value and attention weights
+        self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
+        # Update robot state
+        # self.motion_model_manager.update_robot(self.global_time, self.time_step)
+        self.motion_model_manager.set_robot_state(next_robot_state)
+        # Update humans state
+        self.motion_model_manager.update_humans(self.global_time, self.time_step)
+        self.global_time += self.time_step
+        # Compute observation
+        ob = self.compute_humans_observable_state()
+        self.updated = True
+        return ob, reward, terminated, truncated, {0: info}
 
     def render(self):
         if not HEADLESS: self.render_sim()

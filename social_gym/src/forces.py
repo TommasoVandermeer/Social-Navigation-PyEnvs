@@ -4,12 +4,12 @@ from social_gym.src.human_agent import HumanAgent
 from social_gym.src.agent import Agent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.utils import bound_angle
-from social_gym.src.motion_model_manager import GOAL_RADIUS, Group
+from social_gym.src.motion_model_manager import Group
 
 def compute_desired_force(agent:Agent):
     difference = agent.goals[0] - agent.position
     distance = np.linalg.norm(difference)
-    if ((agent.goals) and (distance > GOAL_RADIUS)):
+    if ((agent.goals) and (distance > agent.radius)):
         desired_direction = difference / distance
         agent.desired_force = agent.mass * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
     else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
@@ -18,7 +18,7 @@ def compute_desired_force(agent:Agent):
 def compute_desired_force_roboticsupo(agent:Agent):
     difference = agent.goals[0] - agent.position
     distance = np.linalg.norm(difference)
-    if ((agent.goals) and (distance > GOAL_RADIUS)):
+    if ((agent.goals) and (distance > agent.radius)):
         desired_direction = difference / distance
         agent.desired_force = agent.goal_weight * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
     else: desired_direction = np.array([0.0,0.0], dtype=np.float64)

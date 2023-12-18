@@ -19,13 +19,13 @@ RUNGE_KUTTA = True
 social_nav = SocialNavSim([4,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
-## Set robot policy - trainable policy
-# social_nav.set_robot_policy(policy_name="sarl", model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo_7000ep'), il=False)
-## Set robot policy - non trainable policy
-# social_nav.set_robot_policy(policy_name="hsfm_new_guo")
 ## Set sampling time (default is 0.01666666)
 TIME_STEP = 0.25
 social_nav.set_time_step(TIME_STEP)
+## Set robot policy - trainable policy
+social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo_7000ep'), il=False)
+## Set robot policy - non trainable policy
+# social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
