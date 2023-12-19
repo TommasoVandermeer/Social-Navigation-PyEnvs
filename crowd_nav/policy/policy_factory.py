@@ -1,4 +1,4 @@
-from social_gym.policy.policy_factory import policy_factory
+from crowd_nav.policy_no_train.policy_factory import policy_factory
 from crowd_nav.policy.cadrl import CADRL
 from crowd_nav.policy.lstm_rl import LstmRL
 from crowd_nav.policy.sarl import SARL

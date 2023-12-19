@@ -1,10 +1,7 @@
 import pygame
 import math
 import numpy as np
-import logging
-from social_gym.src.state import ObservableState, FullState, FullStateHeaded
-from social_gym.src.action import ActionXY, ActionRot, ActionXYW, NewState, NewHeadedState
-from social_gym.src.utils import bound_angle
+from crowd_nav.utils.state import ObservableState, FullState
 
 class Agent():
     def __init__(self, position:list[float], yaw:float, color:tuple, radius:float, real_size:float, display_ratio:float, mass=80, desired_speed=1):
@@ -39,55 +36,6 @@ class Agent():
         self.sensor = None
         self.visible = None
 
-    def print_info(self):
-        logging.info('Agent is {} and has {} kinematic constraint'.format('visible' if self.visible else 'invisible', self.kinematics))
-
-    def get_observable_state(self):
-        return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
-
-    def get_full_state(self):
-        if not self.headed: return FullState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius, self.goals[0][0], self.goals[0][1], self.desired_speed, self.yaw)
-        else: return FullStateHeaded(self.position[0], self.position[1], self.body_velocity[0], self.body_velocity[1], self.radius, self.goals[0][0], self.goals[0][1], self.desired_speed, self.yaw, self.angular_velocity)
-
-    def set_policy(self, policy):
-        self.policy = policy
-        self.kinematics = policy.kinematics
-        if 'hsfm' in policy.name: self.headed = True
-        if policy.name == 'orca': self.orca = True
-
-    def set(self, px, py, gx, gy, vx, vy, theta, radius=None, v_pref=None, w=None):
-        self.position[0] = px
-        self.position[1] = py
-        self.goals.append([gx,gy])
-        self.linear_velocity[0] = vx
-        self.linear_velocity[1] = vy
-        self.yaw = theta
-        if radius is not None: self.radius = radius
-        if v_pref is not None: self.desired_speed = v_pref
-        if w is not None: self.angular_velocity = w
-
-    def check_validity(self, action):
-        if self.kinematics == 'holonomic': assert isinstance(action, (ActionXY, NewState))
-        elif self.kinematics == 'holonomic3': assert isinstance(action, (ActionXYW, NewHeadedState))
-        else: assert isinstance(action, ActionRot)
-    
-    def compute_position(self, action, delta_t):
-        self.check_validity(action)
-        if self.kinematics == 'holonomic':
-            act = np.array([action.vx, action.vy])
-            position = self.position + act * delta_t
-        elif self.kinematics == 'holonomic3':
-            if isinstance(action, ActionXYW):
-                rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
-                body_velocity = np.array([action.bvx, action.bvy])
-                position = self.position + np.matmul(rotational_matrix, body_velocity) * delta_t
-            elif isinstance(action, NewHeadedState):
-                position = np.array([action.px, action.py], dtype=np.float64)
-        else:
-            act = np.array([np.cos(self.yaw + action.r) * action.v, np.sin(self.yaw + action.r) * action.v])
-            position = self.position + act * delta_t
-        return position
-
     def get_goal_position(self):
         return np.array([self.goals[0][0], self.goals[0][1]])
     
@@ -101,31 +49,6 @@ class Agent():
     def set_pose(self, pose:np.array):
         self.position = pose[0:2]
         self.yaw = pose[2]
-
-    def step(self, action, delta_t):
-        """
-        Perform an action and update the state
-        """
-        self.check_validity(action)
-        self.position = self.compute_position(action, delta_t)
-        if self.kinematics == 'holonomic':
-            self.linear_velocity = np.array([action.vx, action.vy])
-        elif self.kinematics == 'holonomic3':
-            if isinstance(action, ActionXYW):
-                rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
-                self.body_velocity = np.array([action.bvx, action.bvy])
-                self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
-                self.angular_velocity = action.w
-                self.yaw = bound_angle(self.yaw + self.angular_velocity * delta_t)
-            if isinstance(action, NewHeadedState):
-                rotational_matrix = np.array([[np.cos(action.theta), -np.sin(action.theta)],[np.sin(action.theta), np.cos(action.theta)]], dtype=np.float64)
-                self.body_velocity = np.array([action.bvx, action.bvy])
-                self.linear_velocity = np.matmul(rotational_matrix, self.body_velocity)
-                self.angular_velocity = action.w
-                self.yaw = action.theta
-        else:
-            self.yaw = (self.yaw + action.r) % (2 * np.pi)
-            self.linear_velocity = np.array([np.cos(self.yaw) * action.v, np.sin(self.yaw) * action.v])
 
     def move(self):
         self.rect.centerx = round(self.position[0] * self.ratio)
@@ -310,3 +233,11 @@ class Agent():
             # self.group_distance_orthogonal = 1.0
             # self.k1g = 200.0
             # self.k2g = 200.0
+
+    ### METHODS FOR CROWDNAV POLICIES
+
+    def get_observable_state(self):
+        return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
+
+    def get_full_state(self):
+        return FullState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius, self.goals[0][0], self.goals[0][1], self.desired_speed, self.yaw)

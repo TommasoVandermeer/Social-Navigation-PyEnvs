@@ -7,9 +7,8 @@ import numpy as np
 import gymnasium as gym
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
+from crowd_nav.policy_no_train.orca import ORCA
 from social_gym.src.robot_agent import RobotAgent
-from social_gym.policy.orca import ORCA
-
 
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')

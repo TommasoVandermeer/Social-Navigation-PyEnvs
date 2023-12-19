@@ -1,7 +1,6 @@
 import numpy as np
-from social_gym.policy.forces import compute_desired_force, compute_social_force_guo as compute_social_force
-from social_gym.policy.sfm_helbing import SFMHelbing
-from social_gym.src.action import ActionXY
+from crowd_nav.policy_no_train.forces import compute_desired_force, compute_social_force_guo as compute_social_force
+from crowd_nav.policy_no_train.sfm_helbing import SFMHelbing
 
 class SFMGuo(SFMHelbing):
     def __init__(self):

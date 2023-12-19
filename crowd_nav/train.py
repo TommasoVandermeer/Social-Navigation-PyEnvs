@@ -6,11 +6,11 @@ import os
 import shutil
 import torch
 import gymnasium as gym
-from social_gym.src.robot_agent import RobotAgent
 from utils.trainer import Trainer
 from utils.memory import ReplayMemory
 from utils.explorer import Explorer
 from policy.policy_factory import policy_factory
+from social_gym.src.robot_agent import RobotAgent
 
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
@@ -129,6 +129,7 @@ def main():
         torch.save(model.state_dict(), il_weight_file)
         logging.info('Finish imitation learning. Weights saved.')
         logging.info('Experience set size: %d/%d', len(memory), memory.capacity)
+
     explorer.update_target_model(model)
 
     ## Reinforcement learning

@@ -1,6 +1,6 @@
 class Timeout(object):
     def __init__(self):
-        self.info = {}
+        pass
 
     def __str__(self):
         return 'Timeout'
@@ -8,7 +8,7 @@ class Timeout(object):
 
 class ReachGoal(object):
     def __init__(self):
-        self.info = {}
+        pass
 
     def __str__(self):
         return 'Reaching goal'
@@ -17,7 +17,6 @@ class ReachGoal(object):
 class Danger(object):
     def __init__(self, min_dist):
         self.min_dist = min_dist
-        self.info = {}
 
     def __str__(self):
         return 'Too close'
@@ -25,7 +24,7 @@ class Danger(object):
 
 class Collision(object):
     def __init__(self):
-        self.info = {}
+        pass
 
     def __str__(self):
         return 'Collision'
@@ -33,7 +32,7 @@ class Collision(object):
 
 class Nothing(object):
     def __init__(self):
-        self.info = {}
+        pass
 
     def __str__(self):
         return ''

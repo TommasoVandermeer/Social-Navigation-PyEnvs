@@ -1,9 +1,8 @@
 import logging
 import copy
 import torch
+from crowd_nav.utils.state import JointState
 from social_gym.src.info import *
-from social_gym.src.state import JointState
-
 
 class Explorer(object):
     def __init__(self, env, robot, device, memory=None, gamma=None, target_policy=None):

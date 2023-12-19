@@ -1,15 +1,15 @@
 import numpy as np
-from social_gym.policy.forces import compute_desired_force, compute_social_force_guo as compute_social_force, compute_torque_force
-from social_gym.policy.hsfm_farina import HSFMFarina
-from social_gym.src.action import ActionXYW
+from crowd_nav.policy_no_train.forces import compute_desired_force, compute_social_force_guo as compute_social_force, compute_torque_force
+from crowd_nav.policy_no_train.hsfm_farina import HSFMFarina
 
-class HSFMGuo(HSFMFarina):
+class HSFMNewGuo(HSFMFarina):
     def __init__(self):
         """
-        The Headed Social Force Model defined by Farina with a modification proposed by Guo.    
+        The Headed Social Force Model defined by Farina with a new modification affecting the torqie force and
+        a modification proposed by Guo.
         """
         super().__init__()
-        self.name = 'hsfm_guo'
+        self.name = 'hsfm_new_guo'
         self.trainable = False
         self.multiagent_training = None
         self.kinematics = 'holonomic3'
@@ -35,11 +35,12 @@ class HSFMGuo(HSFMFarina):
     
     def set_phase(self, phase):
         return
-    
+
     def compute_forces(self, state, other_states):
         _, desired_force = compute_desired_force(self.params, state)
         social_force = compute_social_force(self.params, state, other_states)
-        torque_force = compute_torque_force(self.params, state, self.inertia, desired_force)
+        driving_force = desired_force + social_force
+        torque_force = compute_torque_force(self.params, state, self.inertia, driving_force)
         rotational_matrix = np.array([[np.cos(state.theta), -np.sin(state.theta)],[np.sin(state.theta), np.cos(state.theta)]], dtype=np.float64)
         global_force = np.empty((2,), dtype=np.float64)
         global_force[0] = np.dot(desired_force + social_force, rotational_matrix[:,0])

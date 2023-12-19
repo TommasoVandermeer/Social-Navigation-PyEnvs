@@ -3,9 +3,9 @@ import torch.nn as nn
 import numpy as np
 import itertools
 import logging
-from social_gym.policy.policy import Policy
-from social_gym.src.action import ActionRot, ActionXY
-from social_gym.src.state import ObservableState, FullState
+from crowd_nav.policy_no_train.policy import Policy
+from crowd_nav.utils.action import ActionRot, ActionXY
+from crowd_nav.utils.state import ObservableState, FullState
 
 
 def mlp(input_dim, mlp_dims, last_relu=False):

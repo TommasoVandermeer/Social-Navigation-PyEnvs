@@ -1,7 +1,7 @@
 import numpy as np
 import rvo2
-from social_gym.policy.policy import Policy
-from social_gym.src.action import ActionXY
+from crowd_nav.policy_no_train.policy import Policy
+from crowd_nav.utils.action import ActionXY
 
 
 class ORCA(Policy):

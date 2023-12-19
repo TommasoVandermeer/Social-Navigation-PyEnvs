@@ -1,8 +1,12 @@
 import numpy as np
 import math
 from typing import Union
-from social_gym.src.state import ObservableState, FullState, FullStateHeaded
-from social_gym.src.utils import bound_angle
+from crowd_nav.utils.state import ObservableState, FullState, FullStateHeaded
+
+def bound_angle(angle):
+    if angle > math.pi: angle -= 2 * math.pi
+    if angle < -math.pi: angle += 2 * math.pi
+    return angle
 
 def compute_desired_force(params:dict, state:Union[FullState,FullStateHeaded]):
     goal_position = np.array([state.gx, state.gy], dtype=np.float64)

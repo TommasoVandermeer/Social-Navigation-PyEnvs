@@ -2,7 +2,6 @@ import gymnasium as gym
 import numpy as np
 import logging
 from social_gym.social_nav_sim import SocialNavSim
-from social_gym.src.utils import point_to_segment_dist
 from social_gym.src.info import *
 
 HEADLESS = False

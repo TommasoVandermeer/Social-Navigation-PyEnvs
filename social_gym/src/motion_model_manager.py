@@ -35,6 +35,7 @@ class MotionModelManager:
         self.orca = False
         if runge_kutta and motion_model_title=="orca": raise NotImplementedError
         self.set_human_motion_model(motion_model_title)
+        self.robot_motion_model_title = None # Robot policy can be set later
 
     ### METHODS FOR BOTH HUMANS AND ROBOT
     

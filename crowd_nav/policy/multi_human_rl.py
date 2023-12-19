@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from social_gym.src.action import ActionRot, ActionXY
+from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.policy.cadrl import CADRL
 
 

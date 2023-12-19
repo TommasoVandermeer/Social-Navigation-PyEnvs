@@ -1,9 +1,9 @@
 import numpy as np
-from social_gym.policy.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
-from social_gym.policy.policy import Policy
-from social_gym.src.action import ActionXYW, NewHeadedState
+from crowd_nav.policy_no_train.forces import compute_desired_force, compute_social_force_helbing as compute_social_force, compute_torque_force
+from crowd_nav.policy_no_train.policy import Policy
+from crowd_nav.utils.action import ActionXYW, NewHeadedState
 from scipy.integrate import solve_ivp
-from social_gym.src.state import FullStateHeaded
+from crowd_nav.utils.state import FullStateHeaded
 
 RUNGE_KUTTA_STEP_TIME_LIMIT = 0.05
 
