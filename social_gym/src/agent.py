@@ -68,6 +68,9 @@ class Agent():
     def get_rect(self):
         return self.rect
     
+    def compute_rotational_matrix(self):
+        self.rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+
     def set_parameters(self, model:str):
         if (model == 'sfm_roboticsupo'):
             # SFM Parameters

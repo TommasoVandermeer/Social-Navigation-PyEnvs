@@ -78,8 +78,8 @@ class SocialNavSim:
         global SAMPLING_TIME, MAX_FPS
         SAMPLING_TIME = time_step
         MAX_FPS = 1 / SAMPLING_TIME
+        self.robot.time_step = time_step
         if self.robot.policy is not None:
-            self.robot.time_step = time_step
             self.robot.policy.time_step = time_step
 
     def reset_sim(self, restart_gui=False, reset_robot=True):
@@ -158,12 +158,16 @@ class SocialNavSim:
         self.show_stats = True
 
         # Human motion model
-        if not reset_robot and self.motion_model_manager.robot_motion_model_title is not None:
+        if hasattr(self, "motion_model_manager") and self.motion_model_manager.robot_motion_model_title is not None:
             robot_motion_model_title = self.motion_model_manager.robot_motion_model_title
             robot_runge_kutta = self.motion_model_manager.robot_runge_kutta
             self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
             self.motion_model_manager.set_robot_motion_model(robot_motion_model_title, robot_runge_kutta)
-        else: self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+            self.robot_crowdnav_policy = False
+            self.robot_controlled = True
+        else: 
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+            self.robot_controlled = False
 
         # Simulation variables
         self.n_updates = 0
@@ -186,7 +190,7 @@ class SocialNavSim:
         insert_robot = config_data[6]
         randomize_human_attributes = config_data[7]
         robot_visible = config_data[8]
-        if robot_radius is not None: robot_r = 0.3 
+        if robot_radius is not None: robot_r = robot_radius
         else: robot_r = 0.25
         center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
         humans = {}
@@ -323,7 +327,7 @@ class SocialNavSim:
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
     def control_robot(self):
-        if self.robot.policy is None:
+        if not self.robot_controlled:
             if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', self.humans, self.walls)
             if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', self.humans, self.walls)
             if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', self.humans, self.walls)
@@ -390,6 +394,8 @@ class SocialNavSim:
                         self.reset_sim()
                         if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
                         else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
+                        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=np.float64)
+                        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=np.float64)
                     # Speed up (or Resume)
                     if pygame.key.get_pressed()[pygame.K_s]:
                         self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
@@ -604,6 +610,7 @@ class SocialNavSim:
         params:
         - policy_name (str): name of the policy.
         - runge_kutta (bool): if True, integration uses Runge-Kutta-45. Only valid for NON-crowdnav policies.
+        - safety_space (float): Only used for ORCA, it's an additional constant added to the radius of each agent to increase security in the trajectories
         
         output: None
         """
@@ -624,6 +631,7 @@ class SocialNavSim:
 
         output: None
         """
+        self.robot_controlled = True
         if crowdnav_policy:
             # Set policy
             policy = policy_factory[policy_name]()
@@ -656,7 +664,6 @@ class SocialNavSim:
             self.robot_crowdnav_policy = True
         else: 
             self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
-            self.robot.policy = policy_name
             self.robot_crowdnav_policy = False
 
     def transform_human_states(self, state:np.array):

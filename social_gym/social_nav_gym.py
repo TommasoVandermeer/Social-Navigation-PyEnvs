@@ -45,6 +45,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.square_width = None
         self.circle_radius = None
         self.human_num = None
+        # For ORCA
+        self.safety_space = 0
         # For visualization
         self.states = None
         self.action_values = None
@@ -135,9 +137,11 @@ class SocialNavGym(gym.Env, SocialNavSim):
                             "grid": True, "humans": humans, "walls": [[]], "robot": robot}
                     self.config_data = data
                 else: raise NotImplementedError      
-        # Set sampling time for the simulation and reset the simulator
+        # Set robot radius, sampling time for the simulation and reset the simulator and safety space for ORCA
+        self.robot.set_radius_and_update_graphics(self.robot_radius)
         self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"], w=0)
         self.reset_sim(reset_robot=False)
+        if self.safety_space > 0: self.motion_model_manager.set_orca_safety_space(self.safety_space)
         self.set_time_step(self.time_step)
         # Initialize some variables used later
         self.states = list()
