@@ -57,13 +57,13 @@ class MotionModelManager:
             agent.goals.append(goal)
 
     def euler_not_headed_single_agent_update(self, agent:Agent, dt:float, include_mass:bool):
-        init_yaw = agent.yaw
+        # init_yaw = agent.yaw
         if include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
         else: agent.linear_velocity += agent.global_force * dt
         agent.linear_velocity = self.bound_velocity(agent.linear_velocity, agent.desired_speed)
-        agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
+        # agent.yaw = bound_angle(np.arctan2(agent.linear_velocity[1], agent.linear_velocity[0]))
         agent.position += agent.linear_velocity * dt
-        agent.angular_velocity = (agent.yaw - init_yaw) / dt
+        # agent.angular_velocity = (agent.yaw - init_yaw) / dt
 
     def euler_headed_single_agent_update(self, agent:Agent, dt:float):
         agent.body_velocity += (agent.global_force / agent.mass) * dt
@@ -122,6 +122,9 @@ class MotionModelManager:
             goal_position = np.array(self.robot.goals[0], dtype=np.float64)
             robot_pref_speed = ((goal_position - self.robot.position) / np.linalg.norm(goal_position - self.robot.position)) * self.robot.desired_speed
             self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (robot_pref_speed[0], robot_pref_speed[1]))
+
+    def compute_rotational_matrix(self, agent:Agent):
+        agent.rotational_matrix = np.array([[np.cos(agent.yaw), -np.sin(agent.yaw)],[np.sin(agent.yaw), np.cos(agent.yaw)]], dtype=np.float64)
 
     ### METHODS ONLY FOR HUMANS
 
@@ -236,9 +239,6 @@ class MotionModelManager:
                 self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
                 self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
                 self.update_goals_orca(i)
-
-    def compute_rotational_matrix(self, agent:Agent):
-        agent.rotational_matrix = np.array([[np.cos(agent.yaw), -np.sin(agent.yaw)],[np.sin(agent.yaw), np.cos(agent.yaw)]], dtype=np.float64)
 
     def compute_forces(self):
         groups = {}
@@ -498,6 +498,12 @@ class MotionModelManager:
         This function returns next humans states (in the form [px, py, vx, vy]) without actually updating it.
         Initially, it saves the human states, then makes an update and saves the next state.
         Finally, humans' state is set as the previous one.
+
+        params:
+        - dt (float): time step used for the update
+
+        output:
+        - next_human_observable_states (np.array): next humans observable states (n, 4), for each agent (px, py, vx, vy)
         """
         if self.headed: current_human_states = self.get_human_states(include_goal=True, headed=True)
         else: current_human_states = self.get_human_states(include_goal=True, headed=False)
