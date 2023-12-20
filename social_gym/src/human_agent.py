@@ -5,7 +5,7 @@ import os
 from social_gym.src.agent import Agent
 
 class HumanAgent(Agent):
-    def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=80, des_speed=0.9, group_id=-1):
+    def __init__(self, game, label:int, model:str, pos:list[float], yaw:float, goals:list[list[float]], color=(0,0,0), radius=0.3, mass=80, des_speed=1, group_id=-1):
         super().__init__(pos, yaw, color, radius, game.real_size, game.display_to_real_ratio, mass=mass, desired_speed=des_speed)
 
         self.motion_model = model

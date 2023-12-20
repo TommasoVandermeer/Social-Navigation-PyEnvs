@@ -103,7 +103,7 @@ class MotionModelManager:
             if agent_idx < len(self.humans):
                 self.robot_sim.setAgentPosition(self.robot_sim_agents[agent_idx], (self.humans[agent_idx].position[0], self.humans[agent_idx].position[1]))
                 self.robot_sim.setAgentVelocity(self.robot_sim_agents[agent_idx], (self.humans[agent_idx].linear_velocity[0], self.humans[agent_idx].linear_velocity[1]))
-                self.update_goals_orca(agent_idx, robot_sim=True)
+                self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (0,0))
             else:
                 self.robot_sim.setAgentPosition(self.robot_sim_agents[agent_idx], (self.robot.position[0], self.robot.position[1]))
                 self.robot_sim.setAgentVelocity(self.robot_sim_agents[agent_idx], (self.robot.linear_velocity[0], self.robot.linear_velocity[1]))
@@ -113,13 +113,17 @@ class MotionModelManager:
         if not robot:
             if self.update_targets: self.update_goals(self.humans[agent_idx])
             goal_position = np.array(self.humans[agent_idx].goals[0], dtype=np.float64)
-            agent_pref_speed = ((goal_position - self.humans[agent_idx].position) / np.linalg.norm(goal_position - self.humans[agent_idx].position)) * self.humans[agent_idx].desired_speed
+            difference = goal_position - self.humans[agent_idx].position
+            norm = np.linalg.norm(difference)
+            agent_pref_speed = difference / norm if norm > self.humans[agent_idx].desired_speed else difference
             if not robot_sim: self.sim.setAgentPrefVelocity(self.agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
             else: self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
         else:
             if self.update_targets: self.update_goals(self.robot) # Pay attention to this
             goal_position = np.array(self.robot.goals[0], dtype=np.float64)
-            robot_pref_speed = ((goal_position - self.robot.position) / np.linalg.norm(goal_position - self.robot.position)) * self.robot.desired_speed
+            difference = goal_position - self.robot.position
+            norm = np.linalg.norm(difference)
+            robot_pref_speed = difference / norm if norm > self.robot.desired_speed else difference
             if not robot_sim: self.sim.setAgentPrefVelocity(self.agents[agent_idx], (robot_pref_speed[0], robot_pref_speed[1]))
             else: self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (robot_pref_speed[0], robot_pref_speed[1]))
 
@@ -128,7 +132,6 @@ class MotionModelManager:
         agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
 
     def set_orca_safety_space(self, safety_space:float):
-        print(len(self.agents), len(self.robot_sim_agents))
         if self.sim is not None: # Add safety space to Humans ORCA simulation
             for i, agent in enumerate(self.agents):
                 if i < len(self.humans): self.sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
@@ -161,7 +164,7 @@ class MotionModelManager:
         elif self.motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
         elif self.motion_model_title == "orca": 
             self.orca = True; self.headed = False; self.include_mass = False
-            self.sim = rvo2.PyRVOSimulator(1/60, ORCA_DEFAULTS[0], ORCA_DEFAULTS[1], ORCA_DEFAULTS[2], ORCA_DEFAULTS[3], 0.3, 0.9) # dt is set at each update
+            self.sim = rvo2.PyRVOSimulator(1/60, ORCA_DEFAULTS[0], ORCA_DEFAULTS[1], ORCA_DEFAULTS[2], ORCA_DEFAULTS[3], 0.3, 1) # dt is set at each update
             self.agents = []
             for i, agent in enumerate(self.humans):
                 # Adding agents to the simulator: parameters ((poistion_x, position_y), agents_neighbor_dist, agents_max_neighbors, safety_time_horizon, safety_time_horizon_obstacles, agents_radius, agent_max_speed, (velocity_x, velocity_y))
@@ -414,8 +417,9 @@ class MotionModelManager:
             for i, agent in enumerate(self.humans):
                 # Adding agents to the simulator: parameters ((poistion_x, position_y), agents_neighbor_dist, agents_max_neighbors, safety_time_horizon, safety_time_horizon_obstacles, agents_radius, agent_max_speed, (velocity_x, velocity_y))
                 self.robot_sim_agents.append(self.robot_sim.addAgent((agent.position[0], agent.position[1]), ORCA_DEFAULTS[0], ORCA_DEFAULTS[1], ORCA_DEFAULTS[2], ORCA_DEFAULTS[3], agent.radius + 0.01, agent.desired_speed, (agent.linear_velocity[0], agent.linear_velocity[1])))
-                self.update_goals_orca(i, robot_sim=True)
+                self.robot_sim.setAgentPrefVelocity(i, (0,0))
             self.robot_sim_agents.append(self.robot_sim.addAgent((self.robot.position[0], self.robot.position[1]), ORCA_DEFAULTS[0], ORCA_DEFAULTS[1], ORCA_DEFAULTS[2], ORCA_DEFAULTS[3], self.robot.radius + 0.01, self.robot.desired_speed, (self.robot.linear_velocity[0], self.robot.linear_velocity[1])))
+            self.update_goals_orca(len(self.humans), robot_sim=True, robot=True)
             for wall in self.walls: self.robot_sim.addObstacle(list(wall.vertices))
             self.robot_sim.processObstacles()
         else: raise Exception(f"The human motion model '{self.robot_motion_model_title}' does not exist")
@@ -521,8 +525,7 @@ class MotionModelManager:
         output:
         - next_human_observable_states (np.array): next humans observable states (n, 4), for each agent (px, py, vx, vy)
         """
-        if self.headed: current_human_states = self.get_human_states(include_goal=True, headed=True)
-        else: current_human_states = self.get_human_states(include_goal=True, headed=False)
+        current_human_states = self.get_human_states(include_goal=True, headed=self.headed)
         self.update_humans(0, dt)
         next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
         self.set_human_states(current_human_states)
@@ -539,11 +542,9 @@ class MotionModelManager:
         - next_robot_full_state (np.array): next full state of the robot
         - next_robot_linear_velocity (np.array): next robot velocity
         """
-        if self.robot_headed: current_robot_state = self.get_robot_state(include_goal=True, headed=True)
-        else: current_robot_state = self.get_robot_state(include_goal=True, headed=False)
+        current_robot_state = self.get_robot_state(include_goal=True, headed=self.robot_headed)
         self.update_robot(0, dt)
-        if self.robot_headed: next_robot_full_state = self.get_robot_state(include_goal=True, headed=True)
-        else: next_robot_full_state = self.get_robot_state(include_goal=True, headed=False)
+        next_robot_full_state = self.get_robot_state(include_goal=True, headed=self.robot_headed)
         next_robot_linear_velocity = self.robot.linear_velocity.copy()
         self.set_robot_state(current_robot_state)
         return next_robot_full_state, next_robot_linear_velocity

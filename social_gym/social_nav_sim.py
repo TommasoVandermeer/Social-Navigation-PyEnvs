@@ -150,8 +150,8 @@ class SocialNavSim:
                 else: pygame.draw.line(self.grid_surface, (0,0,0,50), line[0], line[1], 3)
             
         # Scroll and zoom
-        self.scroll = np.array([0.0,0.0], dtype=np.float16)
-        self.display_scroll = np.array([0.0,0.0], dtype=np.float16)
+        self.scroll = np.array([0.0,0.0], dtype=np.float16) # Center [-350.0,+350.0]
+        self.display_scroll = self.scroll * self.display_to_window_ratio
         self.zoom = 1
 
         # Simulation stats

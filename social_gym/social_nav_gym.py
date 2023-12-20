@@ -4,7 +4,7 @@ import logging
 from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.info import *
 
-HEADLESS = False
+HEADLESS = True
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -84,6 +84,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
         else: logging.info("Not randomize human's radius and preferred speed")
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_sim, self.test_sim))
         logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
+
+    def set_safety_space(self, safety_space:float):
+        self.safety_space = safety_space
 
     def set_robot(self, robot):
         self.robot = robot

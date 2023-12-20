@@ -32,6 +32,11 @@ class Explorer(object):
         cumulative_rewards = []
         collision_cases = []
         timeout_cases = []
+        
+        # Save states and rewards in an output file for benchmarking
+        all_states = []
+        all_rewards = []
+
         for i in range(k):
             ob, _ = self.env.reset(phase=phase)
             terminated = False
@@ -39,24 +44,46 @@ class Explorer(object):
             states = []
             actions = []
             rewards = []
+
+            # Save states and rewards in an output file for benchmarking
+            states_to_be_saved = []
+
             while (not terminated) and (not truncated):
                 if imitation_learning:
                     state = JointState(self.robot.get_full_state(), ob)
                     states.append(state)
+
+                    # Save states and rewards in an output file for benchmarking
+                    if i < 100:
+                        states_to_be_saved.append([state.self_state.px - 7.5, state.self_state.py - 7.5, state.self_state.vx, state.self_state.vy])
+                        for human_state in state.human_states: states_to_be_saved.append([human_state.px - 7.5, human_state.py - 7.5, human_state.vx, human_state.vy])
+
                     ob, reward, terminated, truncated, info = self.env.imitation_learning_step()
                 else:
                     action = self.robot.act(ob)
                     ob, reward, terminated, truncated, info = self.env.step(action)
                     states.append(self.robot.policy.last_state)
                     actions.append(action)
-
                 rewards.append(reward)
-
                 self.env.render()
-
                 if isinstance(info[0], Danger):
                     too_close += 1
                     min_dist.append(info[0].min_dist)
+
+            # Save states and rewards in an output file for benchmarking
+            if i < 100 and imitation_learning:
+                all_states.append(states_to_be_saved)
+                all_rewards.append(rewards)
+                if i == 99: 
+                    print('SAVING VARIABLES')
+                    import csv, os
+                    with open(os.path.join(os.path.dirname(__file__),'data.csv'), 'w') as f:
+                        writer = csv.writer(f, delimiter=',')
+                        writer.writerows(all_states)
+                        writer.writerows(all_rewards)
+                        f.close()
+                    del all_states
+                    del all_rewards
 
             if isinstance(info[0], ReachGoal):
                 success += 1

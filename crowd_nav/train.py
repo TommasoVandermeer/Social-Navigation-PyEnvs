@@ -15,7 +15,7 @@ from social_gym.src.robot_agent import RobotAgent
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/env.config'))
-    parser.add_argument('--policy', type=str, default='sarl')
+    parser.add_argument('--policy', type=str, default='cadrl')
     parser.add_argument('--policy_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/policy.config'))
     parser.add_argument('--train_config', type=str, default=os.path.join(os.path.dirname(__file__),'configs/train.config'))
     parser.add_argument('--output_dir', type=str, default=os.path.join(os.path.dirname(__file__),'data/output'))
@@ -122,7 +122,7 @@ def main():
         trainer.set_learning_rate(il_learning_rate)
         if robot.visible: safety_space = 0
         else: safety_space = train_config.getfloat('imitation_learning', 'safety_space')
-        env.safety_space = safety_space
+        env.set_safety_space(safety_space)
         if 'hsfm' in il_policy: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=True)
         else: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=False)
         explorer.run_k_episodes(il_episodes, 'train', update_memory=True, imitation_learning=True)
@@ -134,7 +134,7 @@ def main():
     explorer.update_target_model(model)
 
     ## Reinforcement learning
-    env.safety_space = 0
+    env.set_safety_space(0)
     trainer.set_learning_rate(rl_learning_rate)
     # fill the memory pool with some RL experience
     if args.resume:

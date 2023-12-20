@@ -15,19 +15,19 @@ INSERT_ROBOT = True
 ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
-RUNGE_KUTTA = False
-social_nav = SocialNavSim([4,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+RUNGE_KUTTA = True
+social_nav = SocialNavSim([3,8,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
-TIME_STEP = 0.01666666
+TIME_STEP = 0.1
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - trainable policy
-# social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo_7000ep'), il=False)
+social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
 ## Set robot policy - non trainable policy
-social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=False)
+# social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=True)
 ## Set a safety space for ORCA
-# social_nav.motion_model_manager.set_orca_safety_space(0.3)
+# social_nav.motion_model_manager.set_orca_safety_space(0.15)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
@@ -46,6 +46,6 @@ social_nav.run_live()
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
 ## Run from previously computed states (controlled speed) - Euler both humans and robot
-# SIMULATION_SECONDS = 10
+# SIMULATION_SECONDS = 20
 # human_states, robot_poses = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP))
 # social_nav.run_from_precomputed_states(human_states, robot_poses=robot_poses)
