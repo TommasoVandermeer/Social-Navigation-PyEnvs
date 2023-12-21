@@ -1,4 +1,5 @@
-from crowd_nav.policy_no_train.linear import Linear
+from crowd_nav.policy_no_train.blind_planner import BlindPlanner
+from crowd_nav.policy_no_train.simple_social_planner import SimpleSocialPlanner
 from crowd_nav.policy_no_train.orca import ORCA
 from crowd_nav.policy_no_train.sfm_helbing import SFMHelbing
 from crowd_nav.policy_no_train.sfm_guo import SFMGuo
@@ -15,7 +16,8 @@ def none_policy():
 
 policy_factory = dict()
 policy_factory['none'] = none_policy
-policy_factory['linear'] = Linear
+policy_factory['bp'] = BlindPlanner
+policy_factory['ssp'] = SimpleSocialPlanner
 policy_factory['orca'] = ORCA
 policy_factory['sfm_helbing'] = SFMHelbing
 policy_factory['sfm_guo'] = SFMGuo

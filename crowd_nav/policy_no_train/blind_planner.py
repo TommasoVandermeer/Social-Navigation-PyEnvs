@@ -2,9 +2,10 @@ import numpy as np
 from crowd_nav.policy_no_train.policy import Policy
 from crowd_nav.utils.action import ActionXY
 
-class Linear(Policy):
+class BlindPlanner(Policy):
     def __init__(self):
         super().__init__()
+        self.name = 'bp'
         self.trainable = False
         self.kinematics = 'holonomic'
         self.multiagent_training = True

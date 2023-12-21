@@ -76,8 +76,7 @@ def main():
     policy.set_device(device)
     # set safety space for ORCA in non-cooperative simulation
     if isinstance(robot.policy, ORCA):
-        if robot.visible:
-            robot.policy.safety_space = 0
+        if robot.visible: robot.policy.safety_space = 0
         else:
             # because invisible case breaks the reciprocal assumption
             # adding some safety space improves ORCA performance. Tune this value based on your need.
@@ -100,9 +99,9 @@ def main():
             env.render()
 
         logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
-        if robot.visible and info == 'reach goal':
-            human_times = env.get_human_times()
-            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+        # if robot.visible and info == 'reach goal':
+        #     human_times = env.get_human_times()
+        #     logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
     else:
         explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
 
