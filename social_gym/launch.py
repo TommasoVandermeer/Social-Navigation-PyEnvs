@@ -1,6 +1,6 @@
 import os
 from social_gym.social_nav_sim import SocialNavSim
-# from custom_config.config_example import data
+from custom_config.config_example import data
 # from custom_config.config_corridor import data
 
 ## Motion models: sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
@@ -15,17 +15,17 @@ INSERT_ROBOT = True
 ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
-RUNGE_KUTTA = True
-social_nav = SocialNavSim([3,8,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+RUNGE_KUTTA = False
+social_nav = SocialNavSim([3,8,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_moussaid",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
-TIME_STEP = 0.1
+TIME_STEP = 0.01666666
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - trainable policy
-social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
+# social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
 ## Set robot policy - non trainable policy
-# social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=True)
+social_nav.set_robot_policy(policy_name="hsfm_new_moussaid", runge_kutta=False)
 ## Set a safety space for ORCA
 # social_nav.motion_model_manager.set_orca_safety_space(0.15)
 

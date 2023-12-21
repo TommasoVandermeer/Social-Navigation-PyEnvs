@@ -146,11 +146,11 @@ class SocialNavSim:
             self.grid_surface = pygame.Surface((whole_size, whole_size), pygame.SRCALPHA)
 
             for i, line in enumerate(self.grid_lines):
-                if i >= len(self.grid_lines)-2: pygame.draw.line(self.grid_surface, (0,0,255,255), line[0], line[1], 5)
+                if i >= len(self.grid_lines)-2: pygame.draw.line(self.grid_surface, (0,0,255,255), line[0], line[1], 4)
                 else: pygame.draw.line(self.grid_surface, (0,0,0,50), line[0], line[1], 3)
             
         # Scroll and zoom
-        self.scroll = np.array([0.0,0.0], dtype=np.float16) # Center [-350.0,+350.0]
+        self.scroll = np.array([-350.0,+350.0], dtype=np.float16) # Default [0,0]
         self.display_scroll = self.scroll * self.display_to_window_ratio
         self.zoom = 1
 
@@ -192,7 +192,7 @@ class SocialNavSim:
         robot_visible = config_data[8]
         if robot_radius is not None: robot_r = robot_radius
         else: robot_r = 0.25
-        center = np.array([self.real_size/2,self.real_size/2],dtype=np.float64)
+        center = np.array([0,0],dtype=np.float64) # [self.real_size/2,self.real_size/2]
         humans = {}
         humans_des_speed = []
         humans_radius = []
@@ -464,7 +464,7 @@ class SocialNavSim:
                 else: self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
             # Reset scroll and zoom
             if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-                self.scroll -= self.scroll
+                self.scroll = np.array([-350.0,+350.0], dtype=np.float16) # Default [0,0]
                 self.display_scroll = self.scroll * self.display_to_window_ratio
                 self.zoom = 1
             # Hide/Show simulation stats
