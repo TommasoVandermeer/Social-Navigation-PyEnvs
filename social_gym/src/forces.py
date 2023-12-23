@@ -60,6 +60,95 @@ def compute_obstacle_force_roboticsupo(agent:Agent):
         agent.obstacle_force += agent.obstacle_weight * math.exp(-distance / agent.obstacle_sigma) * (min_diff / np.linalg.norm(min_diff))
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
+def compute_pairwise_social_force(type:int, agent1:Agent, agent2:Agent):
+    """
+    Computes the social force component of a single pairwise interaction.
+    The output force is the social force for agent a1 given by the interaction with a2.
+
+    args:
+    - type: 0,1,2 or 3 where:
+        - (0) is the standard social force
+        - (1) is the social force defined by Guo
+        - (2) is the social force defined by Moussaid
+        - (3) is the social force of Roboticsupo
+    - agent1: agent beeing repulsed by the other
+    - agent2: agent exherting the repulsive force
+
+    output:
+    - pairwise_social_force: repulsive force exherted by agent2 to agent1
+    """
+    r_ij = agent1.radius + agent2.radius
+    difference = agent1.position - agent2.position
+    distance = np.linalg.norm(difference)
+    n_ij = difference / distance
+    real_distance = r_ij - distance
+    if type == 0: # Helbing Social Force
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        delta_v_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
+        pairwise_social_force = (agent1.Ai * math.exp((real_distance) / agent1.Bi) + agent1.k1 * max(0,real_distance)) * n_ij + agent1.k2 * max(0,real_distance) * delta_v_ij * t_ij
+    elif type == 1: # Guo Social Force
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        ## GUO with compression and friction
+        delta_v_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
+        pairwise_social_force = (agent1.Ai * math.exp((real_distance) / agent1.Bi) + agent1.k1 * max(0,real_distance)) * n_ij + (agent1.Ci * math.exp((real_distance) / agent1.Di) + agent1.k2 * max(0,real_distance) * delta_v_ij) * t_ij
+        ## GUO without compression and friction
+        # pairwise_social_force = (agent1.Ai * math.exp((real_distance) / agent1.Bi)) * n_ij + (agent1.Ci * math.exp((real_distance) / agent1.Di)) * t_ij
+    elif type == 2: # Moussaid Social Force
+        interaction_vector = agent1.agent_lambda * (agent1.linear_velocity - agent2.linear_velocity) - n_ij
+        interaction_norm = np.linalg.norm(interaction_vector)
+        i_ij = (interaction_vector) / interaction_norm
+        theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi) #+ 0.00000001) # Add the bias to obtain a symethric behaviour (everyone has a preferred direction)
+        k_ij = np.sign(theta_ij)
+        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
+        F_ij = agent1.gamma * interaction_norm
+        ## MOUSSAID with compression and friction (in n_ij, t_ij)
+        # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        # delta_v_ij_t_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
+        # pairwise_social_force = - (agent1.Ei * math.exp(-distance/F_ij) * (math.exp(-(agent1.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(agent1.ns * F_ij * theta_ij)**2) * h_ij) - agent1.k1 * max(0,real_distance) * n_ij - agent1.k2  * max(0,real_distance) * delta_v_ij_t_ij * t_ij)
+        ## MOUSSAID with compression and friction (in i_ij, h_ij)
+        delta_v_ij_h_ij = np.dot(agent2.linear_velocity- agent1.linear_velocity, h_ij)
+        pairwise_social_force = - (agent1.Ei * math.exp(-distance/F_ij) * (math.exp(-(agent1.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(agent1.ns * F_ij * theta_ij)**2) * h_ij) + agent1.k1 * max(0,real_distance) * i_ij + agent1.k2 * max(0,real_distance) * delta_v_ij_h_ij * h_ij)
+        ## MOUSSAID no compression and friction
+        # pairwise_social_force = - (agent1.Ei * math.exp(-distance/F_ij) * (math.exp(-(agent1.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(agent1.ns * F_ij * theta_ij)**2) * h_ij))        
+    else: # RoboticsUpo Social Force
+        diff = - difference
+        diff_direction = diff / distance
+        vel_diff = agent1.linear_velocity - agent2.linear_velocity
+        interaction_vector = agent1.agent_lambda * vel_diff + diff_direction
+        interaction_length = np.linalg.norm(interaction_vector)
+        interaction_direction = interaction_vector / interaction_length
+        theta = bound_angle(np.arctan2(diff_direction[1], diff_direction[0]) - np.arctan2(interaction_direction[1], interaction_direction[0]))
+        b = agent1.agent_gamma * interaction_length
+        force_velocity_amount = -math.exp(-np.linalg.norm(diff) / b - (agent1.agent_nPrime * b * theta) ** 2)
+        force_angle_amount = np.sign(-theta) * math.exp(-np.linalg.norm(diff) / b - (agent1.agent_n * b * theta) ** 2)
+        force_velocity = force_velocity_amount * interaction_direction
+        force_angle = force_angle_amount * np.array([-interaction_direction[1], interaction_direction[0]])
+        pairwise_social_force = agent1.social_weight * (force_velocity + force_angle)
+    # print(pairwise_social_force)
+    return pairwise_social_force
+
+def compute_all_social_forces(type:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
+    """
+    Computes the social force for all agents exploiting the fact that pairwise contributes are specular if
+    all agents have the same parameters. Only for humans (no robot).
+
+    args:
+    - agents: list of human agents
+    - robot: robot object
+    - consider_robot: bool indicating wether the robot is visible for humans or not
+
+    output: None
+    """
+    entities = agents.copy()
+    if consider_robot: entities.append(robot)
+    for agent in agents: agent.social_force = np.array([0,0], dtype=np.float64)
+    for i, agent in enumerate(entities):
+        for j, other_agent in enumerate(entities):
+            if i >= j or i == len(agents): continue # Skip because the social force is speculare between pairs of agents
+            pairwise_social_force = compute_pairwise_social_force(type, agent, other_agent)
+            agent.social_force += pairwise_social_force
+            if j != len(agents): other_agent.social_force -= pairwise_social_force
+
 def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     if index <  len(agents): target_agent = agents[index]
     else: target_agent = robot

@@ -9,23 +9,23 @@ from custom_config.config_example import data
 ### SIMULATOR INITIALIZATION
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
-# Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
+# Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
-INSERT_ROBOT = True
-ROBOT_VISIBLE = True
+INSERT_ROBOT = False
+ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([3,2,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,41,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
 TIME_STEP = 0.01666666
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - CrowdNav trainable policy
-# social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
+# social_nav.set_robot_policy(policy_name="lstm_rl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/lstm_rl_on_orca'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
+# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="hsfm_new_moussaid", runge_kutta=False)
 ## Set a safety space for ORCA

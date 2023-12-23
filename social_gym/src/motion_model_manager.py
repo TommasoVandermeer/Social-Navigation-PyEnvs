@@ -141,27 +141,55 @@ class MotionModelManager:
                 if i < len(self.humans): self.robot_sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
                 else: self.robot_sim.setAgentRadius(i, self.robot.radius + 0.01 + safety_space)
 
-    ## Può avere senso mettere un safety space anche per le policy SFM durante l'IL? In teoria basta incrementare il radius utilizzato, ma si creano problemi di instabilità
-    ## Ovviamente nel caso in cui fosse giusto farlo, creare un unico metodo per settare il safety space (ORCA, SFM, e HSFM)
-    # def set_safety_space(self, safety_space:float):
-    #     for human in self.humans: human.radius += safety_space
-    #     self.robot.radius += safety_space
+    def check_pair_agents_social_force_parameters(self, agent1:Agent, agent2:Agent):
+        if self.motion_model_title == "sfm_helbing" or self.motion_model_title == "hsfm_farina" or self.motion_model_title == "hsfm_new":
+            # Ai, Bi, k1, k2
+            if agent1.Ai != agent2.Ai: return False
+            if agent1.Bi != agent2.Bi: return False
+            if agent1.k1 != agent2.k1: return False
+            if agent1.k2 != agent2.k2: return False
+        elif self.motion_model_title == "sfm_guo" or self.motion_model_title == "hsfm_guo" or self.motion_model_title == "hsfm_new_guo": 
+            # Ai, Bi, Ci, Di, k1, k2
+            if agent1.Ai != agent2.Ai: return False
+            if agent1.Bi != agent2.Bi: return False
+            if agent1.Ci != agent2.Ci: return False
+            if agent1.Di != agent2.Di: return False
+            if agent1.k1 != agent2.k1: return False
+            if agent1.k2 != agent2.k2: return False
+        elif self.motion_model_title == "sfm_moussaid" or self.motion_model_title == "hsfm_moussaid" or self.motion_model_title == "hsfm_new_moussaid":  
+            # agent_lambda, gamma, Ei, ns1, ns, k1, k2
+            if agent1.agent_lambda != agent2.agent_lambda: return False
+            if agent1.gamma != agent2.gamma: return False
+            if agent1.Ei != agent2.Ei: return False
+            if agent1.ns1 != agent2.ns1: return False
+            if agent1.ns != agent2.ns: return False
+            if agent1.k1 != agent2.k1: return False
+            if agent1.k2 != agent2.k2: return False
+        elif self.motion_model_title == "sfm_roboticsupo":
+            # agent_lambda, agent_gamma, agent_nPrime, agent_n, social_weight
+            if agent1.agent_lambda != agent2.agent_lambda: return False
+            if agent1.agent_gamma != agent2.agent_gamma: return False
+            if agent1.agent_nPrime != agent2.agent_nPrime: return False
+            if agent1.agent_n != agent2.agent_n: return False
+            if agent1.social_weight != agent2.social_weight: return False
+        else: raise NotImplementedError(f"The {self.motion_model_title} model is not implemented")
+        return True
 
     ### METHODS ONLY FOR HUMANS
 
     def set_human_motion_model(self, motion_model_title:str):
         self.motion_model_title = motion_model_title
-        global compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force, compute_torque_force
-        if self.motion_model_title == "sfm_helbing": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True
-        elif self.motion_model_title == "sfm_roboticsupo": from social_gym.src.forces import compute_desired_force_roboticsupo as compute_desired_force, compute_obstacle_force_roboticsupo as compute_obstacle_force, compute_social_force_roboticsupo as compute_social_force, compute_group_force_roboticsupo as compute_group_force; self.headed = False; self.include_mass = False
-        elif self.motion_model_title == "hsfm_farina": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
-        elif self.motion_model_title == "hsfm_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
-        elif self.motion_model_title == "hsfm_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
-        elif self.motion_model_title == "hsfm_new": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
-        elif self.motion_model_title == "hsfm_new_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
-        elif self.motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True
+        global compute_desired_force, compute_obstacle_force, compute_social_force, compute_group_force, compute_torque_force, compute_all_social_forces
+        if self.motion_model_title == "sfm_helbing": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_all_social_forces, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True; self.type = 0
+        elif self.motion_model_title == "sfm_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_all_social_forces, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True; self.type = 1
+        elif self.motion_model_title == "sfm_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_all_social_forces, compute_group_force_dummy as compute_group_force; self.headed = False; self.include_mass = True; self.type = 2
+        elif self.motion_model_title == "sfm_roboticsupo": from social_gym.src.forces import compute_desired_force_roboticsupo as compute_desired_force, compute_obstacle_force_roboticsupo as compute_obstacle_force, compute_social_force_roboticsupo as compute_social_force, compute_all_social_forces, compute_group_force_roboticsupo as compute_group_force; self.headed = False; self.include_mass = False; self.type = 3
+        elif self.motion_model_title == "hsfm_farina": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_all_social_forces, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 0
+        elif self.motion_model_title == "hsfm_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_all_social_forces, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 1
+        elif self.motion_model_title == "hsfm_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_all_social_forces, compute_torque_force_farina as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 2
+        elif self.motion_model_title == "hsfm_new": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_helbing as compute_social_force, compute_all_social_forces, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 0
+        elif self.motion_model_title == "hsfm_new_guo": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_guo as compute_obstacle_force, compute_social_force_guo as compute_social_force, compute_all_social_forces, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 1
+        elif self.motion_model_title == "hsfm_new_moussaid": from social_gym.src.forces import compute_desired_force, compute_obstacle_force_helbing as compute_obstacle_force, compute_social_force_moussaid as compute_social_force, compute_all_social_forces, compute_torque_force_new as compute_torque_force, compute_group_force_dummy as compute_group_force; self.headed = True; self.include_mass = True; self.type = 2
         elif self.motion_model_title == "orca": 
             self.orca = True; self.headed = False; self.include_mass = False
             self.sim = rvo2.PyRVOSimulator(1/60, ORCA_DEFAULTS[0], ORCA_DEFAULTS[1], ORCA_DEFAULTS[2], ORCA_DEFAULTS[3], 0.3, 1) # dt is set at each update
@@ -177,6 +205,13 @@ class MotionModelManager:
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if self.motion_model_title != "orca": 
             for human in self.humans: human.set_parameters(motion_model_title)
+            # Check wether all agents parameters are equal, because if so, computation can be fastened
+            self.all_equal_humans = True
+            for i, human in enumerate(self.humans):
+                for j, other_human in enumerate(self.humans):
+                    if i >= j: continue
+                    self.all_equal_humans = self.check_pair_agents_social_force_parameters(human, other_human)
+                    if not self.all_equal_humans: break
 
     def get_human_states(self, include_goal=True, headed=False):
         if include_goal:
@@ -261,6 +296,19 @@ class MotionModelManager:
                 self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
                 self.update_goals_orca(i)
 
+    def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
+        desired_direction = compute_desired_force(human)
+        compute_obstacle_force(human)
+        if social_force: compute_social_force(agent_idx, self.humans, self.robot, self.consider_robot)
+        if not self.headed:
+            compute_group_force(agent_idx, self.humans, desired_direction, groups)
+            human.global_force = human.desired_force + human.obstacle_force + human.social_force + human.group_force
+        else:
+            compute_group_force(agent_idx, self.humans, desired_direction, groups)
+            compute_torque_force(human)
+            human.global_force[0] = np.dot(human.desired_force + human.obstacle_force + human.social_force, human.rotational_matrix[:,0]) + human.group_force[0]
+            human.global_force[1] = human.ko * np.dot(human.obstacle_force + human.social_force, human.rotational_matrix[:,1]) - human.kd * human.body_velocity[1] + human.group_force[1]
+
     def compute_forces(self):
         groups = {}
         for i, human in enumerate(self.humans):
@@ -278,20 +326,12 @@ class MotionModelManager:
             if (not human.group_id in groups): groups[human.group_id] = Group()
             groups[human.group_id].append_agent(i)
             groups[human.group_id].center += human.position
-        for key in groups:
-            groups[key].compute_center()
-        for i, human in enumerate(self.humans):
-            desired_direction = compute_desired_force(human)
-            compute_obstacle_force(human)
-            compute_social_force(i, self.humans, self.robot, self.consider_robot)
-            if not self.headed:
-                compute_group_force(i, self.humans, desired_direction, groups)
-                human.global_force = human.desired_force + human.obstacle_force + human.social_force + human.group_force
-            else:
-                compute_group_force(i, self.humans, desired_direction, groups)
-                compute_torque_force(human)
-                human.global_force[0] = np.dot(human.desired_force + human.obstacle_force + human.social_force, human.rotational_matrix[:,0]) + human.group_force[0]
-                human.global_force[1] = human.ko * np.dot(human.obstacle_force + human.social_force, human.rotational_matrix[:,1]) - human.kd * human.body_velocity[1] + self.humans[i].group_force[1]
+        for key in groups: groups[key].compute_center()
+        if self.all_equal_humans:
+            compute_all_social_forces(self.type, self.humans, self.robot, self.consider_robot)
+            for i, human in enumerate(self.humans): self.compute_single_human_forces(i, human, groups, social_force=False)
+        else:
+            for i, human in enumerate(self.humans): self.compute_single_human_forces(i, human, groups, social_force=True)
 
     def complete_rk45_simulation(self, t:float, dt:float, final_time:float):
         evaluation_times = np.arange(t,final_time,dt, dtype=np.float64)
