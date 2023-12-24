@@ -123,8 +123,8 @@ def main():
         if robot.visible: safety_space = 0
         else: safety_space = train_config.getfloat('imitation_learning', 'safety_space')
         env.set_safety_space(safety_space)
-        if 'hsfm' in il_policy: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=True)
-        else: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=False)
+        if il_policy == 'orca': env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=False)
+        else: env.set_human_motion_model_as_robot_policy(il_policy, runge_kutta=True)
         explorer.run_k_episodes(il_episodes, 'train', update_memory=True, imitation_learning=True)
         trainer.optimize_epoch(il_epochs)
         torch.save(model.state_dict(), il_weight_file)

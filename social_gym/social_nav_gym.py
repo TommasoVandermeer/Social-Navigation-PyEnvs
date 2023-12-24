@@ -144,7 +144,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.robot.set_radius_and_update_graphics(self.robot_radius)
         self.robot.set(self.config_data["robot"]["pos"][0], self.config_data["robot"]["pos"][1], self.config_data["robot"]["goals"][0][0], self.config_data["robot"]["goals"][0][1], 0, 0, self.config_data["robot"]["yaw"], w=0)
         self.reset_sim(reset_robot=False)
-        if self.safety_space > 0: self.motion_model_manager.set_orca_safety_space(self.safety_space)
+        if self.safety_space > 0: self.motion_model_manager.set_safety_space(self.safety_space)
         self.set_time_step(self.time_step)
         # Initialize some variables used later
         self.states = list()

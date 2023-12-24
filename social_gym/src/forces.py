@@ -32,7 +32,7 @@ def compute_obstacle_force_helbing(agent:Agent):
         n_iw = difference / distance
         t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
         delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
-        real_distance = agent.radius - distance
+        real_distance = agent.radius + agent.safety_space - distance
         agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw) + agent.k1 * max(0,real_distance)) * n_iw - agent.k2 * max(0,real_distance) * delta_v_iw * t_iw
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
@@ -43,7 +43,7 @@ def compute_obstacle_force_guo(agent:Agent):
         distance = np.linalg.norm(difference)
         n_iw = difference / distance
         t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
-        real_distance = agent.radius - distance
+        real_distance = agent.radius + agent.safety_space - distance
         delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
         ## GUO with compression and friction modified to account for the direction of the sliding force through delta_viw
         agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw) + agent.k1 * max(0,real_distance)) * n_iw + (-agent.Cw * math.exp((real_distance) / agent.Dw) - agent.k2 * max(0,real_distance)) * delta_v_iw * t_iw
@@ -56,7 +56,7 @@ def compute_obstacle_force_roboticsupo(agent:Agent):
     agent.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
     for obstacle in agent.obstacles:
         min_diff = np.array(agent.position) - obstacle
-        distance = np.linalg.norm(min_diff) - agent.radius
+        distance = np.linalg.norm(min_diff) - agent.radius - agent.safety_space
         agent.obstacle_force += agent.obstacle_weight * math.exp(-distance / agent.obstacle_sigma) * (min_diff / np.linalg.norm(min_diff))
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
@@ -77,7 +77,7 @@ def compute_pairwise_social_force(type:int, agent1:Agent, agent2:Agent):
     output:
     - pairwise_social_force: repulsive force exherted by agent2 to agent1
     """
-    r_ij = agent1.radius + agent2.radius
+    r_ij = agent1.radius + agent1.safety_space + agent2.radius + agent2.safety_space
     difference = agent1.position - agent2.position
     distance = np.linalg.norm(difference)
     n_ij = difference / distance
@@ -157,7 +157,7 @@ def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:Robot
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
         if (i == index): continue
-        r_ij = target_agent.radius + entities[i].radius
+        r_ij = target_agent.radius + target_agent.safety_space + entities[i].radius + entities[i].safety_space
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
@@ -174,7 +174,7 @@ def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgen
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
         if (i == index): continue
-        r_ij = target_agent.radius + entities[i].radius
+        r_ij = target_agent.radius + target_agent.safety_space + entities[i].radius + entities[i].safety_space
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
@@ -204,7 +204,7 @@ def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:Robo
         k_ij = np.sign(theta_ij)
         h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
         F_ij = target_agent.gamma * interaction_norm
-        r_ij = target_agent.radius + entities[i].radius
+        r_ij = target_agent.radius + target_agent.safety_space + entities[i].radius + entities[i].safety_space
         real_distance = r_ij - distance
         ## MOUSSAID with compression and friction (in n_ij, t_ij)
         # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
@@ -271,7 +271,7 @@ def compute_group_force_roboticsupo(index:int, agents:list[HumanAgent], desired_
     for i in range(groups[target_agent.group_id].num_agents()):
         if index == groups[target_agent.group_id].group_agents[i]: continue
         diff = np.array(target_agent.position) - np.array(agents[i].position)
-        if (np.linalg.norm(diff) < target_agent.radius + agents[i].radius): group_repulsion_force += diff
+        if (np.linalg.norm(diff) < target_agent.radius + target_agent.safety_space + agents[i].radius + agents[i].safety_space): group_repulsion_force += diff
     group_repulsion_force *= target_agent.group_rep_weight
     target_agent.group_force = group_gaze_force + group_coherence_force + group_repulsion_force
 

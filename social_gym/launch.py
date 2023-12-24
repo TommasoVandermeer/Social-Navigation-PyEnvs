@@ -11,12 +11,12 @@ from custom_config.config_example import data
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
-INSERT_ROBOT = False
+INSERT_ROBOT = True
 ROBOT_VISIBLE = False
-RANDOMIZE_HUMAN_POSITIONS = False
+RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,41,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
@@ -27,9 +27,9 @@ social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-# social_nav.set_robot_policy(policy_name="hsfm_new_moussaid", runge_kutta=False)
-## Set a safety space for ORCA
-# social_nav.motion_model_manager.set_orca_safety_space(0.15)
+social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
+## Set a safety space both for robot and humans
+social_nav.motion_model_manager.set_safety_space(0.15)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)

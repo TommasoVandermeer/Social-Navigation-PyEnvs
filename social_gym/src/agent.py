@@ -11,6 +11,7 @@ class Agent():
         self.real_size = real_size
         self.ratio = display_ratio
         self.radius = radius
+        self.safety_space = 0
         self.obstacles = []
         self.mass = mass
         self.desired_speed = desired_speed

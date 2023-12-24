@@ -131,15 +131,27 @@ class MotionModelManager:
         agent.compute_rotational_matrix()
         agent.linear_velocity = np.matmul(agent.rotational_matrix, agent.body_velocity)
 
-    def set_orca_safety_space(self, safety_space:float):
-        if self.sim is not None: # Add safety space to Humans ORCA simulation
-            for i, agent in enumerate(self.agents):
-                if i < len(self.humans): self.sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
-                else: self.sim.setAgentRadius(i, self.robot.radius + 0.01 + safety_space)
-        if self.robot_sim is not None: # Add safety space to Robot ORCA simulation
-            for i, agent in enumerate(self.robot_sim_agents):
-                if i < len(self.humans): self.robot_sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
-                else: self.robot_sim.setAgentRadius(i, self.robot.radius + 0.01 + safety_space)
+    def set_safety_space(self, safety_space:float):
+        # Humans safety space
+        if self.motion_model_title is not None:
+            if "sfm" in self.motion_model_title:
+                for human in self.humans: human.safety_space = 0.01 + safety_space
+            elif self.motion_model_title == "orca":
+                if self.sim is not None:
+                    for i, agent in enumerate(self.agents):
+                        if i < len(self.humans): self.sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
+                        else: self.sim.setAgentRadius(i, self.robot.radius + 0.01 + safety_space)
+            else: raise NotImplementedError(f"Model {self.motion_model_title} is not implemented for humans")
+        # Robot safety space
+        if self.robot_motion_model_title is not None:
+            if "sfm" in self.robot_motion_model_title:
+                self.robot.safety_space = 0.01 + safety_space
+            elif self.robot_motion_model_title == "orca":
+                if self.robot_sim is not None: # Add safety space to Robot ORCA simulation
+                    for i, agent in enumerate(self.robot_sim_agents):
+                        if i < len(self.humans): self.robot_sim.setAgentRadius(i, self.humans[i].radius + 0.01 + safety_space)
+                        else: self.robot_sim.setAgentRadius(i, self.robot.radius + 0.01 + safety_space)
+            else: raise NotImplementedError(f"Model {self.motion_model_title} is not implemented for robot")
 
     def check_pair_agents_social_force_parameters(self, agent1:Agent, agent2:Agent):
         if self.motion_model_title == "sfm_helbing" or self.motion_model_title == "hsfm_farina" or self.motion_model_title == "hsfm_new":
