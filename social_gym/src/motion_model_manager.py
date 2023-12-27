@@ -154,6 +154,18 @@ class MotionModelManager:
             else: raise NotImplementedError(f"Model {self.motion_model_title} is not implemented for robot")
 
     def check_pair_agents_social_force_parameters(self, agent1:Agent, agent2:Agent):
+        """
+        Checks if the parameters of the motion models guiding the two agents are the same. 
+        The agents should have the same motion model, otherwise this check does not make sense
+        (different parameters).
+
+        params:
+        - agent1: First agent (both robot or human)
+        - agent2: Second agent (both robot or human)
+
+        output:
+        bool indicating wether the parameters are equal or not.
+        """
         if self.motion_model_title == "sfm_helbing" or self.motion_model_title == "hsfm_farina" or self.motion_model_title == "hsfm_new":
             # Ai, Bi, k1, k2
             if agent1.Ai != agent2.Ai: return False

@@ -1,7 +1,7 @@
 import pygame
 from crowd_nav.utils.state import ObservableState
 from social_gym.src.info import *
-from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_STATES, N_HEADED_STATES, N_NOT_HEADED_STATES
+from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_STATES
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.obstacle import Obstacle

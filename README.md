@@ -1,2 +1,21 @@
 # Social-Navigation-PyEnvs
-This repository contains 2 different social environments based on the Social Force Model and the Headed Social Force Model built with PyGame and OpenAI Gymnasium. These two social navigation environments can be used to train reinforcement learning agents for social navigation.
+
+> An infrastructure used to train robots within a social navigation context.
+
+## Description
+
+This repository contains an infrastructure used to simulate crowds of pedestrians moving with different known models (Social Force Model, Headed Social Force Model, ORCA, and many variations) and a gym environment useful to train robots to navigate autonomously in indoor crowded environment.
+
+## Current status
+
+## Table of contents
+
+## Installation
+### Prerequisites
+### Step-by-step installation guide
+
+## Getting started
+
+## References
+- [CrowdNav](https://github.com/ChanganVR/RelationalGraphLearning)
+- [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2)
