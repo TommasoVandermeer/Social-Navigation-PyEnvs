@@ -16,20 +16,20 @@ ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"orca",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
-TIME_STEP = 0.01666666
+TIME_STEP = 0.25
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - CrowdNav trainable policy
-# social_nav.set_robot_policy(policy_name="lstm_rl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/lstm_rl_on_orca'), il=False)
+social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_sfm_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
+# social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=True)
 ## Set a safety space both for robot and humans
-social_nav.motion_model_manager.set_safety_space(0.15)
+# social_nav.motion_model_manager.set_safety_space(0.05)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
