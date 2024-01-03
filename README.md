@@ -37,4 +37,4 @@ The simulator is built upon the pygame library in order to provide a functional 
 ## References
 - [CrowdNav](https://github.com/ChanganVR/RelationalGraphLearning)
 - [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2)
-- [Light-sfm] (https://github.com/robotics-upo/lightsfm)
+- [Light-sfm](https://github.com/robotics-upo/lightsfm)
