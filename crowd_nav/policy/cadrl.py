@@ -59,7 +59,7 @@ class CADRL(Policy):
         mlp_dims = [int(x) for x in config.get('cadrl', 'mlp_dims').split(', ')]
         self.model = ValueNetwork(self.joint_state_dim, mlp_dims)
         self.multiagent_training = config.getboolean('cadrl', 'multiagent_training')
-        logging.info('Policy: CADRL without occupancy map')
+        logging.debug('Policy: CADRL without occupancy map')
 
     def set_common_parameters(self, config):
         self.gamma = config.getfloat('rl', 'gamma')

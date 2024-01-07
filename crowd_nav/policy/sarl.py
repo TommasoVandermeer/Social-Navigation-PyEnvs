@@ -83,7 +83,7 @@ class SARL(MultiHumanRL):
         self.multiagent_training = config.getboolean('sarl', 'multiagent_training')
         if self.with_om:
             self.name = 'OM-SARL'
-        logging.info('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
+        logging.debug('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
 
     def get_attention_weights(self):
         return self.model.attention_weights

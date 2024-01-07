@@ -484,17 +484,35 @@ class SocialNavSim:
                 self.zoom -= 0.1
                 self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
 
-    def run_k_steps(self, steps, quit=True):
+    def run_k_steps(self, steps, quit=True, additional_info=False, stop_when_collision_or_goal = False):
+        # TODO: Revise this code (it is very bad)
         human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
         if self.insert_robot: robot_poses = np.empty((steps,3), dtype=np.float64)
+        # Additional infos
+        collisions = 0
+        time_to_goal = None
+        success = False
         for step in range(steps):
+            if additional_info: robot_goal = self.robot.get_goal_position()
             self.update()
             if not self.headless: self.render_sim()
             human_states[step] = self.motion_model_manager.get_human_states()
-            if self.insert_robot: robot_poses[step] = self.robot.get_pose()
+            if self.insert_robot: 
+                robot_poses[step] = self.robot.get_pose()
+                if additional_info:
+                    for human in self.humans:
+                        if np.linalg.norm(human.position - self.robot.position) < (human.radius + self.robot.radius): 
+                            collisions += 1
+                            if stop_when_collision_or_goal: return human_states, robot_poses, collisions, time_to_goal, False
+                    if time_to_goal is None and not np.array_equal(self.robot.get_goal_position(),robot_goal): 
+                        time_to_goal = self.n_updates * SAMPLING_TIME
+                        if collisions == 0: success = True
+                        if stop_when_collision_or_goal: return human_states, robot_poses, collisions, time_to_goal, success
         if not self.headless and quit: pygame.quit(); self.pygame_init = False
         if not self.insert_robot: return human_states
-        else: return human_states, robot_poses
+        else:
+            if not additional_info: return human_states, robot_poses
+            else: return human_states, robot_poses, collisions, time_to_goal, success
 
     def run_single_test(self, n_updates):
         start_time = round_time((pygame.time.get_ticks() / 1000))

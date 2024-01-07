@@ -84,7 +84,7 @@ class LstmRL(MultiHumanRL):
         else:
             self.model = ValueNetwork1(self.input_dim(), self.self_state_dim, mlp_dims, global_state_dim)
         self.multiagent_training = config.getboolean('lstm_rl', 'multiagent_training')
-        logging.info('Policy: {}LSTM-RL {} pairwise interaction module'.format(
+        logging.debug('Policy: {}LSTM-RL {} pairwise interaction module'.format(
             'OM-' if self.with_om else '', 'w/' if with_interaction_module else 'w/o'))
 
     def predict(self, state):

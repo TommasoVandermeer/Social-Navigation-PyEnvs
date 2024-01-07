@@ -12,24 +12,26 @@ from custom_config.config_example import data
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
 INSERT_ROBOT = True
-ROBOT_VISIBLE = False
-RANDOMIZE_HUMAN_POSITIONS = False
+ROBOT_VISIBLE = True
+RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
-RUNGE_KUTTA = True
-social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+RUNGE_KUTTA = False
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"orca",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
 TIME_STEP = 0.25
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_hsfm_new_guo'), il=False)
+# social_nav.set_robot_policy(policy_name="lstm_rl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/lstm_rl_on_hsfm_new_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
+social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=True)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.05)
+## Change robot radius
+social_nav.robot.set_radius_and_update_graphics(0.3)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
