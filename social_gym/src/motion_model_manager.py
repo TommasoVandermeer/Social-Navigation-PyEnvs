@@ -166,6 +166,8 @@ class MotionModelManager:
         output:
         bool indicating wether the parameters are equal or not.
         """
+        if agent1.radius != agent2.radius: return False
+        if agent1.mass != agent2.mass: return False
         if self.motion_model_title == "sfm_helbing" or self.motion_model_title == "hsfm_farina" or self.motion_model_title == "hsfm_new":
             # Ai, Bi, k1, k2
             if agent1.Ai != agent2.Ai: return False

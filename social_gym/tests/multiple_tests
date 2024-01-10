@@ -1,0 +1,32 @@
+2024-01-10 14:54:48, INFO: Start trial 1 w/ 5 humans
+2024-01-10 14:54:49, INFO: Start trial 21 w/ 5 humans
+2024-01-10 14:54:50, INFO: Start trial 41 w/ 5 humans
+2024-01-10 14:54:51, INFO: Start trial 61 w/ 5 humans
+2024-01-10 14:54:52, INFO: Start trial 81 w/ 5 humans
+2024-01-10 14:54:53, INFO: ROBOT POLICY: ssp - HUMAN POLICY: orca - HUMANS: 5
+2024-01-10 14:54:53, INFO: Success rate: 0.1
+2024-01-10 14:54:53, INFO: Average time to goal: 16.575
+2024-01-10 14:54:53, INFO: Collisions over 100 trials: 90
+2024-01-10 14:54:53, INFO: Truncated episodes over 100 trials: 0
+2024-01-10 14:54:53, INFO: Start trial 1 w/ 7 humans
+2024-01-10 14:54:54, INFO: Start trial 21 w/ 7 humans
+2024-01-10 14:54:55, INFO: Start trial 41 w/ 7 humans
+2024-01-10 14:54:56, INFO: Start trial 61 w/ 7 humans
+2024-01-10 14:54:57, INFO: Start trial 81 w/ 7 humans
+2024-01-10 14:54:58, INFO: ROBOT POLICY: ssp - HUMAN POLICY: orca - HUMANS: 7
+2024-01-10 14:54:58, INFO: Success rate: 0.13
+2024-01-10 14:54:58, INFO: Average time to goal: 16.673076923076923
+2024-01-10 14:54:58, INFO: Collisions over 100 trials: 87
+2024-01-10 14:54:58, INFO: Truncated episodes over 100 trials: 0
+2024-01-10 14:54:58, INFO: Start trial 1 w/ 14 humans
+2024-01-10 14:54:59, INFO: Start trial 21 w/ 14 humans
+2024-01-10 14:55:00, INFO: Start trial 41 w/ 14 humans
+2024-01-10 14:55:01, INFO: Start trial 61 w/ 14 humans
+2024-01-10 14:55:03, INFO: Start trial 81 w/ 14 humans
+2024-01-10 14:55:04, INFO: ROBOT POLICY: ssp - HUMAN POLICY: orca - HUMANS: 14
+2024-01-10 14:55:04, INFO: Success rate: 0.05
+2024-01-10 14:55:04, INFO: Average time to goal: 19.25
+2024-01-10 14:55:04, INFO: Collisions over 100 trials: 95
+2024-01-10 14:55:04, INFO: Truncated episodes over 100 trials: 0
+2024-01-10 14:55:04, INFO: Start trial 1 w/ 21 humans
+2024-01-10 14:55:06, INFO: Start trial 21 w/ 21 humans

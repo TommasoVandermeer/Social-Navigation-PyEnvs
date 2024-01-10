@@ -191,7 +191,7 @@ class SocialNavSim:
         randomize_human_attributes = config_data[7]
         robot_visible = config_data[8]
         if robot_radius is not None: robot_r = robot_radius
-        else: robot_r = 0.25
+        else: robot_r = 0.3
         center = np.array([0,0],dtype=np.float64) # [self.real_size/2,self.real_size/2]
         humans = {}
         humans_des_speed = []
@@ -334,13 +334,13 @@ class SocialNavSim:
             if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', self.humans, self.walls)
         else:
             if self.robot_crowdnav_policy:
+                ob = [human.get_observable_state() for human in self.humans]
+                action = self.robot.act(ob)
+                self.robot.step(action, SAMPLING_TIME)
                 if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
                     robot_goal = self.robot.goals[0]
                     self.robot.goals.remove(robot_goal)
                     self.robot.goals.append(robot_goal)
-                ob = [human.get_observable_state() for human in self.humans]
-                action = self.robot.act(ob)
-                self.robot.step(action, SAMPLING_TIME)
             else:
                 self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
             self.updated = True
@@ -484,35 +484,48 @@ class SocialNavSim:
                 self.zoom -= 0.1
                 self.zoom = max(ZOOM_BOUNDS[0], self.zoom)
 
-    def run_k_steps(self, steps, quit=True, additional_info=False, stop_when_collision_or_goal = False):
-        # TODO: Revise this code (it is very bad)
-        human_states = np.empty((steps,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
-        if self.insert_robot: robot_poses = np.empty((steps,3), dtype=np.float64)
+    def run_k_steps(self, steps, quit=True, additional_info=False, stop_when_collision_or_goal=False):
+        """
+        Method used to run k steps in the simulator.
+
+        params:
+        - steps: number of steps to run.
+        - quit: wether to quit pygame at the end of the method or not.
+        - additional_info: if true, collision, success, truncated are computed based on the robot performance.
+        - stop_when_collision_or_goal: if true, the simulation is stopped if the robot collides or reaches goal
+        """
+        # Variables where to save the states
+        human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
+        if self.insert_robot: robot_states = np.array([self.motion_model_manager.get_robot_state()], dtype=np.float64)
         # Additional infos
-        collisions = 0
-        time_to_goal = None
+        if stop_when_collision_or_goal and not additional_info: raise ValueError("Cannot stop the episode if you don't compute additional info")
+        collision = False
         success = False
+        truncated = False
+        time_to_goal = None
+        # Main loop
         for step in range(steps):
-            if additional_info: robot_goal = self.robot.get_goal_position()
+            if stop_when_collision_or_goal and (collision or success): break
             self.update()
             if not self.headless: self.render_sim()
-            human_states[step] = self.motion_model_manager.get_human_states()
+            human_states = np.append(human_states, [self.motion_model_manager.get_human_states()], axis=0)
             if self.insert_robot: 
-                robot_poses[step] = self.robot.get_pose()
+                robot_states = np.append(robot_states, [self.motion_model_manager.get_robot_state()], axis=0)
                 if additional_info:
+                    # Collision
                     for human in self.humans:
-                        if np.linalg.norm(human.position - self.robot.position) < (human.radius + self.robot.radius): 
-                            collisions += 1
-                            if stop_when_collision_or_goal: return human_states, robot_poses, collisions, time_to_goal, False
-                    if time_to_goal is None and not np.array_equal(self.robot.get_goal_position(),robot_goal): 
+                        if np.linalg.norm(human.position - self.robot.position) < (human.radius + self.robot.radius): collision = True
+                    # Success
+                    if not np.array_equal(robot_states[step+1][6:8],robot_states[step][6:8]): # If the robot's goal has changed
                         time_to_goal = self.n_updates * SAMPLING_TIME
-                        if collisions == 0: success = True
-                        if stop_when_collision_or_goal: return human_states, robot_poses, collisions, time_to_goal, success
+                        success = True
+                    # Truncated
+                    if step == steps - 1 and not collision and not success: truncated = True
+        # Closure
         if not self.headless and quit: pygame.quit(); self.pygame_init = False
-        if not self.insert_robot: return human_states
-        else:
-            if not additional_info: return human_states, robot_poses
-            else: return human_states, robot_poses, collisions, time_to_goal, success
+        if self.insert_robot and additional_info: return human_states, robot_states, collision, time_to_goal, success, truncated
+        elif self.insert_robot and not additional_info: return human_states, robot_states
+        else: return human_states
 
     def run_single_test(self, n_updates):
         start_time = round_time((pygame.time.get_ticks() / 1000))
