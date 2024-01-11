@@ -15,7 +15,7 @@ FULLY_COOPERATIVE = True # If true, robot is visible by humans
 TIME_STEP = 0.25
 SEED_OFFSET = 1000
 ROBOT_RADIUS = 0.3
-SINGLE_TEST = False # If false, multiple test with different robot and human policies are executed in one time
+SINGLE_TEST = True # If false, multiple test with different robot and human policies are executed in one time
 SAVE_STATES = True # If true, agents (humans and robot) states are saved in an output file
 ## SINGLE TEST VARIABLES
 RUNGE_KUTTA = False
@@ -74,7 +74,7 @@ if SINGLE_TEST:
         for trial in range(TRIALS):
             logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
             np.random.seed(SEED_OFFSET + trial)
-            simulator = SocialNavSim([7,n_agents,True,HUMAN_POLICY,HEADLESS,RUNGE_KUTTA,True,False,FULLY_COOPERATIVE], "circular_crossing")
+            simulator = SocialNavSim([CIRCLE_RADIUS,n_agents,True,HUMAN_POLICY,HEADLESS,RUNGE_KUTTA,True,False,FULLY_COOPERATIVE], "circular_crossing")
             simulator.set_time_step(TIME_STEP)
             robot_policy_index = ROBOT_POLICIES.index(ROBOT_POLICY)
             if robot_policy_index < 10: simulator.set_robot_policy(policy_name=ROBOT_POLICY, crowdnav_policy=False, runge_kutta=True)
@@ -141,7 +141,7 @@ else:
                 for trial in range(TRIALS):
                     if trial % 20 == 0: logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
                     np.random.seed(SEED_OFFSET + trial)
-                    simulator = SocialNavSim([7,n_agents,True,human_policy,HEADLESS,rk45,True,False,FULLY_COOPERATIVE], "circular_crossing")
+                    simulator = SocialNavSim([CIRCLE_RADIUS,n_agents,True,human_policy,HEADLESS,rk45,True,False,FULLY_COOPERATIVE], "circular_crossing")
                     simulator.set_time_step(TIME_STEP)
                     robot_policy_index = ROBOT_POLICIES.index(robot_policy)
                     if robot_policy_index < 10: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=False, runge_kutta=True)
