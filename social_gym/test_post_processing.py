@@ -2,11 +2,13 @@ import pickle
 import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 ## GLOBAL VARIABLES TO SET
 SINGLE_PROCESSING = True # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_ON_EXCEL = True # If true, resulting metrics are loaded on an Excel file
+PLOT_METRICS = True # (only multi-processing) If true, some metrics are plotted to compare robot policies
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -22,16 +24,25 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
                  "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
+METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
+           'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
+           'min_dist','avg_dist','space_compliance','path_length','SPL']
 BIG_FLOAT = 100000.0
 
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 if not os.path.exists(metrics_dir): os.makedirs(metrics_dir)
 
-# SINGLE POST-PROCESSING
-if SINGLE_PROCESSING:
-    with open(os.path.join(os.path.dirname(__file__),'tests','results',RESULTS_FILE), "rb") as f:
-        test_data = pickle.load(f)
+def single_results_file_post_processing(test_data:dict):
+    """
+    This function post-process the given results file to compute some metrics indicating the quality of
+    the robot policy used for the test.
 
+    params:
+    - test_data (dict): contains test specifics and results
+
+    output:
+    - Metrics for the tests with [5,7,14,21,28,35] humans
+    """
     # METRICS
     test_success_rate = np.empty((len(TESTS),), dtype=np.float64)
     test_collisions = np.empty((len(TESTS),), dtype=np.int64)
@@ -51,7 +62,7 @@ if SINGLE_PROCESSING:
     test_avg_space_compl = np.empty((len(TESTS),), dtype=np.float64)
     test_avg_path_length = np.empty((len(TESTS),), dtype=np.float64)
     test_spl = np.empty((len(TESTS),), dtype=np.float64)
-
+    # POST-PROCESSING
     for k, test in enumerate(TESTS):
         print(" ************************ ")
         print("")
@@ -199,15 +210,62 @@ if SINGLE_PROCESSING:
         test_avg_space_compl[k] = average_trial_space_compliance
         test_avg_path_length[k] = average_path_length
         test_spl[k] = success_weighted_by_path_length
-    metrics_dataframe = pd.DataFrame(zip(test_success_rate,test_collisions,test_truncated_eps,test_time_to_goal,test_avg_min_vel,test_avg_vel,
-                                         test_max_vel,test_avg_min_accel,test_avg_accel,test_max_accel,test_avg_min_jerk,test_avg_jerk,test_max_jerk,
-                                         test_avg_min_dist,test_avg_dist,test_avg_space_compl,test_avg_path_length,test_spl),
-                                     columns=['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
-                                              'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
-                                              'min_dist','avg_dist','space_compliance','path_length','SPL'], index=TESTS)
+    return zip(test_success_rate,test_collisions,test_truncated_eps,test_time_to_goal,test_avg_min_vel,test_avg_vel, test_max_vel,test_avg_min_accel,test_avg_accel,test_max_accel,test_avg_min_jerk,test_avg_jerk,test_max_jerk, test_avg_min_dist,test_avg_dist,test_avg_space_compl,test_avg_path_length,test_spl) 
+
+# SINGLE POST-PROCESSING
+if SINGLE_PROCESSING:
+    with open(os.path.join(os.path.dirname(__file__),'tests','results',RESULTS_FILE), "rb") as f:
+        test_data = pickle.load(f)
+
+    metrics  = single_results_file_post_processing(test_data)
+    metrics_dataframe = pd.DataFrame(metrics, columns=METRICS, index=TESTS)
     print(metrics_dataframe.head())
     if EXPORT_ON_EXCEL:
         file_name = os.path.join(metrics_dir,f"Metrics_{test_data['5_humans']['specifics']['robot_policy']}_on_{test_data['5_humans']['specifics']['human_policy']}.xlsx")
         with pd.ExcelWriter(file_name) as writer: metrics_dataframe.to_excel(writer, sheet_name='metrics')
 # MULTIPLE POST-PROCESSING
-else: pass
+else:
+    # Here we'll save the metrics for each policy for each type of test (based on n humans)
+    five_humans_test_metrics = []
+    seven_humans_test_metrics = []
+    fourteen_humans_test_metrics = []
+    twentyone_humans_test_metrics = []
+    twentyeight_humans_test_metrics = []
+    thirtyfive_humans_test_metrics = []
+    # Post-processing
+    for results in RESULTS_FILES:
+        with open(os.path.join(os.path.dirname(__file__),'tests','results',results), "rb") as f:
+            test_data = pickle.load(f)
+        metrics = single_results_file_post_processing(test_data)
+        metrics_for_each_test = [test_metrics for test_metrics in metrics]
+        five_humans_test_metrics.append(metrics_for_each_test[0])
+        seven_humans_test_metrics.append(metrics_for_each_test[1])
+        fourteen_humans_test_metrics.append(metrics_for_each_test[2])
+        twentyone_humans_test_metrics.append(metrics_for_each_test[3])
+        twentyeight_humans_test_metrics.append(metrics_for_each_test[4])
+        thirtyfive_humans_test_metrics.append(metrics_for_each_test[5])
+    # Dataframes creation
+    five_humans_metrics_dataframe = pd.DataFrame(five_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(five_humans_metrics_dataframe.head())
+    seven_humans_metrics_dataframe = pd.DataFrame(seven_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(seven_humans_metrics_dataframe.head())
+    fourteen_humans_metrics_dataframe = pd.DataFrame(fourteen_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(fourteen_humans_metrics_dataframe.head())
+    twentyone_humans_metrics_dataframe = pd.DataFrame(twentyone_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(twentyone_humans_metrics_dataframe.head())
+    twentyeight_humans_metrics_dataframe = pd.DataFrame(twentyeight_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(twentyeight_humans_metrics_dataframe.head())
+    thirtyfive_humans_metrics_dataframe = pd.DataFrame(thirtyfive_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
+    print(thirtyfive_humans_metrics_dataframe.head())
+    # Export on Excel
+    if EXPORT_ON_EXCEL:
+        file_name = os.path.join(metrics_dir,f"Metrics_multiple_robot_policies.xlsx")
+        with pd.ExcelWriter(file_name) as writer: 
+            five_humans_metrics_dataframe.to_excel(writer, sheet_name='5_humans')
+            seven_humans_metrics_dataframe.to_excel(writer, sheet_name='7_humans')
+            fourteen_humans_metrics_dataframe.to_excel(writer, sheet_name='14_humans')
+            twentyone_humans_metrics_dataframe.to_excel(writer, sheet_name='21_humans')
+            twentyeight_humans_metrics_dataframe.to_excel(writer, sheet_name='28_humans')
+            thirtyfive_humans_metrics_dataframe.to_excel(writer, sheet_name='35_humans')
+    # Plot some metrics
+    if PLOT_METRICS: pass
