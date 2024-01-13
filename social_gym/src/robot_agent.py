@@ -2,6 +2,7 @@ import pygame
 import math
 from social_gym.src.agent import Agent
 from social_gym.src.utils import bound_angle
+from social_gym.src.sensors import LaserSensor
 import numpy as np
 import logging
 from crowd_nav.utils.state import JointState
@@ -14,6 +15,7 @@ class RobotAgent(Agent):
 
         self.goals = goals
         self.collisions = 0 # Unused
+        self.laser = None
 
         self.set_radius_and_update_graphics(self.radius)
 
@@ -54,6 +56,40 @@ class RobotAgent(Agent):
         elif direction == 'right':
             self.yaw = bound_angle(self.yaw - 0.1)
         self.check_collisions(humans, walls)
+
+    def render(self, display, scroll:np.array):
+        if self.laser is not None and self.laser_render: self.render_laser(display, scroll)
+        display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))
+
+    def render_laser(self, display, scroll:np.array):
+        self.laser_surface.fill((0,0,0,0))
+        self.laser_surface_rect = self.laser_surface.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
+        for k, v in self.laser_data.items():
+            end_position = np.empty((2,), dtype=np.float64)
+            end_position[0] = self.laser_start_position[0] + (v + self.radius) * math.cos(k)
+            end_position[1] = self.laser_start_position[1] + (v + self.radius) * math.sin(k)
+            end_display_position = np.empty((2,), dtype=np.float64)
+            end_display_position[0] = end_position[0] * self.ratio
+            end_display_position[1] = (self.laser.max_distance * 2 - end_position[1]) * self.ratio
+            pygame.draw.line(self.laser_surface, (255,0,0,100), tuple(self.laser_start_display_position), tuple(end_display_position), 2)
+        display.blit(self.laser_surface, (self.laser_surface_rect.x - scroll[0], self.laser_surface_rect.y - scroll[1]))
+
+    def add_laser_sensor(self, range:float, samples:int, max_distance:float, uncertainty=None, render=False):
+        self.laser = LaserSensor(self.position, self.yaw, range, samples, max_distance, uncertainty=uncertainty)
+        # For rendering
+        self.laser_render = render
+        self.laser_surface = pygame.Surface((self.laser.max_distance * self.ratio * 2, self.laser.max_distance * self.ratio * 2), pygame.SRCALPHA)
+        self.laser_start_display_position = np.array([self.laser_surface.get_size()[0] / 2, self.laser_surface.get_size()[1] / 2], dtype=np.float64)
+        self.laser_start_position = np.empty((2,), dtype=np.float64)
+        self.laser_start_position[0] = self.laser_start_display_position[0] / self.ratio
+        self.laser_start_position[1] = -(self.laser_start_display_position[1] / self.ratio) + self.laser.max_distance * 2
+
+    def get_laser_readings(self, humans:list, walls):
+        self.laser.update_pose(self.position, self.yaw)
+        readings = self.laser.get_laser_measurements(humans, walls)
+        # Subtract robot radius from readings (laser is robot pose centered)
+        self.laser_data = {k: v - self.radius for k, v in readings.items()}
+        return self.laser_data
 
     ### METHODS FOR CROWDNAV POLICIES
         

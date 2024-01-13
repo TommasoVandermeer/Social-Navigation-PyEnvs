@@ -1,4 +1,5 @@
 import os
+import math
 from social_gym.social_nav_sim import SocialNavSim
 from custom_config.config_example import data
 # from custom_config.config_corridor import data
@@ -20,18 +21,20 @@ social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNG
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
-TIME_STEP = 0.0166666
+TIME_STEP = 0.01666666
 social_nav.set_time_step(TIME_STEP)
 ## Set robot policy - CrowdNav trainable policy
 # social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_hsfm_new_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
+# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=True)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.00)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
+## Add a laser sensor to the robot
+social_nav.robot.add_laser_sensor(math.pi, 60, 5, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)

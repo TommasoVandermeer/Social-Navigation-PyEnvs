@@ -344,6 +344,7 @@ class SocialNavSim:
             else:
                 self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
             self.updated = True
+        if self.robot.laser is not None: measuremenets = self.robot.get_laser_readings(self.humans, self.walls)
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:

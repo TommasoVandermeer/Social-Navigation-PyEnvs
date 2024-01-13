@@ -37,7 +37,7 @@ class LaserSensor:
         x4 = self.position[0] + ray_direction[0]
         y4 = self.position[1] + ray_direction[1]
         denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-        if denominator < 0.0: return self.max_distance
+        if denominator <= 0.0: return self.max_distance
         t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denominator
         u = - ((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denominator
         if 0 < t < 1 and u > 0: 
@@ -46,6 +46,7 @@ class LaserSensor:
         else: return self.max_distance
 
     def get_laser_measurements(self, humans:list[HumanAgent], walls):
+        # Warning: angles are not wrapped between -pi and pi
         angles = np.linspace( self.yaw - (self.range/2), self.yaw + (self.range/2), self.samples)
         measurements = []
         for angle in angles:
@@ -61,3 +62,7 @@ class LaserSensor:
             measurements.append(measurement)
         # TODO: add noise to the measurements
         return dict(zip(angles, measurements))
+
+    def add_uncertainty(self, measurements:dict):
+        # TODO: finish the method
+        for measure in measurements.values(): pass
