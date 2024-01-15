@@ -3,10 +3,14 @@ import math
 from social_gym.src.human_agent import HumanAgent
 
 class LaserSensor:
+    """
+    This class is used to simulate a laser range finder.
+    """
     def __init__(self, init_pos:np.array, init_yaw:float, range:float, samples:int, max_distance:float, uncertainty=None):
         self.range = range
         self.samples = samples
-        self.max_distance = max_distance
+        if max_distance > 10: raise ValueError("Maxium distance for laser is 10 meters")
+        else: self.max_distance = max_distance
         if uncertainty is not None: self.uncertainty = uncertainty
         # Pose of the sensor
         self.update_pose(init_pos,init_yaw)

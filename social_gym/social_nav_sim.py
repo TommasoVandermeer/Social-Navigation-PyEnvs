@@ -328,10 +328,13 @@ class SocialNavSim:
 
     def control_robot(self):
         if not self.robot_controlled:
-            if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', self.humans, self.walls)
-            if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', self.humans, self.walls)
-            if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', self.humans, self.walls)
-            if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', self.humans, self.walls)
+            if not hasattr(self.robot, "diff_drive"): self.robot.mount_differential_drive(1)
+            if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
+            if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
+            if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
+            if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
+            self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, SAMPLING_TIME)
+            self.robot.check_collisions(self.humans, self.walls)
         else:
             if self.robot_crowdnav_policy:
                 ob = [human.get_observable_state() for human in self.humans]

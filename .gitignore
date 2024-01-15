@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Tests folder (results file are too heavy)
+social_gym/tests/
+
 # User-specific files
 *.rsuser
 *.suo

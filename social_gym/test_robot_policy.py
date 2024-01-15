@@ -28,7 +28,7 @@ ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "robot_models/cadrl_on_orca", "robot_
                                  "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
                                  "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
 HUMAN_POLICIES_TO_BE_TESTED = ["orca", "sfm_guo", "hsfm_new_guo"]
-OUTPUT_FILE_NAME = "multiple_tests"
+OUTPUT_FILE_NAME = "multiple_tests.log"
 ### VARIABLES USED FOR IMPLEMENTATION PURPOSES, DO NOT CHANGE THESE
 TRAINABLE_POLICIES = ["cadrl", "sarl", "lstm_rl"]
 ROBOT_POLICIES = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
@@ -65,6 +65,7 @@ if SINGLE_TEST:
         test_collisions = []
         test_truncated = []
         if SAVE_STATES:
+            # TODO: Save human radiuses (also on multiple tests)
             test_specifics = {"humans": n_agents, "circle_radius": CIRCLE_RADIUS, "trials": TRIALS,
                                 "max_episode_time": TIME_PER_EPISODE, "fully_cooperative": FULLY_COOPERATIVE,
                                 "time_step": TIME_STEP, "seed_offset": SEED_OFFSET, "robot_radius": ROBOT_RADIUS,

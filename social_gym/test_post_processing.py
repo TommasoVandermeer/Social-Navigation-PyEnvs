@@ -5,10 +5,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ## GLOBAL VARIABLES TO SET
-SINGLE_PROCESSING = True # If true, a single results file is post-processed. Otherwise a list provided is post-processed
+SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_ON_EXCEL = True # If true, resulting metrics are loaded on an Excel file
-PLOT_METRICS = True # (only multi-processing) If true, some metrics are plotted to compare robot policies
+PLOT_METRICS = False # (only multi-processing) If true, some metrics are plotted to compare robot policies
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -115,7 +115,8 @@ def single_results_file_post_processing(test_data:dict):
                 space_compliance = True
                 for human_state in episode["human_states"][i]:
                     human_position = human_state[0:2]
-                    instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] * 2) # We suppose humans have the same size as robot
+                    # TODO: below subtract each human radius (needs to be saved in the results file)
+                    instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] * 2) # We assume humans have the same size as robot
                     average_instant_distance += instant_distance
                     if instant_distance < minimum_distance and not episode["collision"]: minimum_distance = instant_distance
                     if instant_distance < SPACE_COMPLIANCE_THRESHOLD: space_compliance = False

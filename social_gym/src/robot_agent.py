@@ -3,11 +3,14 @@ import math
 from social_gym.src.agent import Agent
 from social_gym.src.utils import bound_angle
 from social_gym.src.sensors import LaserSensor
+from social_gym.src.actuators import DifferentialDrive
 import numpy as np
 import logging
 from crowd_nav.utils.state import JointState
 from crowd_nav.utils.action import ActionXY, ActionRot
 from crowd_nav.policy_no_train.policy_factory import policy_factory
+
+KEYS_VELOCITY_CHANGE = {"up": np.array([0.02,0.02]), "down": np.array([-0.02,-0.02]), "left": np.array([-0.02,0.00]), "right": np.array([0.00,-0.02])}
 
 class RobotAgent(Agent):
     def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.3, goals=list(), mass=80, desired_speed=1):
@@ -44,19 +47,6 @@ class RobotAgent(Agent):
                 self.move()
         self.move()
 
-    def move_with_keys(self, direction, humans, walls):    
-        if direction == 'up':
-            self.position[0] += math.cos(self.yaw) * 0.01
-            self.position[1] += math.sin(self.yaw) * 0.01
-        elif direction == 'down':
-            self.position[0] -= math.cos(self.yaw) * 0.01
-            self.position[1] -= math.sin(self.yaw) * 0.01
-        elif direction == 'left':
-            self.yaw = bound_angle(self.yaw + 0.1)
-        elif direction == 'right':
-            self.yaw = bound_angle(self.yaw - 0.1)
-        self.check_collisions(humans, walls)
-
     def render(self, display, scroll:np.array):
         if self.laser is not None and self.laser_render: self.render_laser(display, scroll)
         display.blit(self.image, (self.rect.x - scroll[0], self.rect.y - scroll[1]))
@@ -90,6 +80,13 @@ class RobotAgent(Agent):
         # Subtract robot radius from readings (laser is robot pose centered)
         self.laser_data = {k: v - self.radius for k, v in readings.items()}
         return self.laser_data
+    
+    def mount_differential_drive(self, max_speed):
+        self.diff_drive = DifferentialDrive(self.radius, max_speed)
+
+    def move_with_keys(self, direction:str):    
+        if not hasattr(self, "diff_drive"): raise ValueError("Differential drive is not mounted")
+        self.diff_drive.change_velocity(self.diff_drive.velocity + KEYS_VELOCITY_CHANGE[direction])
 
     ### METHODS FOR CROWDNAV POLICIES
         
