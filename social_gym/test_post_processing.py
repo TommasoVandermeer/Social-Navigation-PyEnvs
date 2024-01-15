@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_ON_EXCEL = True # If true, resulting metrics are loaded on an Excel file
-PLOT_METRICS = False # (only multi-processing) If true, some metrics are plotted to compare robot policies
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -268,5 +267,3 @@ else:
             twentyone_humans_metrics_dataframe.to_excel(writer, sheet_name='21_humans')
             twentyeight_humans_metrics_dataframe.to_excel(writer, sheet_name='28_humans')
             thirtyfive_humans_metrics_dataframe.to_excel(writer, sheet_name='35_humans')
-    # Plot some metrics
-    if PLOT_METRICS: pass
