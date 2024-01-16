@@ -21,6 +21,10 @@ The simulator is built upon the pygame library in order to provide a functional 
 - Modified Headed Social Force Model with a modification proposed by Moussaid
 - Obstacle Reciprocal Collision Avoidance
 
+The simulator also implements a laser sensor and a differential drive for the robot, thus enabling users to develop more low-level applications.
+
+![social-nav-overview-2](.images/social-nav-overview-2.gif)
+
 ## Current status
 
 
