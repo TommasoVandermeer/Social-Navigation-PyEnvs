@@ -9,15 +9,15 @@ from custom_config.config_example import data
 
 ### SIMULATOR INITIALIZATION
 ## Create instance of simulator and load paramas from config file
-social_nav = SocialNavSim(data)
+# social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
-# HEADLESS = False
-# INSERT_ROBOT = True
-# ROBOT_VISIBLE = True
-# RANDOMIZE_HUMAN_POSITIONS = True
-# RANDOMIZE_HUMAN_ATTRIBUTES = False
-# RUNGE_KUTTA = False
-# social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+HEADLESS = False
+INSERT_ROBOT = True
+ROBOT_VISIBLE = True
+RANDOMIZE_HUMAN_POSITIONS = True
+RANDOMIZE_HUMAN_ATTRIBUTES = False
+RUNGE_KUTTA = False
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set sampling time (default is 0.01666666)
@@ -34,7 +34,7 @@ social_nav.set_time_step(TIME_STEP)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-# social_nav.robot.add_laser_sensor(math.pi, 60, 5, render=True)
+social_nav.robot.add_laser_sensor(math.pi, 61, 5, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)

@@ -10,6 +10,7 @@ This repository contains an infrastructure used to simulate crowds of pedestrian
 
 The simulator is built upon the pygame library in order to provide a functional visualization tool. Here is a list of all the human motion models available:
 - Social Force Model (a python re-implementation of the light-sfm library by robotics-upo)
+- Obstacle Reciprocal Collision Avoidance
 - Social Force Model as defined by Helbing
 - Social Force Model with a modification proposed by Guo
 - Social Force Model with a modification proposed by Moussaid
@@ -19,7 +20,8 @@ The simulator is built upon the pygame library in order to provide a functional 
 - Modified Headed Social Force Model (new way to compute the torque force driving the pedestrains' heading)
 - Modified Headed Social Force Model with a modification proposed by Guo
 - Modified Headed Social Force Model with a modification proposed by Moussaid
-- Obstacle Reciprocal Collision Avoidance
+
+The last nine models are described in more detail in [this document](.documents/pedestrian_motion_models.pdf).
 
 The simulator also implements a laser sensor and a differential drive for the robot, thus enabling users to develop more low-level applications.
 
