@@ -6,6 +6,8 @@
 
 This repository contains an infrastructure used to simulate crowds of pedestrians moving with different known models (Social Force Model, Headed Social Force Model, ORCA, and many variations) and an OpenAI gym environment useful to train robots to navigate autonomously in indoor crowded environment.
 
+![social-nav-overview-1](.images/social-nav-overview-1.gif)
+
 The simulator is built upon the pygame library in order to provide a functional visualization tool. Here is a list of all the human motion models available:
 - Social Force Model (a python re-implementation of the light-sfm library by robotics-upo)
 - Social Force Model as defined by Helbing
