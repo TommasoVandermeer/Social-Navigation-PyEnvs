@@ -44,3 +44,6 @@ The simulator also implements a laser sensor and a differential drive for the ro
 - [CrowdNav](https://github.com/ChanganVR/RelationalGraphLearning)
 - [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2)
 - [Light-sfm](https://github.com/robotics-upo/lightsfm)
+- Helbing, Dirk, Illés Farkas, and Tamas Vicsek. "Simulating dynamical features of escape panic." Nature 407.6803 (2000): 487-490.
+- Guo, Ren-Yong. "Simulation of spatial and temporal separation of pedestrian counter flow through a bottleneck." Physica A: Statistical Mechanics and its Applications 415 (2014): 428-439.
+- Moussaïd, Mehdi, et al. "Experimental study of the behavioural mechanisms underlying self-organization in human crowds." Proceedings of the Royal Society B: Biological Sciences 276.1668 (2009): 2755-2762.
