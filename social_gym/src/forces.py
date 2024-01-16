@@ -143,8 +143,9 @@ def compute_all_social_forces(type:int, agents:list[HumanAgent], robot:RobotAgen
     if consider_robot: entities.append(robot)
     for agent in agents: agent.social_force = np.array([0,0], dtype=np.float64)
     for i, agent in enumerate(entities):
+        if i == len(agents): continue # Skip because we don't care about the robot repulsive forces
         for j, other_agent in enumerate(entities):
-            if i >= j or i == len(agents): continue # Skip because the social force is specular between pairs of agents
+            if i >= j: continue # Skip because the social force is specular between pairs of agents
             pairwise_social_force = compute_pairwise_social_force(type, agent, other_agent)
             agent.social_force += pairwise_social_force
             if j != len(agents): other_agent.social_force -= pairwise_social_force

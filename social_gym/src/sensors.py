@@ -63,10 +63,11 @@ class LaserSensor:
                 for segment in wall.segments.values():
                     raycast = self.segment_ray_intersect(direction, segment)
                     if raycast < measurement: measurement = raycast
+            if self.uncertainty is not None: measurement = self.add_uncertainty(measurement)
             measurements.append(measurement)
-        # TODO: add noise to the measurements
         return dict(zip(angles, measurements))
 
-    def add_uncertainty(self, measurements:dict):
-        # TODO: finish the method
-        for measure in measurements.values(): pass
+    def add_uncertainty(self, measurement:float):
+        measurement = np.random.normal(measurement, self.uncertainty)
+        measurement = max(min(measurement, self.max_distance), 0)
+        return measurement

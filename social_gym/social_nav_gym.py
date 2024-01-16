@@ -146,6 +146,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.reset_sim(reset_robot=False)
         if self.safety_space > 0: self.motion_model_manager.set_safety_space(self.safety_space)
         self.set_time_step(self.time_step)
+        self.set_robot_time_step(self.time_step)
         # Initialize some variables used later
         self.states = list()
         if hasattr(self.robot.policy, 'action_values'): self.action_values = list()

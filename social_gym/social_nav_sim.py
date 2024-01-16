@@ -21,6 +21,7 @@ DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
+ROBOT_SAMPLING_TIME = 0.25 # Must be a multiple of SAMPLING_TIME
 N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
@@ -78,6 +79,12 @@ class SocialNavSim:
         global SAMPLING_TIME, MAX_FPS
         SAMPLING_TIME = time_step
         MAX_FPS = 1 / SAMPLING_TIME
+
+    def set_robot_time_step(self, time_step:float):
+        error = (time_step % SAMPLING_TIME) - SAMPLING_TIME
+        if error > 0.0000001 or error < -0.0000001: raise ValueError("Robot time step must be a multiple of the environment sampling time")
+        global ROBOT_SAMPLING_TIME
+        ROBOT_SAMPLING_TIME = time_step
         self.robot.time_step = time_step
         if self.robot.policy is not None:
             self.robot.policy.time_step = time_step
@@ -327,27 +334,28 @@ class SocialNavSim:
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
     def control_robot(self):
-        if not self.robot_controlled:
-            if not hasattr(self.robot, "diff_drive"): self.robot.mount_differential_drive(1)
-            if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
-            if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
-            if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
-            if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
-            self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, SAMPLING_TIME)
-            self.robot.check_collisions(self.humans, self.walls)
-        else:
-            if self.robot_crowdnav_policy:
-                ob = [human.get_observable_state() for human in self.humans]
-                action = self.robot.act(ob)
-                self.robot.step(action, SAMPLING_TIME)
-                if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
-                    robot_goal = self.robot.goals[0]
-                    self.robot.goals.remove(robot_goal)
-                    self.robot.goals.append(robot_goal)
+        if self.sim_t % ROBOT_SAMPLING_TIME == 0:
+            if not self.robot_controlled:
+                if not hasattr(self.robot, "diff_drive"): self.robot.mount_differential_drive(1)
+                if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
+                if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
+                if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
+                if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
+                self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, ROBOT_SAMPLING_TIME)
+                self.robot.check_collisions(self.humans, self.walls)
             else:
-                self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
-            self.updated = True
-        if self.robot.laser is not None: measuremenets = self.robot.get_laser_readings(self.humans, self.walls)
+                if self.robot_crowdnav_policy:
+                    ob = [human.get_observable_state() for human in self.humans]
+                    action = self.robot.act(ob)
+                    self.robot.step(action, ROBOT_SAMPLING_TIME)
+                    if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
+                        robot_goal = self.robot.goals[0]
+                        self.robot.goals.remove(robot_goal)
+                        self.robot.goals.append(robot_goal)
+                else:
+                    self.motion_model_manager.update_robot(self.sim_t, ROBOT_SAMPLING_TIME)
+                self.updated = True
+            if self.robot.laser is not None: measuremenets = self.robot.get_laser_readings(self.humans, self.walls)
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
@@ -695,7 +703,7 @@ class SocialNavSim:
             else:
                 self.robot.desired_speed = 1
             self.robot.set_policy(policy)
-            self.robot.policy.time_step = SAMPLING_TIME
+            self.robot.policy.time_step = ROBOT_SAMPLING_TIME
             self.robot_crowdnav_policy = True
         else: 
             self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
@@ -798,7 +806,7 @@ class SocialNavSim:
             info = Nothing()
         return reward, terminated, truncated, info
 
-    def onestep_lookahead(self, action, time_step=SAMPLING_TIME):
+    def onestep_lookahead(self, action, time_step=ROBOT_SAMPLING_TIME):
         """
         This method is just required to use the trained policies of the robot.
         """

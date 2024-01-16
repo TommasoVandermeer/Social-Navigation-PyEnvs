@@ -17,14 +17,15 @@ ROBOT_VISIBLE = True
 RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
-## Set sampling time (default is 0.01666666)
-TIME_STEP = 0.01666666
-social_nav.set_time_step(TIME_STEP)
+## Set environment sampling time (default is 0.01666666)
+social_nav.set_time_step(0.05)
+## Set robot sampling time (inverse of its update frequency) (default is 0.25)
+social_nav.set_robot_time_step(0.5)
 ## Set robot policy - CrowdNav trainable policy
-# social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_hsfm_new_guo'), il=False)
+social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_sfm_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
@@ -34,7 +35,7 @@ social_nav.set_time_step(TIME_STEP)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-social_nav.robot.add_laser_sensor(math.pi, 61, 5, render=True)
+# social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
