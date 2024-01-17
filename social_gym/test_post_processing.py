@@ -5,11 +5,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ## GLOBAL VARIABLES TO SET
-SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
+SINGLE_PROCESSING = True # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_ON_EXCEL = True # If true, resulting metrics are loaded on an Excel file
+MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies_2.xlsx"
 ## SINGLE POSTPROCESSING
-RESULTS_FILE = "bp_on_orca.pkl"
+RESULTS_FILE = "ssp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
 RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","ssp_on_orca.pkl","ssp_on_sfm_guo.pkl","ssp_on_hsfm_new_guo.pkl",
                  "cadrl_on_orca_on_orca.pkl","cadrl_on_orca_on_sfm_guo.pkl","cadrl_on_orca_on_hsfm_new_guo.pkl",
@@ -112,67 +113,76 @@ def single_results_file_post_processing(test_data:dict):
                     trial_path_length += np.linalg.norm(instant_position - previous_position)
                 average_instant_distance = 0
                 space_compliance = True
-                for human_state in episode["human_states"][i]:
+                for p, human_state in enumerate(episode["human_states"][i]):
                     human_position = human_state[0:2]
                     # TODO: below subtract each human radius (needs to be saved in the results file)
-                    instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] * 2) # We assume humans have the same size as robot
+                    instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] + test_data[test]["specifics"]["humans_radiuses"][p])
                     average_instant_distance += instant_distance
                     if instant_distance < minimum_distance and not episode["collision"]: minimum_distance = instant_distance
                     if instant_distance < SPACE_COMPLIANCE_THRESHOLD: space_compliance = False
                 trial_space_compliance += int(space_compliance)
                 average_distance += average_instant_distance / len(episode["human_states"][i])
+                # Velocity
                 instant_velocity = robot_state[3:5]
                 instant_velocity_norm = np.linalg.norm(instant_velocity)
                 average_velocity += instant_velocity_norm
                 if instant_velocity_norm < minimum_velocity: minimum_velocity = instant_velocity_norm
                 if instant_velocity_norm > maximum_velocity: maximum_velocity = instant_velocity_norm
+                # Acceleration
                 if i < len(episode["robot_states"])-1: 
                     instant_acceleration = (episode["robot_states"][i+1][3:5] - instant_velocity) / test_data[test]["specifics"]["time_step"]
                     instant_acceleration_norm = np.linalg.norm(instant_acceleration)
                     average_acceleration += instant_acceleration_norm
                     if instant_acceleration_norm < minimum_acceleration: minimum_acceleration = instant_acceleration_norm
                     if instant_acceleration_norm > maximum_acceleration: maximum_acceleration = instant_acceleration_norm
-                    if i < len(episode["robot_states"])-2: 
-                        next_acceleration = (episode["robot_states"][i+2][3:5] - episode["robot_states"][i+1][3:5]) / test_data[test]["specifics"]["time_step"]
-                        instant_jerk = (next_acceleration - instant_acceleration) / test_data[test]["specifics"]["time_step"]
-                        instant_jerk_norm = np.linalg.norm(instant_jerk)
-                        average_jerk += instant_jerk_norm
-                        if instant_jerk_norm < minimum_jerk: minimum_jerk = instant_jerk_norm
-                        if instant_jerk_norm > maximum_jerk: maximum_jerk = instant_jerk_norm
+                # Jerk
+                if i < len(episode["robot_states"])-2: 
+                    next_acceleration = (episode["robot_states"][i+2][3:5] - episode["robot_states"][i+1][3:5]) / test_data[test]["specifics"]["time_step"]
+                    instant_jerk = (next_acceleration - instant_acceleration) / test_data[test]["specifics"]["time_step"]
+                    instant_jerk_norm = np.linalg.norm(instant_jerk)
+                    average_jerk += instant_jerk_norm
+                    if instant_jerk_norm < minimum_jerk: minimum_jerk = instant_jerk_norm
+                    if instant_jerk_norm > maximum_jerk: maximum_jerk = instant_jerk_norm
+            # Averaged metrics over time
             average_velocity /= len(episode["robot_states"])
             average_acceleration /= (len(episode["robot_states"]) - 1)
             average_jerk /= (len(episode["robot_states"]) - 2)
             average_distance /= len(episode["robot_states"])
             trial_space_compliance /= len(episode["robot_states"])
-            average_minimum_velocity += minimum_velocity
-            average_trial_velocity += average_velocity
-            average_maximum_velocity += maximum_velocity
-            average_minimum_acceleration += minimum_acceleration
-            average_trial_acceleration += average_acceleration
-            average_maximum_acceleration += maximum_acceleration
-            average_minimum_jerk += minimum_jerk
-            average_trial_jerk += average_jerk
-            average_maximum_jerk += maximum_jerk
-            average_minimum_distance_to_humans += minimum_distance
-            average_trial_distance_to_humans += average_distance
-            average_trial_space_compliance += trial_space_compliance
-            if episode["success"]: average_path_length += trial_path_length
+            # Add metrics to overall data
+            if episode["success"]:
+                average_minimum_velocity += minimum_velocity
+                average_trial_velocity += average_velocity
+                average_maximum_velocity += maximum_velocity
+                average_minimum_acceleration += minimum_acceleration
+                average_trial_acceleration += average_acceleration
+                average_maximum_acceleration += maximum_acceleration
+                average_minimum_jerk += minimum_jerk
+                average_trial_jerk += average_jerk
+                average_maximum_jerk += maximum_jerk
+                average_minimum_distance_to_humans += minimum_distance
+                average_trial_distance_to_humans += average_distance
+                average_trial_space_compliance += trial_space_compliance
+                average_path_length += trial_path_length
             success_weighted_by_path_length += int(episode["success"]) * (shortest_path_length / max(shortest_path_length, trial_path_length))
+        # Average metrics over successful trials
         time_to_goal = time_to_goal/successes if successes > 0 else None
-        average_minimum_velocity /= test_data[test]['specifics']['trials']
-        average_trial_velocity /= test_data[test]['specifics']['trials']
-        average_maximum_velocity /= test_data[test]['specifics']['trials']
-        average_minimum_acceleration /= test_data[test]['specifics']['trials']
-        average_trial_acceleration /= test_data[test]['specifics']['trials']
-        average_maximum_acceleration /= test_data[test]['specifics']['trials']
-        average_minimum_jerk /= test_data[test]['specifics']['trials']
-        average_trial_jerk /= test_data[test]['specifics']['trials']
-        average_maximum_jerk /= test_data[test]['specifics']['trials']
-        average_minimum_distance_to_humans /= test_data[test]['specifics']['trials']
-        average_trial_distance_to_humans /= test_data[test]['specifics']['trials']
-        average_trial_space_compliance /= test_data[test]['specifics']['trials']
+        average_minimum_velocity = average_minimum_velocity/successes if successes > 0 else None
+        average_trial_velocity = average_trial_velocity/successes if successes > 0 else None
+        average_maximum_velocity = average_maximum_velocity/successes if successes > 0 else None
+        average_minimum_acceleration = average_minimum_acceleration/successes if successes > 0 else None
+        average_trial_acceleration = average_trial_acceleration/successes if successes > 0 else None
+        average_maximum_acceleration = average_maximum_acceleration/successes if successes > 0 else None
+        average_minimum_jerk = average_minimum_jerk/successes if successes > 0 else None
+        average_trial_jerk = average_trial_jerk/successes if successes > 0 else None
+        average_maximum_jerk = average_maximum_jerk/successes if successes > 0 else None
+        average_minimum_distance_to_humans = average_minimum_distance_to_humans/successes if successes > 0 else None
+        average_trial_distance_to_humans = average_trial_distance_to_humans/successes if successes > 0 else None
+        average_trial_space_compliance = average_trial_space_compliance/successes if successes > 0 else None
         average_path_length = average_path_length/successes if successes > 0 else None
+        # Averaged over all trials
         success_weighted_by_path_length = success_weighted_by_path_length/test_data[test]['specifics']['trials']
+        # Print computed metrics
         print(f"SUCCESS RATE: {successes/test_data[test]['specifics']['trials']}")
         print(f"COLLISIONS OVER {test_data[test]['specifics']['trials']} TRIALS: {collisions}")
         print(f"TRUNCATED EPISODES OVER {test_data[test]['specifics']['trials']} TRIALS: {truncated_epsiodes}")
@@ -259,7 +269,7 @@ else:
     print(thirtyfive_humans_metrics_dataframe.head())
     # Export on Excel
     if EXPORT_ON_EXCEL:
-        file_name = os.path.join(metrics_dir,f"Metrics_multiple_robot_policies.xlsx")
+        file_name = os.path.join(metrics_dir,MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME)
         with pd.ExcelWriter(file_name) as writer: 
             five_humans_metrics_dataframe.to_excel(writer, sheet_name='5_humans')
             seven_humans_metrics_dataframe.to_excel(writer, sheet_name='7_humans')

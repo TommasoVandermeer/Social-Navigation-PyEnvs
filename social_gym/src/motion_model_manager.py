@@ -549,6 +549,14 @@ class MotionModelManager:
             self.robot.position[1] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[1]
             self.update_goals_orca(self.robot_sim_agents[len(self.humans)], robot_sim=True, robot=True)
 
+    def update_robot_position(self, dt:float):
+        self.robot.position += self.robot.linear_velocity * dt
+        self.robot.yaw += self.robot.angular_velocity * dt
+        # if hasattr(self, "robot_orca") and self.robot_orca: self.robot_sim.setAgentPosition(self.robot_sim_agents[len(self.humans)], tuple(self.robot.position))
+        # if self.orca and self.consider_robot: self.sim.setAgentPosition(self.agents[len(self.humans)], tuple(self.robot.position))
+        if hasattr(self, "robot_orca") and self.robot_orca: self.set_state_orca(len(self.humans), True)
+        if self.orca and self.consider_robot: self.set_state_orca(len(self.humans), False)
+
     def f_rk45_robot_headed(self, t, y):
         self.set_new_headed_state_from_rk45_solution(self.robot, y)
         self.compute_robot_forces()
