@@ -24,13 +24,8 @@ HUMAN_POLICY = "orca"
 ROBOT_POLICY = "bp"
 ROBOT_MODEL_DIR = "robot_models/cadrl_on_orca" # Used only if testing a trainable policy
 ## MULTIPLE TESTS VARIABLES
-# ROBOT_POLICIES_TO_BE_TESTED = ["ssp", "bp", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
-# ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "robot_models/cadrl_on_orca", "robot_models/cadrl_on_sfm_guo", "robot_models/cadrl_on_hsfm_new_guo",
-#                                  "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
-#                                  "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
-# HUMAN_POLICIES_TO_BE_TESTED = ["orca", "sfm_guo", "hsfm_new_guo"]
-ROBOT_POLICIES_TO_BE_TESTED = ["cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
-ROBOT_MODEL_DIRS_TO_BE_TESTED = ["robot_models/cadrl_on_hsfm_new_guo",
+ROBOT_POLICIES_TO_BE_TESTED = ["ssp", "bp", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
+ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "robot_models/cadrl_on_orca", "robot_models/cadrl_on_sfm_guo", "robot_models/cadrl_on_hsfm_new_guo",
                                  "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
                                  "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
 HUMAN_POLICIES_TO_BE_TESTED = ["orca", "sfm_guo", "hsfm_new_guo"]
@@ -135,9 +130,6 @@ else:
         if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k][13:]
         else: robot_policy_title = robot_policy
         for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
-            # TO BE REMOVED
-            if robot_policy == "cadrl" and (human_policy == "orca" or human_policy == "sfm_guo"): continue
-            # TO BE REMOVED END
             if human_policy == "orca": rk45 = False
             else: rk45 = RUNGE_KUTTA
             # Initialize metrics
