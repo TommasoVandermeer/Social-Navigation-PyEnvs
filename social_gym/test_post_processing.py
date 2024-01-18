@@ -43,7 +43,7 @@ def single_results_file_post_processing(test_data:dict):
     output:
     - Metrics for the tests with [5,7,14,21,28,35] humans
     """
-    # METRICS
+    # FINAL METRICS - (to be removed, use trial variables)
     test_success_rate = np.empty((len(TESTS),), dtype=np.float64)
     test_collisions = np.empty((len(TESTS),), dtype=np.int64)
     test_truncated_eps = np.empty((len(TESTS),), dtype=np.int64)
@@ -62,6 +62,21 @@ def single_results_file_post_processing(test_data:dict):
     test_avg_space_compl = np.empty((len(TESTS),), dtype=np.float64)
     test_avg_path_length = np.empty((len(TESTS),), dtype=np.float64)
     test_spl = np.empty((len(TESTS),), dtype=np.float64)
+    # COMPLETE FINAL METRICS
+    trial_time_to_goal = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_minimum_velocity = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_average_velocity = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_maximum_velocity = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_minimum_acceleration = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_average_acceleration = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_maximum_acceleration = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_minimum_jerk = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_average_jerk = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_maximum_jerk = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_minimum_distance_to_humans = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_space_compliance = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_path_length = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
+    trial_success_weighted_by_path_length = np.array((len(TESTS),test_data[test]["specifics"]["trials"]), dtype=np.float64)
     # POST-PROCESSING
     for k, test in enumerate(TESTS):
         print(" ************************ ")
@@ -71,26 +86,29 @@ def single_results_file_post_processing(test_data:dict):
         collisions = 0
         successes = 0
         truncated_epsiodes = 0
+        # To be removed (use trial variables)
         time_to_goal = 0
         average_minimum_velocity = 0
-        average_trial_velocity = 0
+        average_average_velocity = 0
         average_maximum_velocity = 0
         average_minimum_acceleration = 0
-        average_trial_acceleration = 0
+        average_average_acceleration = 0
         average_maximum_acceleration = 0
         average_minimum_jerk = 0
-        average_trial_jerk = 0
+        average_average_jerk = 0
         average_maximum_jerk = 0
         average_minimum_distance_to_humans = 0
-        average_trial_distance_to_humans = 0
-        average_trial_space_compliance = 0
+        average_average_distance_to_humans = 0
+        average_space_compliance = 0
         average_path_length = 0
         success_weighted_by_path_length = 0
+        # METRICS COMPUTATION
         for episode in test_data[test]["results"]:
+            # Success, collision, truncated metrics
             collisions += int(episode["collision"])
             successes += int(episode["success"])
             truncated_epsiodes += int(episode["truncated"])
-            if episode["time_to_goal"] != None: time_to_goal += episode["time_to_goal"]
+            # Initialize trial metrics
             minimum_velocity = BIG_FLOAT
             average_velocity = 0
             maximum_velocity = 0
@@ -102,25 +120,25 @@ def single_results_file_post_processing(test_data:dict):
             maximum_jerk = 0
             minimum_distance = BIG_FLOAT if not episode["collision"] else 0
             average_distance = 0
-            trial_space_compliance = 0
-            trial_path_length = 0
+            space_compliance = 0
+            path_length = 0
             shortest_path_length = 0
+            # Compute "time-wise metrics"
             for i, robot_state in enumerate(episode["robot_states"]):
                 instant_position = robot_state[0:2]
                 if i == 0: shortest_path_length = np.linalg.norm(robot_state[6:8] - instant_position) # Distance between goal and initial configuration
                 if i > 0: 
                     previous_position = episode["robot_states"][i-1][0:2]
-                    trial_path_length += np.linalg.norm(instant_position - previous_position)
+                    path_length += np.linalg.norm(instant_position - previous_position)
                 average_instant_distance = 0
-                space_compliance = True
+                instant_space_compliance = True
                 for p, human_state in enumerate(episode["human_states"][i]):
                     human_position = human_state[0:2]
-                    # TODO: below subtract each human radius (needs to be saved in the results file)
                     instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] + test_data[test]["specifics"]["humans_radiuses"][p])
                     average_instant_distance += instant_distance
                     if instant_distance < minimum_distance and not episode["collision"]: minimum_distance = instant_distance
-                    if instant_distance < SPACE_COMPLIANCE_THRESHOLD: space_compliance = False
-                trial_space_compliance += int(space_compliance)
+                    if instant_distance < SPACE_COMPLIANCE_THRESHOLD: instant_space_compliance = False
+                space_compliance += int(instant_space_compliance)
                 average_distance += average_instant_distance / len(episode["human_states"][i])
                 # Velocity
                 instant_velocity = robot_state[3:5]
@@ -148,37 +166,54 @@ def single_results_file_post_processing(test_data:dict):
             average_acceleration /= (len(episode["robot_states"]) - 1)
             average_jerk /= (len(episode["robot_states"]) - 2)
             average_distance /= len(episode["robot_states"])
-            trial_space_compliance /= len(episode["robot_states"])
+            space_compliance /= len(episode["robot_states"])
+            # Save metrics for each trial
+            if episode["success"]:
+                trial_time_to_goal[k] = np.append(trial_time_to_goal[k], episode["time_to_goal"])
+                trial_minimum_velocity[k] = np.append(trial_minimum_velocity[k], minimum_velocity)
+                trial_average_velocity[k] = np.append(trial_average_velocity[k], average_velocity)
+                trial_maximum_velocity[k] = np.append(trial_maximum_velocity[k], maximum_velocity)
+                trial_minimum_acceleration[k] = np.append(trial_minimum_acceleration[k], minimum_acceleration)
+                trial_average_acceleration[k] = np.append(trial_average_acceleration[k], average_acceleration)
+                trial_maximum_acceleration[k] = np.append(trial_maximum_acceleration[k], maximum_acceleration)
+                trial_minimum_jerk[k] = np.append(trial_minimum_jerk[k], minimum_jerk)
+                trial_average_jerk[k] = np.append(trial_average_jerk[k], average_jerk)
+                trial_maximum_jerk[k] = np.append(trial_maximum_jerk[k], maximum_jerk)
+                trial_minimum_distance_to_humans[k] = np.append(trial_minimum_distance_to_humans[k], minimum_distance)
+                trial_space_compliance[k] = np.append(trial_space_compliance[k], space_compliance)
+                trial_path_length[k] = np.array(trial_path_length[k], path_length)
+            trial_success_weighted_by_path_length[k] = np.append(trial_success_weighted_by_path_length[k], int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length)))
             # Add metrics to overall data
             if episode["success"]:
+                time_to_goal += episode["time_to_goal"]
                 average_minimum_velocity += minimum_velocity
-                average_trial_velocity += average_velocity
+                average_average_velocity += average_velocity
                 average_maximum_velocity += maximum_velocity
                 average_minimum_acceleration += minimum_acceleration
-                average_trial_acceleration += average_acceleration
+                average_average_acceleration += average_acceleration
                 average_maximum_acceleration += maximum_acceleration
                 average_minimum_jerk += minimum_jerk
-                average_trial_jerk += average_jerk
+                average_average_jerk += average_jerk
                 average_maximum_jerk += maximum_jerk
                 average_minimum_distance_to_humans += minimum_distance
-                average_trial_distance_to_humans += average_distance
-                average_trial_space_compliance += trial_space_compliance
-                average_path_length += trial_path_length
-            success_weighted_by_path_length += int(episode["success"]) * (shortest_path_length / max(shortest_path_length, trial_path_length))
+                average_average_distance_to_humans += average_distance
+                average_space_compliance += space_compliance
+                average_path_length += path_length
+            success_weighted_by_path_length += int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length))
         # Average metrics over successful trials
         time_to_goal = time_to_goal/successes if successes > 0 else None
         average_minimum_velocity = average_minimum_velocity/successes if successes > 0 else None
-        average_trial_velocity = average_trial_velocity/successes if successes > 0 else None
+        average_average_velocity = average_average_velocity/successes if successes > 0 else None
         average_maximum_velocity = average_maximum_velocity/successes if successes > 0 else None
         average_minimum_acceleration = average_minimum_acceleration/successes if successes > 0 else None
-        average_trial_acceleration = average_trial_acceleration/successes if successes > 0 else None
+        average_average_acceleration = average_average_acceleration/successes if successes > 0 else None
         average_maximum_acceleration = average_maximum_acceleration/successes if successes > 0 else None
         average_minimum_jerk = average_minimum_jerk/successes if successes > 0 else None
-        average_trial_jerk = average_trial_jerk/successes if successes > 0 else None
+        average_average_jerk = average_average_jerk/successes if successes > 0 else None
         average_maximum_jerk = average_maximum_jerk/successes if successes > 0 else None
         average_minimum_distance_to_humans = average_minimum_distance_to_humans/successes if successes > 0 else None
-        average_trial_distance_to_humans = average_trial_distance_to_humans/successes if successes > 0 else None
-        average_trial_space_compliance = average_trial_space_compliance/successes if successes > 0 else None
+        average_average_distance_to_humans = average_average_distance_to_humans/successes if successes > 0 else None
+        average_space_compliance = average_space_compliance/successes if successes > 0 else None
         average_path_length = average_path_length/successes if successes > 0 else None
         # Averaged over all trials
         success_weighted_by_path_length = success_weighted_by_path_length/test_data[test]['specifics']['trials']
@@ -188,17 +223,17 @@ def single_results_file_post_processing(test_data:dict):
         print(f"TRUNCATED EPISODES OVER {test_data[test]['specifics']['trials']} TRIALS: {truncated_epsiodes}")
         print(f"AVERAGE TIME TO GOAL: {time_to_goal}")
         print(f"AVERAGE MINIMUM VELOCITY NORM: {average_minimum_velocity}")
-        print(f"AVERAGE VELOCITY NORM: {average_trial_velocity}")
+        print(f"AVERAGE VELOCITY NORM: {average_average_velocity}")
         print(f"AVERAGE MAXIMUM VELOCITY NORM: {average_maximum_velocity}")
         print(f"AVERAGE MINIMUM ACCELERATION NORM: {average_minimum_acceleration}")
-        print(f"AVERAGE ACCELERATION NORM: {average_trial_acceleration}")
+        print(f"AVERAGE ACCELERATION NORM: {average_average_acceleration}")
         print(f"AVERAGE MAXIMUM ACCELERATION NORM: {average_maximum_acceleration}")
         print(f"AVERAGE MINIMUM JERK NORM: {average_minimum_jerk}")
-        print(f"AVERAGE JERK NORM: {average_trial_jerk}")
+        print(f"AVERAGE JERK NORM: {average_average_jerk}")
         print(f"AVERAGE MAXIMUM JERK NORM: {average_maximum_jerk}")
         print(f"AVERAGE MINIMUM DISTANCE TO HUMANS: {average_minimum_distance_to_humans}")
-        print(f"AVERAGE DISTANCE TO HUMANS: {average_trial_distance_to_humans}")
-        print(f"AVERAGE SPACE COMPLIANCE (with threshold {SPACE_COMPLIANCE_THRESHOLD}): {average_trial_space_compliance}")
+        print(f"AVERAGE DISTANCE TO HUMANS: {average_average_distance_to_humans}")
+        print(f"AVERAGE SPACE COMPLIANCE (with threshold {SPACE_COMPLIANCE_THRESHOLD}): {average_space_compliance}")
         print(f"AVERAGE PATH LENGTH (counted only if the robot reaches the goal): {average_path_length}")
         print(f"SUCCESS WEIGHTED BY PATH LENGTH: {success_weighted_by_path_length}")
         print("")
@@ -207,17 +242,17 @@ def single_results_file_post_processing(test_data:dict):
         test_truncated_eps[k] = truncated_epsiodes
         test_time_to_goal[k] = time_to_goal
         test_avg_min_vel[k] = average_minimum_velocity
-        test_avg_vel[k] = average_trial_velocity
+        test_avg_vel[k] = average_average_velocity
         test_max_vel[k] = average_maximum_velocity
         test_avg_min_accel[k] = average_minimum_acceleration
-        test_avg_accel[k] = average_trial_acceleration
+        test_avg_accel[k] = average_average_acceleration
         test_max_accel[k] = average_maximum_acceleration
         test_avg_min_jerk[k] = average_minimum_jerk
-        test_avg_jerk[k] = average_trial_jerk
+        test_avg_jerk[k] = average_average_jerk
         test_max_jerk[k] = average_maximum_jerk
         test_avg_min_dist[k] = average_minimum_distance_to_humans
-        test_avg_dist[k] = average_trial_distance_to_humans
-        test_avg_space_compl[k] = average_trial_space_compliance
+        test_avg_dist[k] = average_average_distance_to_humans
+        test_avg_space_compl[k] = average_space_compliance
         test_avg_path_length[k] = average_path_length
         test_spl[k] = success_weighted_by_path_length
     return zip(test_success_rate,test_collisions,test_truncated_eps,test_time_to_goal,test_avg_min_vel,test_avg_vel, test_max_vel,test_avg_min_accel,test_avg_accel,test_max_accel,test_avg_min_jerk,test_avg_jerk,test_max_jerk, test_avg_min_dist,test_avg_dist,test_avg_space_compl,test_avg_path_length,test_spl) 
