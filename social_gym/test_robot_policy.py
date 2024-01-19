@@ -21,7 +21,7 @@ SINGLE_TEST = False # If false, multiple test with different robot and human pol
 SAVE_STATES = True # If true, agents (humans and robot) states are saved in an output file
 ## SINGLE TEST VARIABLES
 HUMAN_POLICY = "orca"
-ROBOT_POLICY = "bp"
+ROBOT_POLICY = "ssp"
 ROBOT_MODEL_DIR = "robot_models/cadrl_on_orca" # Used only if testing a trainable policy
 ## MULTIPLE TESTS VARIABLES
 ROBOT_POLICIES_TO_BE_TESTED = ["ssp", "bp", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]

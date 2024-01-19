@@ -5,10 +5,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ## GLOBAL VARIABLES TO SET
-SINGLE_PROCESSING = True # If true, a single results file is post-processed. Otherwise a list provided is post-processed
+SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
-EXPORT_ON_EXCEL = True # If true, resulting metrics are loaded on an Excel file
-MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies_2.xlsx"
+EXPORT_DATA = True # If true, resulting metrics are exported
+MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies"
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -43,40 +43,10 @@ def single_results_file_post_processing(test_data:dict):
     output:
     - Metrics for the tests with [5,7,14,21,28,35] humans
     """
-    # FINAL METRICS - (to be removed, use trial variables)
-    test_success_rate = np.empty((len(TESTS),), dtype=np.float64)
-    test_collisions = np.empty((len(TESTS),), dtype=np.int64)
-    test_truncated_eps = np.empty((len(TESTS),), dtype=np.int64)
-    test_time_to_goal = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_min_vel = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_vel = np.empty((len(TESTS),), dtype=np.float64)
-    test_max_vel = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_min_accel = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_accel = np.empty((len(TESTS),), dtype=np.float64)
-    test_max_accel = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_min_jerk = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_jerk = np.empty((len(TESTS),), dtype=np.float64)
-    test_max_jerk = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_min_dist = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_dist = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_space_compl = np.empty((len(TESTS),), dtype=np.float64)
-    test_avg_path_length = np.empty((len(TESTS),), dtype=np.float64)
-    test_spl = np.empty((len(TESTS),), dtype=np.float64)
-    # COMPLETE FINAL METRICS
-    trial_time_to_goal = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_minimum_velocity = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_average_velocity = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_maximum_velocity = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_minimum_acceleration = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_average_acceleration = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_maximum_acceleration = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_minimum_jerk = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_average_jerk = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_maximum_jerk = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_minimum_distance_to_humans = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_space_compliance = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_path_length = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
-    trial_success_weighted_by_path_length = np.empty((len(TESTS),test_data["5_humans"]["specifics"]["trials"]), dtype=np.float64)
+    # COMPLETE FINAL METRICS - We assume tests with different number of humans have same number of trials
+    complete_data = np.zeros((len(TESTS),test_data["5_humans"]["specifics"]["trials"],len(METRICS)), dtype=np.float64)
+    # AVERAGE FINAL METRICS
+    average_data = np.empty((len(TESTS),len(METRICS)), dtype=np.float64)
     # POST-PROCESSING
     for k, test in enumerate(TESTS):
         print(" ************************ ")
@@ -86,22 +56,6 @@ def single_results_file_post_processing(test_data:dict):
         collisions = 0
         successes = 0
         truncated_epsiodes = 0
-        # To be removed (use trial variables)
-        time_to_goal = 0
-        average_minimum_velocity = 0
-        average_average_velocity = 0
-        average_maximum_velocity = 0
-        average_minimum_acceleration = 0
-        average_average_acceleration = 0
-        average_maximum_acceleration = 0
-        average_minimum_jerk = 0
-        average_average_jerk = 0
-        average_maximum_jerk = 0
-        average_minimum_distance_to_humans = 0
-        average_average_distance_to_humans = 0
-        average_space_compliance = 0
-        average_path_length = 0
-        success_weighted_by_path_length = 0
         # METRICS COMPUTATION
         for t, episode in enumerate(test_data[test]["results"]):
             # Success, collision, truncated metrics
@@ -168,106 +122,105 @@ def single_results_file_post_processing(test_data:dict):
             average_distance /= len(episode["robot_states"])
             space_compliance /= len(episode["robot_states"])
             # Save metrics for each trial
+            complete_data[k][t][0] = int(episode["success"])
+            complete_data[k][t][1] = int(episode["collision"])
+            complete_data[k][t][2] = int(episode["truncated"])
+            complete_data[k][t][17] = int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length))
             if episode["success"]:
-                trial_time_to_goal[k][t] = episode["time_to_goal"]
-                trial_minimum_velocity[k][t] = minimum_velocity
-                trial_average_velocity[k][t] = average_velocity
-                trial_maximum_velocity[k][t] = maximum_velocity
-                trial_minimum_acceleration[k][t] = minimum_acceleration
-                trial_average_acceleration[k][t] = average_acceleration
-                trial_maximum_acceleration[k][t] = maximum_acceleration
-                trial_minimum_jerk[k][t] = minimum_jerk
-                trial_average_jerk[k][t] = average_jerk
-                trial_maximum_jerk[k][t] = maximum_jerk
-                trial_minimum_distance_to_humans[k][t] = minimum_distance
-                trial_space_compliance[k][t] = space_compliance
-                trial_path_length[k][t] = path_length
-            trial_success_weighted_by_path_length[k][t] = int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length))
-            # Add metrics to overall data
-            if episode["success"]:
-                time_to_goal += episode["time_to_goal"]
-                average_minimum_velocity += minimum_velocity
-                average_average_velocity += average_velocity
-                average_maximum_velocity += maximum_velocity
-                average_minimum_acceleration += minimum_acceleration
-                average_average_acceleration += average_acceleration
-                average_maximum_acceleration += maximum_acceleration
-                average_minimum_jerk += minimum_jerk
-                average_average_jerk += average_jerk
-                average_maximum_jerk += maximum_jerk
-                average_minimum_distance_to_humans += minimum_distance
-                average_average_distance_to_humans += average_distance
-                average_space_compliance += space_compliance
-                average_path_length += path_length
-            success_weighted_by_path_length += int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length))
-        # Average metrics over successful trials
-        time_to_goal = time_to_goal/successes if successes > 0 else None
-        average_minimum_velocity = average_minimum_velocity/successes if successes > 0 else None
-        average_average_velocity = average_average_velocity/successes if successes > 0 else None
-        average_maximum_velocity = average_maximum_velocity/successes if successes > 0 else None
-        average_minimum_acceleration = average_minimum_acceleration/successes if successes > 0 else None
-        average_average_acceleration = average_average_acceleration/successes if successes > 0 else None
-        average_maximum_acceleration = average_maximum_acceleration/successes if successes > 0 else None
-        average_minimum_jerk = average_minimum_jerk/successes if successes > 0 else None
-        average_average_jerk = average_average_jerk/successes if successes > 0 else None
-        average_maximum_jerk = average_maximum_jerk/successes if successes > 0 else None
-        average_minimum_distance_to_humans = average_minimum_distance_to_humans/successes if successes > 0 else None
-        average_average_distance_to_humans = average_average_distance_to_humans/successes if successes > 0 else None
-        average_space_compliance = average_space_compliance/successes if successes > 0 else None
-        average_path_length = average_path_length/successes if successes > 0 else None
-        # Averaged over all trials
-        success_weighted_by_path_length = success_weighted_by_path_length/test_data[test]['specifics']['trials']
+                complete_data[k][t][3] = episode["time_to_goal"]
+                complete_data[k][t][4] = minimum_velocity
+                complete_data[k][t][5] = average_velocity
+                complete_data[k][t][6] = maximum_velocity
+                complete_data[k][t][7] = minimum_acceleration
+                complete_data[k][t][8] = average_acceleration
+                complete_data[k][t][9] = maximum_acceleration
+                complete_data[k][t][10] = minimum_jerk
+                complete_data[k][t][11] = average_jerk
+                complete_data[k][t][12] = maximum_jerk
+                complete_data[k][t][13] = minimum_distance
+                complete_data[k][t][14] = average_distance
+                complete_data[k][t][15] = space_compliance
+                complete_data[k][t][16] = path_length
+            else:
+                complete_data[k][t][3] = np.NaN
+                complete_data[k][t][4] = np.NaN
+                complete_data[k][t][5] = np.NaN
+                complete_data[k][t][6] = np.NaN
+                complete_data[k][t][7] = np.NaN
+                complete_data[k][t][8] = np.NaN
+                complete_data[k][t][9] = np.NaN
+                complete_data[k][t][10] = np.NaN
+                complete_data[k][t][11] = np.NaN
+                complete_data[k][t][12] = np.NaN
+                complete_data[k][t][13] = np.NaN
+                complete_data[k][t][14] = np.NaN
+                complete_data[k][t][15] = np.NaN
+                complete_data[k][t][16] = np.NaN
+        # Save average data (over trials)
+        average_data[k][0] = np.sum(complete_data[k,:,0])/test_data[test]['specifics']['trials']
+        average_data[k][1] = np.sum(complete_data[k,:,1])
+        average_data[k][2] = np.sum(complete_data[k,:,2])
+        average_data[k][3] = np.nansum(complete_data[k,:,3])/successes
+        average_data[k][4] = np.nansum(complete_data[k,:,4])/successes
+        average_data[k][5] = np.nansum(complete_data[k,:,5])/successes
+        average_data[k][6] = np.nansum(complete_data[k,:,6])/successes
+        average_data[k][7] = np.nansum(complete_data[k,:,7])/successes
+        average_data[k][8] = np.nansum(complete_data[k,:,8])/successes
+        average_data[k][9] = np.nansum(complete_data[k,:,9])/successes
+        average_data[k][10] = np.nansum(complete_data[k,:,10])/successes
+        average_data[k][11] = np.nansum(complete_data[k,:,11])/successes
+        average_data[k][12] = np.nansum(complete_data[k,:,12])/successes
+        average_data[k][13] = np.nansum(complete_data[k,:,13])/successes
+        average_data[k][14] = np.nansum(complete_data[k,:,14])/successes
+        average_data[k][15] = np.nansum(complete_data[k,:,15])/successes
+        average_data[k][16] = np.nansum(complete_data[k,:,16])/successes
+        average_data[k][17] = np.nansum(complete_data[k,:,17])/test_data[test]['specifics']['trials']
         # Print computed metrics
-        print(f"SUCCESS RATE: {successes/test_data[test]['specifics']['trials']}")
-        print(f"COLLISIONS OVER {test_data[test]['specifics']['trials']} TRIALS: {collisions}")
-        print(f"TRUNCATED EPISODES OVER {test_data[test]['specifics']['trials']} TRIALS: {truncated_epsiodes}")
-        print(f"AVERAGE TIME TO GOAL: {time_to_goal}")
-        print(f"AVERAGE MINIMUM VELOCITY NORM: {average_minimum_velocity}")
-        print(f"AVERAGE VELOCITY NORM: {average_average_velocity}")
-        print(f"AVERAGE MAXIMUM VELOCITY NORM: {average_maximum_velocity}")
-        print(f"AVERAGE MINIMUM ACCELERATION NORM: {average_minimum_acceleration}")
-        print(f"AVERAGE ACCELERATION NORM: {average_average_acceleration}")
-        print(f"AVERAGE MAXIMUM ACCELERATION NORM: {average_maximum_acceleration}")
-        print(f"AVERAGE MINIMUM JERK NORM: {average_minimum_jerk}")
-        print(f"AVERAGE JERK NORM: {average_average_jerk}")
-        print(f"AVERAGE MAXIMUM JERK NORM: {average_maximum_jerk}")
-        print(f"AVERAGE MINIMUM DISTANCE TO HUMANS: {average_minimum_distance_to_humans}")
-        print(f"AVERAGE DISTANCE TO HUMANS: {average_average_distance_to_humans}")
-        print(f"AVERAGE SPACE COMPLIANCE (with threshold {SPACE_COMPLIANCE_THRESHOLD}): {average_space_compliance}")
-        print(f"AVERAGE PATH LENGTH (counted only if the robot reaches the goal): {average_path_length}")
-        print(f"SUCCESS WEIGHTED BY PATH LENGTH: {success_weighted_by_path_length}")
+        print(f"SUCCESS RATE: {average_data[k][0]}")
+        print(f"COLLISIONS OVER {test_data[test]['specifics']['trials']} TRIALS: {average_data[k][1]}")
+        print(f"TRUNCATED EPISODES OVER {test_data[test]['specifics']['trials']} TRIALS: {average_data[k][2]}")
+        print(f"AVERAGE TIME TO GOAL: {average_data[k][3]}")
+        print(f"AVERAGE MINIMUM VELOCITY NORM: {average_data[k][4]}")
+        print(f"AVERAGE VELOCITY NORM: {average_data[k][5]}")
+        print(f"AVERAGE MAXIMUM VELOCITY NORM: {average_data[k][6]}")
+        print(f"AVERAGE MINIMUM ACCELERATION NORM: {average_data[k][7]}")
+        print(f"AVERAGE ACCELERATION NORM: {average_data[k][8]}")
+        print(f"AVERAGE MAXIMUM ACCELERATION NORM: {average_data[k][9]}")
+        print(f"AVERAGE MINIMUM JERK NORM: {average_data[k][10]}")
+        print(f"AVERAGE JERK NORM: {average_data[k][11]}")
+        print(f"AVERAGE MAXIMUM JERK NORM: {average_data[k][12]}")
+        print(f"AVERAGE MINIMUM DISTANCE TO HUMANS: {average_data[k][13]}")
+        print(f"AVERAGE DISTANCE TO HUMANS: {average_data[k][14]}")
+        print(f"AVERAGE SPACE COMPLIANCE (with threshold {SPACE_COMPLIANCE_THRESHOLD}): {average_data[k][15]}")
+        print(f"AVERAGE PATH LENGTH (counted only if the robot reaches the goal): {average_data[k][16]}")
+        print(f"SUCCESS WEIGHTED BY PATH LENGTH: {average_data[k][17]}")
         print("")
-        test_success_rate[k] = successes/test_data[test]['specifics']['trials']
-        test_collisions[k] = collisions
-        test_truncated_eps[k] = truncated_epsiodes
-        test_time_to_goal[k] = time_to_goal
-        test_avg_min_vel[k] = average_minimum_velocity
-        test_avg_vel[k] = average_average_velocity
-        test_max_vel[k] = average_maximum_velocity
-        test_avg_min_accel[k] = average_minimum_acceleration
-        test_avg_accel[k] = average_average_acceleration
-        test_max_accel[k] = average_maximum_acceleration
-        test_avg_min_jerk[k] = average_minimum_jerk
-        test_avg_jerk[k] = average_average_jerk
-        test_max_jerk[k] = average_maximum_jerk
-        test_avg_min_dist[k] = average_minimum_distance_to_humans
-        test_avg_dist[k] = average_average_distance_to_humans
-        test_avg_space_compl[k] = average_space_compliance
-        test_avg_path_length[k] = average_path_length
-        test_spl[k] = success_weighted_by_path_length
-    return zip(test_success_rate,test_collisions,test_truncated_eps,test_time_to_goal,test_avg_min_vel,test_avg_vel, test_max_vel,test_avg_min_accel,test_avg_accel,test_max_accel,test_avg_min_jerk,test_avg_jerk,test_max_jerk, test_avg_min_dist,test_avg_dist,test_avg_space_compl,test_avg_path_length,test_spl) 
+    return average_data, complete_data
 
 # SINGLE POST-PROCESSING
 if SINGLE_PROCESSING:
     with open(os.path.join(os.path.dirname(__file__),'tests','results',RESULTS_FILE), "rb") as f:
         test_data = pickle.load(f)
 
-    metrics  = single_results_file_post_processing(test_data)
+    metrics, complete_metrics  = single_results_file_post_processing(test_data)
     metrics_dataframe = pd.DataFrame(metrics, columns=METRICS, index=TESTS)
+    five_humans_complete_metrics = pd.DataFrame(complete_metrics[0], columns=METRICS)
+    seven_humans_complete_metrics = pd.DataFrame(complete_metrics[1], columns=METRICS)
+    fourteen_humans_complete_metrics = pd.DataFrame(complete_metrics[2], columns=METRICS)
+    twentyone_humans_complete_metrics = pd.DataFrame(complete_metrics[3], columns=METRICS)
+    twentyeight_humans_complete_metrics = pd.DataFrame(complete_metrics[4], columns=METRICS)
+    thirtyfive_humans_complete_metrics = pd.DataFrame(complete_metrics[5], columns=METRICS)
     print(metrics_dataframe.head())
-    if EXPORT_ON_EXCEL:
+    if EXPORT_DATA:
         file_name = os.path.join(metrics_dir,f"Metrics_{test_data['5_humans']['specifics']['robot_policy']}_on_{test_data['5_humans']['specifics']['human_policy']}.xlsx")
-        with pd.ExcelWriter(file_name) as writer: metrics_dataframe.to_excel(writer, sheet_name='metrics')
+        with pd.ExcelWriter(file_name) as writer: 
+            metrics_dataframe.to_excel(writer, sheet_name='average metrics')
+            five_humans_complete_metrics.to_excel(writer, sheet_name='5_humans')
+            seven_humans_complete_metrics.to_excel(writer, sheet_name='7_humans')
+            fourteen_humans_complete_metrics.to_excel(writer, sheet_name='14_humans')
+            twentyone_humans_complete_metrics.to_excel(writer, sheet_name='21_humans')
+            twentyeight_humans_complete_metrics.to_excel(writer, sheet_name='28_humans')
+            thirtyfive_humans_complete_metrics.to_excel(writer, sheet_name='35_humans')
 # MULTIPLE POST-PROCESSING
 else:
     # Here we'll save the metrics for each policy for each type of test (based on n humans)
@@ -277,11 +230,14 @@ else:
     twentyone_humans_test_metrics = []
     twentyeight_humans_test_metrics = []
     thirtyfive_humans_test_metrics = []
+    # Here we'll save complete metrics data
+    complete_metrics_data = np.empty((len(RESULTS_FILES),len(TESTS),100,len(METRICS))) # We assume there are 100 trials for each test
     # Post-processing
-    for results in RESULTS_FILES:
+    for i, results in enumerate(RESULTS_FILES):
         with open(os.path.join(os.path.dirname(__file__),'tests','results',results), "rb") as f:
             test_data = pickle.load(f)
-        metrics = single_results_file_post_processing(test_data)
+        metrics, complete_metrics = single_results_file_post_processing(test_data)
+        complete_metrics_data[i] = complete_metrics
         metrics_for_each_test = [test_metrics for test_metrics in metrics]
         five_humans_test_metrics.append(metrics_for_each_test[0])
         seven_humans_test_metrics.append(metrics_for_each_test[1])
@@ -302,13 +258,15 @@ else:
     print(twentyeight_humans_metrics_dataframe.head())
     thirtyfive_humans_metrics_dataframe = pd.DataFrame(thirtyfive_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
     print(thirtyfive_humans_metrics_dataframe.head())
-    # Export on Excel
-    if EXPORT_ON_EXCEL:
-        file_name = os.path.join(metrics_dir,MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME)
-        with pd.ExcelWriter(file_name) as writer: 
+    # Export data
+    if EXPORT_DATA:
+        excel_file_name = os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.xlsx")
+        with pd.ExcelWriter(excel_file_name) as writer: 
             five_humans_metrics_dataframe.to_excel(writer, sheet_name='5_humans')
             seven_humans_metrics_dataframe.to_excel(writer, sheet_name='7_humans')
             fourteen_humans_metrics_dataframe.to_excel(writer, sheet_name='14_humans')
             twentyone_humans_metrics_dataframe.to_excel(writer, sheet_name='21_humans')
             twentyeight_humans_metrics_dataframe.to_excel(writer, sheet_name='28_humans')
             thirtyfive_humans_metrics_dataframe.to_excel(writer, sheet_name='35_humans')
+        with open(os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.pkl"), "wb") as f: pickle.dump(complete_metrics_data, f); f.close()
+        
