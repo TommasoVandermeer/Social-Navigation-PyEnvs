@@ -12,8 +12,8 @@ TRIALS = 100
 TIME_PER_EPISODE = 50
 HEADLESS = True
 FULLY_COOPERATIVE = True # If true, robot is visible by humans
-TIME_STEP = 0.01 # Time step for humans update
-ROBOT_TIME_STEP = 0.25 # Time step for robot update
+TIME_STEP = 1/100 # Time step for humans update  *** WARNING: Express in fraction ***
+ROBOT_TIME_STEP = 1/4 # Time step for robot update *** WARNING: Express in fraction ***
 SEED_OFFSET = 1000
 ROBOT_RADIUS = 0.3
 RUNGE_KUTTA = False
@@ -21,7 +21,7 @@ SINGLE_TEST = False # If false, multiple test with different robot and human pol
 SAVE_STATES = True # If true, agents (humans and robot) states are saved in an output file
 ## SINGLE TEST VARIABLES
 HUMAN_POLICY = "orca"
-ROBOT_POLICY = "ssp"
+ROBOT_POLICY = "bp"
 ROBOT_MODEL_DIR = "robot_models/cadrl_on_orca" # Used only if testing a trainable policy
 ## MULTIPLE TESTS VARIABLES
 ROBOT_POLICIES_TO_BE_TESTED = ["ssp", "bp", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]

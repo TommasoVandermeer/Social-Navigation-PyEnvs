@@ -10,7 +10,7 @@ from crowd_nav.utils.state import JointState
 from crowd_nav.utils.action import ActionXY, ActionRot
 from crowd_nav.policy_no_train.policy_factory import policy_factory
 
-KEYS_VELOCITY_CHANGE = {"up": np.array([0.02,0.02]), "down": np.array([-0.02,-0.02]), "left": np.array([-0.02,0.00]), "right": np.array([0.00,-0.02])}
+KEYS_VELOCITY_CHANGE = {"up": np.array([1.20,1.20]), "down": np.array([-1.20,-1.20]), "left": np.array([-1.20,0.00]), "right": np.array([0.00,-1.20])}
 
 class RobotAgent(Agent):
     def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.3, goals=list(), mass=80, desired_speed=1):
@@ -84,9 +84,9 @@ class RobotAgent(Agent):
     def mount_differential_drive(self, max_speed):
         self.diff_drive = DifferentialDrive(self.radius, max_speed)
 
-    def move_with_keys(self, direction:str):    
+    def move_with_keys(self, direction:str, robot_dt:float):    
         if not hasattr(self, "diff_drive"): raise ValueError("Differential drive is not mounted")
-        self.diff_drive.change_velocity(self.diff_drive.velocity + KEYS_VELOCITY_CHANGE[direction])
+        self.diff_drive.change_velocity(self.diff_drive.velocity + KEYS_VELOCITY_CHANGE[direction] * robot_dt)
 
     ### METHODS FOR CROWDNAV POLICIES
         

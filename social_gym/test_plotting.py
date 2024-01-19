@@ -3,9 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.axis import Axis
+import pickle
+import numpy as np
 
 METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
 MORE_PLOTS = True # If false, only success_rate, SPL, time_to_goal, space_compliance
+COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
+PLOT_WITH_COMPLETE_DATA = False # If false, only average metrics are plotted
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
@@ -117,16 +121,26 @@ def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame):
         handles, labels = ax[0,0].get_legend_handles_labels()
         figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
+def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
+    pass
+
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
 for test in TESTS:
     ## Load metrics dataframe
-    dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
-    for i, environment in enumerate(ENVIRONMENTS):
-        # Extracting data
-        if i == 0: df_env = dataframe.loc[TESTED_ON_ORCA, :]
-        if i == 1: df_env = dataframe.loc[TESTED_ON_SFM_GUO, :]
-        if i == 2: df_env = dataframe.loc[TESTED_ON_HSFM_NEW_GUO, :]
-        # Plotting
-        plot_single_test_metrics(test, environment, df_env)
+    if PLOT_WITH_COMPLETE_DATA:
+        with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
+        for i, environment in enumerate(ENVIRONMENTS): pass
+            # Extracting data
+            # Plotting
+            # plot_single_test_complete_metrics(test, environment,)
+    else:
+        dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
+        for i, environment in enumerate(ENVIRONMENTS):
+            # Extracting data
+            if i == 0: df_env = dataframe.loc[TESTED_ON_ORCA, :]
+            if i == 1: df_env = dataframe.loc[TESTED_ON_SFM_GUO, :]
+            if i == 2: df_env = dataframe.loc[TESTED_ON_HSFM_NEW_GUO, :]
+            # Plotting
+            plot_single_test_metrics(test, environment, df_env)
 plt.show()

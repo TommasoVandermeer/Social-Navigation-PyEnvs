@@ -21,7 +21,7 @@ DISPLAY_SIZE = 1000
 REAL_SIZE = 15
 MAX_FPS = 60
 SAMPLING_TIME = 1 / MAX_FPS
-ROBOT_SAMPLING_TIME = 0.25 # Must be a multiple of SAMPLING_TIME
+ROBOT_SAMPLING_TIME = 1/4 # Must be a multiple of SAMPLING_TIME
 N_UPDATES_AVERAGE_TIME = 20
 MOTION_MODELS = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
@@ -340,10 +340,10 @@ class SocialNavSim:
         if self.sim_t % ROBOT_SAMPLING_TIME == 0: 
             if not self.robot_controlled:
                 if not hasattr(self.robot, "diff_drive"): self.robot.mount_differential_drive(1)
-                if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up')
-                if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down')
-                if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left')
-                if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right')
+                if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', ROBOT_SAMPLING_TIME)
+                if pygame.key.get_pressed()[pygame.K_DOWN]: self.robot.move_with_keys('down', ROBOT_SAMPLING_TIME)
+                if pygame.key.get_pressed()[pygame.K_LEFT]: self.robot.move_with_keys('left', ROBOT_SAMPLING_TIME)
+                if pygame.key.get_pressed()[pygame.K_RIGHT]: self.robot.move_with_keys('right', ROBOT_SAMPLING_TIME)
                 self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, SAMPLING_TIME)
                 self.robot.check_collisions(self.humans, self.walls)
             else:
@@ -359,7 +359,9 @@ class SocialNavSim:
                     self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
                 self.updated = True
             if self.robot.laser is not None: measuremenets = self.robot.get_laser_readings(self.humans, self.walls)
-        else: self.motion_model_manager.update_robot_position(SAMPLING_TIME) # We just update the position
+        else: 
+            if not self.robot_controlled: self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, SAMPLING_TIME)
+            else: self.motion_model_manager.update_robot_position(SAMPLING_TIME) # We just update the position
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
