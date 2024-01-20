@@ -6,10 +6,12 @@ from matplotlib.axis import Axis
 import pickle
 import numpy as np
 
-METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
+# METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
+# COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
+METRICS_FILE = "test_data.xlsx"
+COMPLETE_METRICS_FILE = "test_data.pkl"
 MORE_PLOTS = True # If false, only success_rate, SPL, time_to_goal, space_compliance
-COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
-PLOT_WITH_COMPLETE_DATA = False # If false, only average metrics are plotted
+PLOT_WITH_COMPLETE_DATA = True # If false, only average metrics are plotted
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
@@ -58,6 +60,9 @@ POLICY_NAMES = ["bp",
                 "lstm_rl_on_hsfm_new_guo"]
 ENVIRONMENTS = ["ORCA","SFM_GUO","HSFM_NEW_GUO"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
+METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
+           'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
+           'min_dist','avg_dist','space_compliance','path_length','SPL']
 
 def add_labels(ax:Axis, x:list[str], y:pd.Series):
     bar_labels = []
@@ -122,18 +127,32 @@ def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame):
         figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
 def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
-    pass
+    figure, ax = plt.subplots(1,2)
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle(f"Metrics for {environment} environment - {test}")
+    # Time to goal
+    ax[0].boxplot(np.transpose(data[:,:,METRICS.index("time_to_goal")]), showmeans = True, labels=POLICY_NAMES)
+    ax[0].set(xlabel='Policy', ylabel='Time to goal')
+    # Path length
+    ax[1].boxplot(np.transpose(data[:,:,METRICS.index("path_length")]), showmeans = True, labels=POLICY_NAMES)
+    ax[1].set(xlabel='Policy', ylabel='Path length')
+    # Legend
+    handles, labels = ax[0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
-for test in TESTS:
+if PLOT_WITH_COMPLETE_DATA:
+    # Complete data is in the following shape (test, n_humans_test, trials, metrics)
+    with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
+for k, test in enumerate(TESTS):
     ## Load metrics dataframe
     if PLOT_WITH_COMPLETE_DATA:
-        with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
-        for i, environment in enumerate(ENVIRONMENTS): pass
+        for i, environment in enumerate(ENVIRONMENTS): 
             # Extracting data
+            data = complete_data[:,k]
             # Plotting
-            # plot_single_test_complete_metrics(test, environment,)
+            plot_single_test_complete_metrics(test, environment, data)
     else:
         dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
         for i, environment in enumerate(ENVIRONMENTS):

@@ -29,7 +29,7 @@ social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-# social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=True)
+social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.00)
 ## Change robot radius

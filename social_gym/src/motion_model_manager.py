@@ -57,15 +57,16 @@ class MotionModelManager:
             agent.goals.remove(goal)
             agent.goals.append(goal)
 
-    def euler_not_headed_single_agent_update(self, agent:Agent, dt:float, include_mass:bool):
-        agent.position += agent.linear_velocity * dt
+    def euler_not_headed_single_agent_update(self, agent:Agent, dt:float, include_mass:bool, just_velocities=False):
+        if not just_velocities: agent.position += agent.linear_velocity * dt
         if include_mass: agent.linear_velocity += (agent.global_force / agent.mass) * dt
         else: agent.linear_velocity += agent.global_force * dt
         agent.linear_velocity = self.bound_velocity(agent.linear_velocity, agent.desired_speed)
 
-    def euler_headed_single_agent_update(self, agent:Agent, dt:float):
-        agent.position += agent.linear_velocity * dt
-        agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
+    def euler_headed_single_agent_update(self, agent:Agent, dt:float, just_velocities=False):
+        if not just_velocities:
+            agent.position += agent.linear_velocity * dt
+            agent.yaw = bound_angle(agent.yaw + agent.angular_velocity * dt)
         agent.body_velocity += (agent.global_force / agent.mass) * dt
         agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
         agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
@@ -513,7 +514,7 @@ class MotionModelManager:
             self.robot.global_force[0] = np.dot(self.robot.desired_force + self.robot.obstacle_force + self.robot.social_force, self.robot.rotational_matrix[:,0])
             self.robot.global_force[1] = self.robot.ko * np.dot(self.robot.obstacle_force + self.robot.social_force, self.robot.rotational_matrix[:,1]) - self.robot.kd * self.robot.body_velocity[1]
 
-    def update_robot(self, t:float, dt:float):
+    def update_robot(self, t:float, dt:float, just_velocities=False):
         """
         Makes a step to update the robot state based on the timestep given (dt) and the selected motion model.
 
@@ -526,9 +527,10 @@ class MotionModelManager:
         if not self.robot_orca: ## SFM & HSFM (both Euler and RK45)
             if not self.robot_runge_kutta:
                 self.compute_robot_forces()
-                if not self.robot_headed: self.euler_not_headed_single_agent_update(self.robot, dt, self.robot_include_mass) # SFM Euler
-                else: self.euler_headed_single_agent_update(self.robot, dt) # HSFM Euler
+                if not self.robot_headed: self.euler_not_headed_single_agent_update(self.robot, dt, self.robot_include_mass, just_velocities=just_velocities) # SFM Euler
+                else: self.euler_headed_single_agent_update(self.robot, dt, just_velocities=just_velocities) # HSFM Euler
             else:
+                if just_velocities: raise ValueError("Runge-kutta integration cannot be used if robot and environment sampling times are different")
                 if not self.robot_headed: # SFM RK45
                     current_state = self.get_robot_state(include_goal=False, headed=False)
                     solution = solve_ivp(self.f_rk45_robot_not_headed, (t, t+dt), current_state, method='RK45')
@@ -545,15 +547,16 @@ class MotionModelManager:
             self.robot_sim.doStep()
             self.robot.linear_velocity[0] = self.robot_sim.getAgentVelocity(self.robot_sim_agents[len(self.humans)])[0]
             self.robot.linear_velocity[1] = self.robot_sim.getAgentVelocity(self.robot_sim_agents[len(self.humans)])[1]
-            self.robot.position[0] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[0]
-            self.robot.position[1] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[1]
+            if not just_velocities:
+                self.robot.position[0] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[0]
+                self.robot.position[1] = self.robot_sim.getAgentPosition(self.robot_sim_agents[len(self.humans)])[1]
+            else:
+                self.robot_sim.setAgentPosition(self.robot_sim_agents[len(self.humans)], tuple(self.robot.position))
             self.update_goals_orca(self.robot_sim_agents[len(self.humans)], robot_sim=True, robot=True)
 
-    def update_robot_position(self, dt:float):
+    def update_robot_pose(self, dt:float):
         self.robot.position += self.robot.linear_velocity * dt
         self.robot.yaw += self.robot.angular_velocity * dt
-        # if hasattr(self, "robot_orca") and self.robot_orca: self.robot_sim.setAgentPosition(self.robot_sim_agents[len(self.humans)], tuple(self.robot.position))
-        # if self.orca and self.consider_robot: self.sim.setAgentPosition(self.agents[len(self.humans)], tuple(self.robot.position))
         if hasattr(self, "robot_orca") and self.robot_orca: self.set_state_orca(len(self.humans), True)
         if self.orca and self.consider_robot: self.set_state_orca(len(self.humans), False)
 

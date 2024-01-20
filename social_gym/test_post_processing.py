@@ -2,7 +2,6 @@ import pickle
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 ## GLOBAL VARIABLES TO SET
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed

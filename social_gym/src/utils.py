@@ -36,3 +36,7 @@ def point_to_segment_dist(x1, y1, x2, y2, x3, y3):
     y = y1 + u * py
 
     return np.linalg.norm((x - x3, y-y3))
+
+def is_multiple(number, dividend, tolerance=1e-7):
+    mod = number % dividend
+    return (abs(mod) <= tolerance) or (abs(dividend - mod) <= tolerance)

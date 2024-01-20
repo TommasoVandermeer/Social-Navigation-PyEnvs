@@ -5,7 +5,7 @@ from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_ST
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.obstacle import Obstacle
-from social_gym.src.utils import round_time, bound_angle, point_to_segment_dist
+from social_gym.src.utils import round_time, bound_angle, point_to_segment_dist, is_multiple
 from crowd_nav.policy.policy_factory import policy_factory
 import torch
 import configparser
@@ -79,17 +79,17 @@ class SocialNavSim:
         global SAMPLING_TIME, MAX_FPS
         SAMPLING_TIME = time_step
         MAX_FPS = 1 / SAMPLING_TIME
+        self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
 
     def set_robot_time_step(self, time_step:float):
-        error = time_step % SAMPLING_TIME
-        if error > 0.00000001:
-            error -= SAMPLING_TIME
-            if error < -0.0000001: raise ValueError("Robot time step must be a multiple of the environment sampling time")
-        global ROBOT_SAMPLING_TIME
-        ROBOT_SAMPLING_TIME = time_step
-        self.robot.time_step = time_step
-        if self.robot.policy is not None:
-            self.robot.policy.time_step = time_step
+        if not is_multiple(time_step, SAMPLING_TIME): raise ValueError("Robot time step must be a multiple of the environment sampling time")
+        else:
+            global ROBOT_SAMPLING_TIME
+            ROBOT_SAMPLING_TIME = time_step
+            self.robot.time_step = time_step
+            if self.robot.policy is not None:
+                self.robot.policy.time_step = time_step
+        self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
 
     def reset_sim(self, restart_gui=False, reset_robot=True):
         if not self.pygame_init: pygame.init(); self.pygame_init = True
@@ -179,6 +179,7 @@ class SocialNavSim:
             self.robot_controlled = False
 
         # Simulation variables
+        self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
         self.n_updates = 0
         self.real_t = 0.0
         self.sim_t = 0.0
@@ -337,7 +338,7 @@ class SocialNavSim:
 
     def control_robot(self):
         # Every ROBOT_SAMPLING_TIME we update the robot's action, but each SAMPLING_TIME we update its position
-        if self.sim_t % ROBOT_SAMPLING_TIME == 0: 
+        if is_multiple(self.sim_t, ROBOT_SAMPLING_TIME): 
             if not self.robot_controlled:
                 if not hasattr(self.robot, "diff_drive"): self.robot.mount_differential_drive(1)
                 if pygame.key.get_pressed()[pygame.K_UP]: self.robot.move_with_keys('up', ROBOT_SAMPLING_TIME)
@@ -356,12 +357,15 @@ class SocialNavSim:
                         self.robot.goals.remove(robot_goal)
                         self.robot.goals.append(robot_goal)
                 else:
-                    self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
+                    if self.robot_env_same_timestep: self.motion_model_manager.update_robot(self.sim_t, SAMPLING_TIME)
+                    else:
+                        self.motion_model_manager.update_robot_pose(SAMPLING_TIME)
+                        self.motion_model_manager.update_robot(self.sim_t, ROBOT_SAMPLING_TIME, just_velocities=True)
                 self.updated = True
             if self.robot.laser is not None: measuremenets = self.robot.get_laser_readings(self.humans, self.walls)
         else: 
             if not self.robot_controlled: self.robot.position, self.robot.yaw = self.robot.diff_drive.update_pose(self.robot.position, self.robot.yaw, SAMPLING_TIME)
-            else: self.motion_model_manager.update_robot_position(SAMPLING_TIME) # We just update the position
+            else: self.motion_model_manager.update_robot_pose(SAMPLING_TIME) # We just update the position
 
     def rewind_states(self, self_states=True, human_states=None, robot_poses=None):
         if self_states:
@@ -513,10 +517,7 @@ class SocialNavSim:
         - stop_when_collision_or_goal: if true, the simulation is stopped if the robot collides or reaches goal
         """
         # Check if the time_step to save states is a multiple of the environment sampling time
-        error = (save_states_time_step % SAMPLING_TIME)
-        if error > 0.00000001: 
-            error -= SAMPLING_TIME
-            if error < -0.00000001: raise ValueError(f"Time step to save states must be a multiple of environment sampling time: {SAMPLING_TIME}")
+        if not is_multiple(save_states_time_step, SAMPLING_TIME): raise ValueError(f"Time step to save states must be a multiple of environment sampling time: {SAMPLING_TIME}")
         # Variables where to save the states
         human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
         if self.insert_robot: robot_states = np.array([self.motion_model_manager.get_robot_state()], dtype=np.float64)
@@ -531,9 +532,10 @@ class SocialNavSim:
             if stop_when_collision_or_goal and (collision or success): break
             self.update()
             if not self.headless: self.render_sim()
-            if self.sim_t % save_states_time_step == 0: human_states = np.append(human_states, [self.motion_model_manager.get_human_states()], axis=0)
+            save_states = is_multiple(self.sim_t, save_states_time_step)
+            if save_states: human_states = np.append(human_states, [self.motion_model_manager.get_human_states()], axis=0)
             if self.insert_robot: 
-                if self.sim_t % save_states_time_step == 0: robot_states = np.append(robot_states, [self.motion_model_manager.get_robot_state()], axis=0)
+                if save_states: robot_states = np.append(robot_states, [self.motion_model_manager.get_robot_state()], axis=0)
                 if additional_info:
                     # Collision
                     for human in self.humans:
