@@ -17,7 +17,7 @@ ROBOT_VISIBLE = True
 RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"orca",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
@@ -29,13 +29,13 @@ social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
+# social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.00)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-# social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
+social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)

@@ -101,15 +101,15 @@ def single_results_file_post_processing(test_data:dict):
                 if instant_velocity_norm > maximum_velocity: maximum_velocity = instant_velocity_norm
                 # Acceleration
                 if i < len(episode["robot_states"])-1: 
-                    instant_acceleration = (episode["robot_states"][i+1][3:5] - instant_velocity) / test_data[test]["specifics"]["time_step"]
+                    instant_acceleration = (episode["robot_states"][i+1][3:5] - instant_velocity) / test_data[test]["specifics"]["robot_time_step"]
                     instant_acceleration_norm = np.linalg.norm(instant_acceleration)
                     average_acceleration += instant_acceleration_norm
                     if instant_acceleration_norm < minimum_acceleration: minimum_acceleration = instant_acceleration_norm
                     if instant_acceleration_norm > maximum_acceleration: maximum_acceleration = instant_acceleration_norm
                 # Jerk
                 if i < len(episode["robot_states"])-2: 
-                    next_acceleration = (episode["robot_states"][i+2][3:5] - episode["robot_states"][i+1][3:5]) / test_data[test]["specifics"]["time_step"]
-                    instant_jerk = (next_acceleration - instant_acceleration) / test_data[test]["specifics"]["time_step"]
+                    next_acceleration = (episode["robot_states"][i+2][3:5] - episode["robot_states"][i+1][3:5]) / test_data[test]["specifics"]["robot_time_step"]
+                    instant_jerk = (next_acceleration - instant_acceleration) / test_data[test]["specifics"]["robot_time_step"]
                     instant_jerk_norm = np.linalg.norm(instant_jerk)
                     average_jerk += instant_jerk_norm
                     if instant_jerk_norm < minimum_jerk: minimum_jerk = instant_jerk_norm
