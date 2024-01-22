@@ -6,10 +6,8 @@ from matplotlib.axis import Axis
 import pickle
 import numpy as np
 
-# METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
-# COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
-METRICS_FILE = "test_data.xlsx"
-COMPLETE_METRICS_FILE = "test_data.pkl"
+METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
+COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
 MORE_PLOTS = True # If false, only success_rate, SPL, time_to_goal, space_compliance
 PLOT_WITH_COMPLETE_DATA = True # If false, only average metrics are plotted
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
@@ -131,11 +129,15 @@ def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
     figure.subplots_adjust(right=0.80)
     figure.suptitle(f"Metrics for {environment} environment - {test}")
     # Time to goal
-    ax[0].boxplot(np.transpose(data[:,:,METRICS.index("time_to_goal")]), showmeans = True, labels=POLICY_NAMES)
-    ax[0].set(xlabel='Policy', ylabel='Time to goal')
+    bplot1 = ax[0].boxplot(np.transpose(data[:,:,METRICS.index("time_to_goal")]), showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[0].set(xlabel='Policy', ylabel='Time to goal', xticklabels=[])
     # Path length
-    ax[1].boxplot(np.transpose(data[:,:,METRICS.index("path_length")]), showmeans = True, labels=POLICY_NAMES)
-    ax[1].set(xlabel='Policy', ylabel='Path length')
+    bplot2 = ax[1].boxplot(np.transpose(data[:,:,METRICS.index("path_length")]), showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[1].set(xlabel='Policy', ylabel='Path length', xticklabels=[])
+    # Set color of boxplots
+    for bplot in (bplot1, bplot2):
+        for patch, color in zip(bplot['boxes'], COLORS):
+            patch.set_facecolor(color)
     # Legend
     handles, labels = ax[0].get_legend_handles_labels()
     figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
@@ -146,15 +148,21 @@ if PLOT_WITH_COMPLETE_DATA:
     # Complete data is in the following shape (test, n_humans_test, trials, metrics)
     with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
 for k, test in enumerate(TESTS):
-    ## Load metrics dataframe
+    ## Load average metrics dataframe
+    dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
     if PLOT_WITH_COMPLETE_DATA:
-        for i, environment in enumerate(ENVIRONMENTS): 
+        # Find numerical indexes of testing environments in the dataframe
+        indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
+        # Complete data has dimensions (n_results_files, n_humans_tests, n_trials, n_metrics)
+        for i, environment in enumerate(ENVIRONMENTS):
+            if i == 0: env_indexes = [indexes[test] for test in TESTED_ON_ORCA]
+            if i == 1: env_indexes = [indexes[test] for test in TESTED_ON_SFM_GUO]
+            if i == 2: env_indexes = [indexes[test] for test in TESTED_ON_HSFM_NEW_GUO]
             # Extracting data
-            data = complete_data[:,k]
+            data = complete_data[env_indexes,k]
             # Plotting
             plot_single_test_complete_metrics(test, environment, data)
     else:
-        dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
         for i, environment in enumerate(ENVIRONMENTS):
             # Extracting data
             if i == 0: df_env = dataframe.loc[TESTED_ON_ORCA, :]
