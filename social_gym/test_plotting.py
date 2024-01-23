@@ -125,22 +125,31 @@ def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame):
         figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
 def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
-    figure, ax = plt.subplots(1,2)
+    figure, ax = plt.subplots(2,2)
     figure.subplots_adjust(right=0.80)
     figure.suptitle(f"Metrics for {environment} environment - {test}")
+    # Filter Nan values
+    nan_mask = ~np.isnan(data)
+    filtered_data = []
+    for row, mask_row in zip(data.T, nan_mask.T): filtered_data.append([column[mask_column] for column, mask_column in zip(row.T, mask_row.T)])
     # Time to goal
-    bplot1 = ax[0].boxplot(np.transpose(data[:,:,METRICS.index("time_to_goal")]), showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[0].set(xlabel='Policy', ylabel='Time to goal', xticklabels=[])
+    bplot1 = ax[0,0].boxplot(filtered_data[:][:][METRICS.index("time_to_goal")], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[0,0].set(xlabel='Policy', ylabel='Time to goal', xticklabels=[])
     # Path length
-    bplot2 = ax[1].boxplot(np.transpose(data[:,:,METRICS.index("path_length")]), showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[1].set(xlabel='Policy', ylabel='Path length', xticklabels=[])
+    bplot2 = ax[0,1].boxplot(filtered_data[:][:][METRICS.index("path_length")], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[0,1].set(xlabel='Policy', ylabel='Path length', xticklabels=[])
+    # Space compliance
+    bplot3 = ax[1,0].boxplot(filtered_data[:][:][METRICS.index("space_compliance")], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[1,0].set(xlabel='Policy', ylabel='Space compliance', xticklabels=[], ylim=[0,1])
+    # SPL
+    bplot4 = ax[1,1].boxplot(filtered_data[:][:][METRICS.index("SPL")], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[1,1].set(xlabel='Policy', ylabel='SPL', xticklabels=[], ylim=[0,1])
     # Set color of boxplots
-    for bplot in (bplot1, bplot2):
+    for bplot in (bplot1, bplot2, bplot3, bplot4):
         for patch, color in zip(bplot['boxes'], COLORS):
             patch.set_facecolor(color)
     # Legend
-    handles, labels = ax[0].get_legend_handles_labels()
-    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
+    figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
 
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)

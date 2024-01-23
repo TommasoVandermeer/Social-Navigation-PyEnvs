@@ -12,9 +12,9 @@ from custom_config.config_example import data
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
-INSERT_ROBOT = True
-ROBOT_VISIBLE = True
-RANDOMIZE_HUMAN_POSITIONS = True
+INSERT_ROBOT = False
+ROBOT_VISIBLE = False
+RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
 social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
@@ -23,7 +23,7 @@ social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"hsfm_new_guo",HEADLESS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
 social_nav.set_time_step(1/60)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
-social_nav.set_robot_time_step(1/4)
+# social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
 # social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
@@ -35,7 +35,7 @@ social_nav.set_robot_time_step(1/4)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
+# social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
