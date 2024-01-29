@@ -156,24 +156,24 @@ def single_results_file_post_processing(test_data:dict):
                 complete_data[k][t][15] = np.NaN
                 complete_data[k][t][16] = np.NaN
         # Save average data (over trials)
-        average_data[k][0] = np.sum(complete_data[k,:,0])/test_data[test]['specifics']['trials']
-        average_data[k][1] = np.sum(complete_data[k,:,1])
-        average_data[k][2] = np.sum(complete_data[k,:,2])
-        average_data[k][3] = np.nansum(complete_data[k,:,3])/successes
-        average_data[k][4] = np.nansum(complete_data[k,:,4])/successes
-        average_data[k][5] = np.nansum(complete_data[k,:,5])/successes
-        average_data[k][6] = np.nansum(complete_data[k,:,6])/successes
-        average_data[k][7] = np.nansum(complete_data[k,:,7])/successes
-        average_data[k][8] = np.nansum(complete_data[k,:,8])/successes
-        average_data[k][9] = np.nansum(complete_data[k,:,9])/successes
-        average_data[k][10] = np.nansum(complete_data[k,:,10])/successes
-        average_data[k][11] = np.nansum(complete_data[k,:,11])/successes
-        average_data[k][12] = np.nansum(complete_data[k,:,12])/successes
-        average_data[k][13] = np.nansum(complete_data[k,:,13])/successes
-        average_data[k][14] = np.nansum(complete_data[k,:,14])/successes
-        average_data[k][15] = np.nansum(complete_data[k,:,15])/successes
-        average_data[k][16] = np.nansum(complete_data[k,:,16])/successes
-        average_data[k][17] = np.nansum(complete_data[k,:,17])/test_data[test]['specifics']['trials']
+        average_data[k][0] = round(np.sum(complete_data[k,:,0])/test_data[test]['specifics']['trials'],2)
+        average_data[k][1] = round(np.sum(complete_data[k,:,1]),2)
+        average_data[k][2] = round(np.sum(complete_data[k,:,2]),2)
+        average_data[k][3] = round(np.nansum(complete_data[k,:,3])/successes,2)
+        average_data[k][4] = round(np.nansum(complete_data[k,:,4])/successes,2)
+        average_data[k][5] = round(np.nansum(complete_data[k,:,5])/successes,2)
+        average_data[k][6] = round(np.nansum(complete_data[k,:,6])/successes,2)
+        average_data[k][7] = round(np.nansum(complete_data[k,:,7])/successes,2)
+        average_data[k][8] = round(np.nansum(complete_data[k,:,8])/successes,2)
+        average_data[k][9] = round(np.nansum(complete_data[k,:,9])/successes,2)
+        average_data[k][10] = round(np.nansum(complete_data[k,:,10])/successes,2)
+        average_data[k][11] = round(np.nansum(complete_data[k,:,11])/successes,2)
+        average_data[k][12] = round(np.nansum(complete_data[k,:,12])/successes,2)
+        average_data[k][13] = round(np.nansum(complete_data[k,:,13])/successes,2)
+        average_data[k][14] = round(np.nansum(complete_data[k,:,14])/successes,2)
+        average_data[k][15] = round(np.nansum(complete_data[k,:,15])/successes,2)
+        average_data[k][16] = round(np.nansum(complete_data[k,:,16])/successes,2)
+        average_data[k][17] = round(np.nansum(complete_data[k,:,17])/test_data[test]['specifics']['trials'],2)
         # Print computed metrics
         print(f"SUCCESS RATE: {average_data[k][0]}")
         print(f"COLLISIONS OVER {test_data[test]['specifics']['trials']} TRIALS: {average_data[k][1]}")
