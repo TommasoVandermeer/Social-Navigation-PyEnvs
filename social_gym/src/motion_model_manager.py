@@ -41,7 +41,8 @@ class MotionModelManager:
     ### METHODS FOR BOTH HUMANS AND ROBOT
     
     def bound_velocity(self, velocity:np.array, desired_speed:float):
-        if (np.linalg.norm(velocity) > desired_speed): velocity = (velocity / np.linalg.norm(velocity)) * desired_speed
+        velocity_norm = np.linalg.norm(velocity)
+        if (velocity_norm > desired_speed): velocity = (velocity / velocity_norm) * desired_speed
         return velocity
     
     def rewind_goals(self, agent:Agent, goal:list):

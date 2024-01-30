@@ -23,12 +23,16 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
                  "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 OUTPUT_FILE_WITH_ROBOT = "human_times_with_robot.pkl"
-HUMAN_STATES_FILE = "human_states_tests_without_robot.pkl"
 OUTPUT_FILE_WITHOUT_ROBOT = "human_times_without_robot.pkl"
-SKIP_PHASE_1 = True # If true, data of experiments with robot will be extracted from the OUTPUT_FILE_WITH_ROBOT specified, otherwise data will be computed from passed RESULTS_FILES
-SKIP_PHASE_2 = False # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
-SKIP_PHASE_3 = True # If true, humans' time to goal is not extracted from experiments without robot
+OUTPUT_FILE_MERGED = "human_times.pkl"
+HUMAN_STATES_FILE = "human_states_tests_without_robot.pkl"
 HEADLESS = False
+# The script is divided in four phases: extract humans' times to goal from experiments with robot, 
+# simulate episodes without robot, extract humans' times to goal from experiments without robot, merge the extracted data.
+SKIP_PHASE_1 = True # If true, data of experiments with robot will be extracted from the OUTPUT_FILE_WITH_ROBOT specified, otherwise data will be computed from passed RESULTS_FILES
+SKIP_PHASE_2 = True # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
+SKIP_PHASE_3 = False # If true, humans' time to goal is not extracted from experiments without robot
+SKIP_PHASE_4 = False # If true, experimental data of test with and without robot is not combined
 ### IMPLEMENTATION VARIABLES (do not change)
 ENVIRONMENTS = ["orca", "sfm_guo", "hsfm_new_guo"]
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
@@ -143,7 +147,7 @@ if SKIP_PHASE_2:
     with open(os.path.join(os.path.dirname(__file__),'tests','results',HUMAN_STATES_FILE), "rb") as f: data_without_robot = pickle.load(f)
 else: data_without_robot = extracted_data_without_robot.copy()
 if not SKIP_PHASE_3: 
-    extracted_data = {}
+    extracted_data_no_robot = {}
     for i, results in enumerate(RESULTS_FILES):
         results_file_extracted_data = {}
         test_data_with_robot = data_with_robot.copy()[results]
@@ -169,7 +173,7 @@ if not SKIP_PHASE_3:
                 for t in range(steps): # Loop until end of episode time (not all states available)
                     human_states = episode_human_states_no_robot[t]
                     for h, human_state in enumerate(human_states):
-                        # Take first human state position to compute humans' goal
+                        # Take first human state position to compute humans' goalFalse
                         if t == 0: human_goals[h] = -human_state[0:2]
                         else:
                             if human_reached_first_goal[h]: continue
@@ -195,8 +199,38 @@ if not SKIP_PHASE_3:
             print("Average humans time to goal: ", np.nansum(human_time_to_goal, axis=(0,1)) / np.sum(n_humans_reached_goal, axis = 0))
             print(f"Average episode duration: {np.sum(episode_times, axis = 0) / test_data_with_robot[test]['specifics']['trials']}")
             print("")
-        extracted_data[results] = results_file_extracted_data
+        extracted_data_no_robot[results] = results_file_extracted_data
     # Save extracted data in an output file
-    with open(os.path.join(metrics_dir,OUTPUT_FILE_WITHOUT_ROBOT), "wb") as f: pickle.dump(extracted_data, f); f.close()
+    with open(os.path.join(metrics_dir,OUTPUT_FILE_WITHOUT_ROBOT), "wb") as f: pickle.dump(extracted_data_no_robot, f); f.close()
 
-
+### PHASE 4: Combine experiment data from test with robot and test without robot
+## Load data with robot
+if SKIP_PHASE_1:
+    with open(os.path.join(metrics_dir,OUTPUT_FILE_WITH_ROBOT), "rb") as f: data_with_robot = pickle.load(f)
+else: data_with_robot = extracted_data.copy()
+## Load data without robot
+if SKIP_PHASE_3:
+    with open(os.path.join(metrics_dir,OUTPUT_FILE_WITHOUT_ROBOT), "rb") as f: data_without_robot = pickle.load(f)
+else: data_without_robot = extracted_data_no_robot.copy()
+## Combine data in a single file
+# Data structure is a dict[results_file](dict[n_humans_test](times_to_goal,n_humans_reached_goal,episode_times))
+if not SKIP_PHASE_4: 
+    output_data = {}
+    for i, results in RESULTS_FILES:
+        results_test_data = {}
+        for k, test in TESTS:
+            test_data_with_robot = data_with_robot[results][test]
+            test_data_without_robot = data_without_robot[results][test]
+            # Check that all episodes have the same duration
+            for e in range(len(test_data_with_robot["episode_times"])):
+                if test_data_with_robot["episode_times"][e] != test_data_without_robot["episode_times"][e]: print(f"WARNING: Episode {e} has a different duration for test with robot and without robot")
+            # Merge data
+            test_data = {"episode_times": test_data_with_robot["episode_times"],
+                         "times_to_goal_with_robot": test_data_with_robot["times_to_goal"],
+                         "times_to_goal_without_robot": test_data_without_robot["times_to_goal"],
+                         "n_humans_reached_goal_with_robot": test_data_with_robot["n_humans_reached_goal"],
+                         "n_humans_reached_goal_without_robot": test_data_without_robot["n_humans_reached_goal"]}
+            results_test_data[test] = test_data
+        output_data[results] = results_test_data
+    # Save extracted data in an output file
+    with open(os.path.join(metrics_dir,OUTPUT_FILE_MERGED), "wb") as f: pickle.dump(output_data, f); f.close()
