@@ -5,6 +5,7 @@ from social_gym.src.agent import Agent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.utils import bound_angle
 from social_gym.src.motion_model_manager import Group
+from numba import njit
 
 def compute_desired_force(agent:Agent):
     difference = agent.goals[0] - agent.position

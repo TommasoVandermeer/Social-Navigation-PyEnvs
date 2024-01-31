@@ -308,7 +308,7 @@ class SocialNavSim:
         if self.show_stats:
             self.fps_text = self.font.render(f"FPS: {round(self.clock.get_fps())}", False, (0,0,255))
             self.real_time = self.font.render(f"Real time: {self.real_t}", False, (0,0,255))
-            self.simulation_time = self.font.render(f"Sim. time: {self.sim_t}", False, (0,0,255))
+            self.simulation_time = self.font.render(f"Sim. time: {round_time(self.sim_t)}", False, (0,0,255))
             if self.n_updates < N_UPDATES_AVERAGE_TIME * 2: self.real_time_factor = self.font.render(f"Time fact.: {round(self.sim_t/ (self.real_t + 0.00000001), 2)}", False, (0,0,255))
             else: self.real_time_factor = self.font.render(f"Time fact.: {round((SAMPLING_TIME * N_UPDATES_AVERAGE_TIME) / (self.updates_time - self.previous_updates_time), 2)}", False, (0,0,255))
             self.screen.blit(self.fps_text,self.fps_text_rect)
@@ -333,7 +333,7 @@ class SocialNavSim:
 
     def update_times(self):
         self.real_t = round_time((pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time)
-        self.sim_t = round_time(self.n_updates * SAMPLING_TIME)
+        self.sim_t = self.n_updates * SAMPLING_TIME
         if self.n_updates % N_UPDATES_AVERAGE_TIME == 0: self.previous_updates_time = self.updates_time; self.updates_time = (pygame.time.get_ticks() / 1000) - self.last_reset - self.paused_time
 
     def control_robot(self):
