@@ -30,9 +30,9 @@ HEADLESS = False
 # The script is divided in four phases: extract humans' times to goal from experiments with robot, 
 # simulate episodes without robot, extract humans' times to goal from experiments without robot, merge the extracted data.
 SKIP_PHASE_1 = True # If true, data of experiments with robot will be extracted from the OUTPUT_FILE_WITH_ROBOT specified, otherwise data will be computed from passed RESULTS_FILES
-SKIP_PHASE_2 = True # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
-SKIP_PHASE_3 = False # If true, humans' time to goal is not extracted from experiments without robot
-SKIP_PHASE_4 = False # If true, experimental data of test with and without robot is not combined
+SKIP_PHASE_2 = False # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
+SKIP_PHASE_3 = True # If true, humans' time to goal is not extracted from experiments without robot
+SKIP_PHASE_4 = True # If true, experimental data of test with and without robot is not combined
 ### IMPLEMENTATION VARIABLES (do not change)
 ENVIRONMENTS = ["orca", "sfm_guo", "hsfm_new_guo"]
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
@@ -123,12 +123,17 @@ if not SKIP_PHASE_2:
             time_step = test_data[test]["specifics"]["time_step"]
             robot_time_step = test_data[test]["specifics"]["robot_time_step"]
             max_time = test_data[test]["specifics"]["max_episode_time"]
+            human_radiuses = test_data[test]["specifics"]["humans_radiuses"]
             episode_steps = max_time / time_step
             test_human_states = []
             for trial in range(n_trials):
                 if trial % 20 == 0: logging.info(f"Start trial {trial+1}")
                 humans = {}
-                for h in range(n_humans): humans[h] = {"pos": humans_initial_poses[k][trial][h][0:2] ,"yaw": humans_initial_poses[k][trial][h][2],"goals": [-humans_initial_poses[k][trial][h][0:2],humans_initial_poses[k][trial][h][0:2]]}
+                for h in range(n_humans): humans[h] = {"pos": humans_initial_poses[k][trial][h][0:2] ,
+                                                       "yaw": humans_initial_poses[k][trial][h][2],
+                                                       "goals": [-humans_initial_poses[k][trial][h][0:2],humans_initial_poses[k][trial][h][0:2]],
+                                                       "des_speed": 1, # Assuming desired speed is always 1 for humans
+                                                       "radius": human_radiuses[h]}
                 config = {"headless": HEADLESS, "motion_model": env, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "humans": humans, "walls": []}
                 simulator = SocialNavSim(config, "custom_config")
                 simulator.set_time_step(time_step)
@@ -216,9 +221,9 @@ else: data_without_robot = extracted_data_no_robot.copy()
 # Data structure is a dict[results_file](dict[n_humans_test](times_to_goal,n_humans_reached_goal,episode_times))
 if not SKIP_PHASE_4: 
     output_data = {}
-    for i, results in RESULTS_FILES:
+    for i, results in enumerate(RESULTS_FILES):
         results_test_data = {}
-        for k, test in TESTS:
+        for k, test in enumerate(TESTS):
             test_data_with_robot = data_with_robot[results][test]
             test_data_without_robot = data_without_robot[results][test]
             # Check that all episodes have the same duration

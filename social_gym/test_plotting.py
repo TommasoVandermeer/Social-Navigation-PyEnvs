@@ -8,11 +8,13 @@ import numpy as np
 
 METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
 COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
+HUMAN_TIMES_FILE = "human_times.pkl"
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
 HEAT_MAP = False # If true, heatmaps are plotted
-CURVE_PLOTS = True # If true, curves are plotted
+CURVE_PLOTS = False # If true, curves are plotted
+HUMAN_TIMES_BOX_PLOTS = True # If true, humans' time to goal with and without robot are plotted
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
@@ -75,6 +77,19 @@ COLORS = list(mcolors.TABLEAU_COLORS.values())
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
+
+def extract_data_from_human_times_file(results_file_list:list[str], test:str, human_times_data:dict):
+    n_humans = int(test.replace("_humans",""))
+    episode_times = np.empty((len(results_file_list),100), dtype=np.float64) # Assuming trials are 100
+    times = np.empty((len(results_file_list),2,100,n_humans), dtype=np.float64) # Assuming trials are 100
+    humans = np.empty((len(results_file_list),2,100), dtype=int) # Assuming trials are 100
+    for r, results in enumerate(results_file_list):
+        episode_times[r] = np.copy(human_times_data[results][test]["episode_times"])
+        times[r,0] = np.copy(human_times_data[results][test]["times_to_goal_with_robot"])
+        times[r,1] = np.copy(human_times_data[results][test]["times_to_goal_without_robot"])
+        humans[r,0] = np.copy(human_times_data[results][test]["n_humans_reached_goal_with_robot"])
+        humans[r,1] = np.copy(human_times_data[results][test]["n_humans_reached_goal_without_robot"])
+    return episode_times, times, humans
 
 def add_labels(ax:Axis, x:list[str], y:pd.Series):
     bar_labels = []
@@ -217,6 +232,43 @@ def plot_curves(data:list[pd.DataFrame], test_env:str):
     handles, labels = ax.get_legend_handles_labels()
     figure.legend(handles, POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
 
+def plot_human_times_boxplots(test:str, environment:str, ep_times:np.array, hu_times:np.array, n_humans:np.array):
+    figure, ax = plt.subplots(2,2)
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle(f"Test environment: {environment} - {test}")
+    # Compute average time to goal among humans who reached the goal for each trial - Reduce shape from (11,2,100,n_humans) to (11,2,100)
+    avg_hu_times = np.empty(n_humans.shape, dtype=np.float64)
+    for i, results in enumerate(hu_times):
+        for j, test in enumerate(results):
+            for k, human_times in enumerate(test):
+                avg_hu_times[i,j,k] = np.nansum(human_times) / n_humans[i,j,k]
+    # Divide data with robot and without robot
+    avg_hu_times_w_robot = np.copy(avg_hu_times[:,0,:])
+    avg_hu_times_wout_robot = np.copy(avg_hu_times[:,1,:])
+    # Filter NaNs from avg_hu_times (otherwise box plot does not work) - avg_hu_times.shape = (11,2,100), NaNs are in the last dimension
+    nan_mask_w_robot = ~np.isnan(avg_hu_times_w_robot)
+    filtered_avg_hu_times_w_robot = [row[nan_mask_row] for row, nan_mask_row in zip(avg_hu_times_w_robot, nan_mask_w_robot)]
+    nan_mask_wout_robot = ~np.isnan(avg_hu_times_wout_robot)
+    filtered_avg_hu_times_wout_robot = [row[nan_mask_row] for row, nan_mask_row in zip(avg_hu_times_wout_robot, nan_mask_wout_robot)]
+    # Time to goal with robot
+    bplot1 = ax[0,0].boxplot(filtered_avg_hu_times_w_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[0,0].set(xlabel='Policy', ylabel="Average humans' Time to goal", xticklabels=[], title="Experiments with robot")
+    # N° humans that reached the goal with robot
+    bplot2 = ax[0,1].boxplot(n_humans.T[:,0,:], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[0,1].set(xlabel='Policy', ylabel="Number of humans who reached the goal", xticklabels=[], title="Experiments with robot")
+    # Time to goal without robot
+    bplot3 = ax[1,0].boxplot(filtered_avg_hu_times_wout_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[1,0].set(xlabel='', ylabel="Average humans' Time to goal", xticklabels=[], title="Experiments without robot")
+    # N° humans that reached the goal without robot
+    bplot4 = ax[1,1].boxplot(n_humans.T[:,1,:], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax[1,1].set(xlabel='', ylabel="Number of humans who reached the goal", xticklabels=[], title="Experiments without robot")
+    # Set color of boxplots
+    for bplot in (bplot1, bplot2, bplot3, bplot4):
+        for patch, color in zip(bplot['boxes'], COLORS):
+            patch.set_facecolor(color)
+    # Legend
+    figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
+
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
 # Complete data is in the following shape (test, n_humans_test, trials, metrics)
@@ -269,4 +321,14 @@ for k, test in enumerate(TESTS):
             plot_curves(all_test_on_orca_dataframes, ENVIRONMENTS[0])
             plot_curves(all_test_on_sfm_dataframes, ENVIRONMENTS[1])
             plot_curves(all_test_on_hsfm_dataframes, ENVIRONMENTS[2])
+    if HUMAN_TIMES_BOX_PLOTS:
+        # Load human times data
+        with open(os.path.join(metrics_dir,HUMAN_TIMES_FILE), "rb") as f: human_times = pickle.load(f)
+        # Complete data has dimensions (n_results_files, n_humans_tests, 5, n_trials)
+        for i, environment in enumerate(ENVIRONMENTS):
+            if i == 0: episode_times, times, humans = extract_data_from_human_times_file(TESTED_ON_ORCA, test, human_times)
+            elif i == 1: episode_times, times, humans = extract_data_from_human_times_file(TESTED_ON_SFM_GUO, test, human_times)
+            else: episode_times, times, humans = extract_data_from_human_times_file(TESTED_ON_HSFM_NEW_GUO, test, human_times)
+            # Plotting
+            plot_human_times_boxplots(test, environment, episode_times, times, humans)
 plt.show()

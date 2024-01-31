@@ -13,23 +13,23 @@ from custom_config.config_example import data
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
-INSERT_ROBOT = True
-ROBOT_VISIBLE = True
-RANDOMIZE_HUMAN_POSITIONS = False
+INSERT_ROBOT = False
+ROBOT_VISIBLE = False
+RANDOMIZE_HUMAN_POSITIONS = True
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,30,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"orca",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
 TIME_STEP = 1/60
 social_nav.set_time_step(1/60)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
-social_nav.set_robot_time_step(1/4)
+# social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
 # social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_sfm_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
+# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
@@ -56,6 +56,6 @@ social_nav.run_live()
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
 ## Run from previously computed states (controlled speed) - Euler both humans and robot
-# SIMULATION_SECONDS = 30
+# SIMULATION_SECONDS = 20
 # human_states, robot_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP))
 # social_nav.run_from_precomputed_states(human_states, robot_poses=robot_states)
