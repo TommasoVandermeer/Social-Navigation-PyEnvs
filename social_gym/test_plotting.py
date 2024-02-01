@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.axis import Axis
+from matplotlib.gridspec import GridSpec
+from itertools import zip_longest
 import pickle
 import numpy as np
 
@@ -79,16 +81,15 @@ METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed
            'min_dist','avg_dist','space_compliance','path_length','SPL']
 
 def extract_data_from_human_times_file(results_file_list:list[str], test:str, human_times_data:dict):
-    n_humans = int(test.replace("_humans",""))
-    episode_times = np.empty((len(results_file_list),100), dtype=np.float64) # Assuming trials are 100
-    times = np.empty((len(results_file_list),2,100,n_humans), dtype=np.float64) # Assuming trials are 100
-    humans = np.empty((len(results_file_list),2,100), dtype=int) # Assuming trials are 100
-    for r, results in enumerate(results_file_list):
-        episode_times[r] = np.copy(human_times_data[results][test]["episode_times"])
-        times[r,0] = np.copy(human_times_data[results][test]["times_to_goal_with_robot"])
-        times[r,1] = np.copy(human_times_data[results][test]["times_to_goal_without_robot"])
-        humans[r,0] = np.copy(human_times_data[results][test]["n_humans_reached_goal_with_robot"])
-        humans[r,1] = np.copy(human_times_data[results][test]["n_humans_reached_goal_without_robot"])
+    # Lengths are variable with respect to results files
+    episode_times = []
+    times = []
+    humans = []
+    indexer_list = ["_with_robot","_without_robot"]
+    for results in results_file_list:
+        episode_times.append(np.copy(human_times_data[results][test]["episode_times"]))
+        times.append(np.array([np.copy(human_times_data[results][test]["times_to_goal" + idx]) for idx in indexer_list], dtype=np.float64))
+        humans.append(np.array([np.copy(human_times_data[results][test]["n_humans_reached_goal" + idx]) for idx in indexer_list], dtype=int))
     return episode_times, times, humans
 
 def add_labels(ax:Axis, x:list[str], y:pd.Series):
@@ -232,38 +233,61 @@ def plot_curves(data:list[pd.DataFrame], test_env:str):
     handles, labels = ax.get_legend_handles_labels()
     figure.legend(handles, POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
 
-def plot_human_times_boxplots(test:str, environment:str, ep_times:np.array, hu_times:np.array, n_humans:np.array):
-    figure, ax = plt.subplots(2,2)
-    figure.subplots_adjust(right=0.80)
+def plot_human_times_boxplots(test:str, environment:str, ep_times:list, hu_times:list, n_humans:list):
+    # ep_times(list(np.array)) - (11,successful_trials) - first dimension is list
+    # hu_times(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
+    # n_humans(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
+    figure =plt.figure()
     figure.suptitle(f"Test environment: {environment} - {test}")
-    # Compute average time to goal among humans who reached the goal for each trial - Reduce shape from (11,2,100,n_humans) to (11,2,100)
-    avg_hu_times = np.empty(n_humans.shape, dtype=np.float64)
+    gs = GridSpec(2, 3, figure=figure)
+    ax1 = figure.add_subplot(gs[0,0])
+    ax2 = figure.add_subplot(gs[0,1])
+    ax3 = figure.add_subplot(gs[1,0])
+    ax4 = figure.add_subplot(gs[1,1])
+    ax5 = figure.add_subplot(gs[:,2])
+    figure.subplots_adjust(right=0.80)
+    # Compute average time to goal among humans who reached the goal for each trial - Reduce shape from (11,2,successful_trials,n_humans) to (11,2,successful_trials)
+    avg_hu_times = []
     for i, results in enumerate(hu_times):
-        for j, test in enumerate(results):
+        avg_hu_times_results = np.empty((len(results),len(results[0])), dtype=np.float64)
+        for j, test in enumerate(results): # With or without robot
             for k, human_times in enumerate(test):
-                avg_hu_times[i,j,k] = np.nansum(human_times) / n_humans[i,j,k]
-    # Divide data with robot and without robot
-    avg_hu_times_w_robot = np.copy(avg_hu_times[:,0,:])
-    avg_hu_times_wout_robot = np.copy(avg_hu_times[:,1,:])
-    # Filter NaNs from avg_hu_times (otherwise box plot does not work) - avg_hu_times.shape = (11,2,100), NaNs are in the last dimension
-    nan_mask_w_robot = ~np.isnan(avg_hu_times_w_robot)
-    filtered_avg_hu_times_w_robot = [row[nan_mask_row] for row, nan_mask_row in zip(avg_hu_times_w_robot, nan_mask_w_robot)]
-    nan_mask_wout_robot = ~np.isnan(avg_hu_times_wout_robot)
-    filtered_avg_hu_times_wout_robot = [row[nan_mask_row] for row, nan_mask_row in zip(avg_hu_times_wout_robot, nan_mask_wout_robot)]
+                if n_humans[i][j,k] == 0: avg_hu_times_results[j,k] = np.NaN
+                else: avg_hu_times_results[j,k] = np.nansum(human_times) / n_humans[i][j,k]
+        avg_hu_times.append(avg_hu_times_results)
+    # Compute min and max avg_hu_time to fix the scale in the graphs
+    min_value = np.nanmin(np.array([np.nanmin(avg_hu_times_results, axis=(0,1)) for avg_hu_times_results in avg_hu_times]))
+    max_value = np.nanmax(np.array([np.nanmax(avg_hu_times_results, axis=(0,1)) for avg_hu_times_results in avg_hu_times]))
+    # Divide data with robot and without robot - Reduce shape from (11,2,successful_trials) to (11,successful_trials)
+    avg_hu_times_w_robot = [np.copy(avg_hu_times_results[0,:]) for avg_hu_times_results in avg_hu_times]
+    avg_hu_times_wout_robot = [np.copy(avg_hu_times_results[1,:]) for avg_hu_times_results in avg_hu_times]
+    n_humans_w_robot = [np.copy(n_humans_results[0,:]) for n_humans_results in n_humans]
+    n_humans_wout_robot = [np.copy(n_humans_results[1,:]) for n_humans_results in n_humans]
+    # Filter NaNs from avg_hu_times (otherwise box plot does not work) - avg_hu_times_w_robot.shape and avg_hu_times_wout_robot.shape = (11,successful_trials), NaNs are in the last dimension
+    filtered_avg_hu_times_w_robot = [avg_hu_times_w_robot_results[~np.isnan(avg_hu_times_w_robot_results)] for avg_hu_times_w_robot_results in avg_hu_times_w_robot]
+    filtered_avg_hu_times_wout_robot = [avg_hu_times_wout_robot_results[~np.isnan(avg_hu_times_wout_robot_results)] for avg_hu_times_wout_robot_results in avg_hu_times_wout_robot]
     # Time to goal with robot
-    bplot1 = ax[0,0].boxplot(filtered_avg_hu_times_w_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[0,0].set(xlabel='Policy', ylabel="Average humans' Time to goal", xticklabels=[], title="Experiments with robot")
-    # N° humans that reached the goal with robot
-    bplot2 = ax[0,1].boxplot(n_humans.T[:,0,:], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[0,1].set(xlabel='Policy', ylabel="Number of humans who reached the goal", xticklabels=[], title="Experiments with robot")
+    bplot1 = ax1.boxplot(filtered_avg_hu_times_w_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax1.set(xlabel='Robot policy', ylabel="Average humans' Time to goal", xticklabels=[], title="With robot", ylim=[min_value,max_value])
+    ax1.grid()
     # Time to goal without robot
-    bplot3 = ax[1,0].boxplot(filtered_avg_hu_times_wout_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[1,0].set(xlabel='', ylabel="Average humans' Time to goal", xticklabels=[], title="Experiments without robot")
+    bplot2 = ax2.boxplot(filtered_avg_hu_times_wout_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax2.set(xlabel='Set of trials with same duration of the ones with robot', ylabel="Average humans' Time to goal", xticklabels=[], title="Without robot", ylim=[min_value,max_value])
+    ax2.grid()
+    # N° humans that reached the goal with robot
+    bplot3 = ax3.boxplot(n_humans_w_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax3.set(xlabel='Robot policy', ylabel="N° of successful humans", xticklabels=[])
+    ax3.grid()
     # N° humans that reached the goal without robot
-    bplot4 = ax[1,1].boxplot(n_humans.T[:,1,:], showmeans=True, labels=POLICY_NAMES, patch_artist=True)
-    ax[1,1].set(xlabel='', ylabel="Number of humans who reached the goal", xticklabels=[], title="Experiments without robot")
+    bplot4 = ax4.boxplot(n_humans_wout_robot, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax4.set(xlabel='Set of trials with same duration of the ones with robot', ylabel="N° of successful humans", xticklabels=[])
+    ax4.grid()
+    # Episode times 
+    bplot5 = ax5.boxplot(ep_times, showmeans=True, labels=POLICY_NAMES, patch_artist=True)
+    ax5.set(xlabel='Robot Policy', ylabel="Duration of the trials", xticklabels=[], title="Duration of the trials (seconds)")
+    ax5.grid()
     # Set color of boxplots
-    for bplot in (bplot1, bplot2, bplot3, bplot4):
+    for bplot in (bplot1, bplot2, bplot3, bplot4, bplot5):
         for patch, color in zip(bplot['boxes'], COLORS):
             patch.set_facecolor(color)
     # Legend

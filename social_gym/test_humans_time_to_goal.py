@@ -29,10 +29,10 @@ HUMAN_STATES_FILE = "human_states_tests_without_robot.pkl"
 HEADLESS = False
 # The script is divided in four phases: extract humans' times to goal from experiments with robot, 
 # simulate episodes without robot, extract humans' times to goal from experiments without robot, merge the extracted data.
-SKIP_PHASE_1 = True # If true, data of experiments with robot will be extracted from the OUTPUT_FILE_WITH_ROBOT specified, otherwise data will be computed from passed RESULTS_FILES
-SKIP_PHASE_2 = False # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
-SKIP_PHASE_3 = True # If true, humans' time to goal is not extracted from experiments without robot
-SKIP_PHASE_4 = True # If true, experimental data of test with and without robot is not combined
+SKIP_PHASE_1 = False # If true, data of experiments with robot will be extracted from the OUTPUT_FILE_WITH_ROBOT specified, otherwise data will be computed from passed RESULTS_FILES
+SKIP_PHASE_2 = True # If true, data of experiments without robot will be extracted from the HUMAN_STATES_FILE specified, otherwise tests without humans will be executed
+SKIP_PHASE_3 = False # If true, humans' time to goal is not extracted from experiments without robot
+SKIP_PHASE_4 = False # If true, experimental data of test with and without robot is not combined
 ### IMPLEMENTATION VARIABLES (do not change)
 ENVIRONMENTS = ["orca", "sfm_guo", "hsfm_new_guo"]
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
@@ -48,12 +48,20 @@ if not SKIP_PHASE_1:
         for k, test in enumerate(test_data):
             print(" ************************ ")
             print("")
+            # Find n° successful episodes for this test
+            trials_success = [int(trial["success"]) for trial in test_data[test]["results"]]
+            not_successful_trials_indexes = [idx for idx, value in enumerate(trials_success) if value == 0]
+            n_successful_trials = sum(trials_success)
+            # Filter successful trials data
+            trials_data = test_data[test]["results"].copy()
+            for index in sorted(not_successful_trials_indexes, reverse=True): del trials_data[index]
+            # Start data extraction
             test_extracted_data = {}
             n_humans = int(test.replace("_humans",""))
-            human_time_to_goal = np.empty((test_data[test]["specifics"]["trials"],n_humans), dtype=np.float64); human_time_to_goal[:] = np.NaN
-            n_humans_reached_goal = np.zeros((test_data[test]["specifics"]["trials"],), dtype=int)
-            episode_times = np.zeros((test_data[test]["specifics"]["trials"],), dtype=np.float64)
-            for e, episode in enumerate(test_data[test]["results"]):
+            human_time_to_goal = np.empty((n_successful_trials,n_humans), dtype=np.float64); human_time_to_goal[:] = np.NaN
+            n_humans_reached_goal = np.zeros((n_successful_trials,), dtype=int)
+            episode_times = np.zeros((n_successful_trials,), dtype=np.float64)
+            for e, episode in enumerate(trials_data):
                 human_goals = np.empty((n_humans,2), dtype=np.float64)
                 human_reached_first_goal = [False for z in range(n_humans)]
                 for t, human_states in enumerate(episode["human_states"]):
@@ -81,9 +89,9 @@ if not SKIP_PHASE_1:
             results_file_extracted_data[test] = test_extracted_data
             # Print some info
             print(f"TEST {results} - {test}")
-            print(f"N° humans that reached the goal in {test_data[test]['specifics']['trials']} trials: ", np.sum(n_humans_reached_goal, axis = 0))
+            print(f"N° humans that reached the goal in {n_successful_trials} successful trials: ", np.sum(n_humans_reached_goal, axis = 0))
             print("Average humans time to goal: ", np.nansum(human_time_to_goal, axis=(0,1)) / np.sum(n_humans_reached_goal, axis = 0))
-            print(f"Average episode duration: {np.sum(episode_times, axis = 0) / test_data[test]['specifics']['trials']}")
+            print(f"Average episode duration: {np.sum(episode_times, axis = 0) / n_successful_trials}")
             print("")
         extracted_data[results] = results_file_extracted_data
     # Save extracted data in an output file
@@ -156,9 +164,17 @@ if not SKIP_PHASE_3:
     for i, results in enumerate(RESULTS_FILES):
         results_file_extracted_data = {}
         test_data_with_robot = data_with_robot.copy()[results]
+        with open(os.path.join(os.path.dirname(__file__),'tests','results',results), "rb") as f: test_data = pickle.load(f)
         for k, test in enumerate(test_data_with_robot):
             print(" ************************ ")
             print("")
+            # Find n° successful episodes for this test
+            trials_success = [int(trial["success"]) for trial in test_data[test]["results"]]
+            not_successful_trials_indexes = [idx for idx, value in enumerate(trials_success) if value == 0]
+            n_successful_trials = sum(trials_success)
+            # Filter successful trials data
+            trials_data = test_data[test]["results"].copy()
+            for index in sorted(not_successful_trials_indexes, reverse=True): del trials_data[index]
             test_extracted_data = {}
             n_humans = int(test.replace("_humans",""))
             # Extract data from test_data_with_robot
@@ -166,10 +182,10 @@ if not SKIP_PHASE_3:
             environment = test_data_with_robot[test]["specifics"]["human_policy"]
             time_step = test_data_with_robot[test]["specifics"]["robot_time_step"]
             # Initialize output variables
-            human_time_to_goal = np.empty((test_data_with_robot[test]["specifics"]["trials"],n_humans), dtype=np.float64); human_time_to_goal[:] = np.NaN
-            n_humans_reached_goal = np.zeros((test_data_with_robot[test]["specifics"]["trials"],), dtype=int)
-            episode_times = np.zeros((test_data_with_robot[test]["specifics"]["trials"],), dtype=np.float64)
-            for e in range(test_data_with_robot[test]["specifics"]["trials"]):
+            human_time_to_goal = np.empty((n_successful_trials,n_humans), dtype=np.float64); human_time_to_goal[:] = np.NaN
+            n_humans_reached_goal = np.zeros((n_successful_trials,), dtype=int)
+            episode_times = np.zeros((n_successful_trials,), dtype=np.float64)
+            for e in range(n_successful_trials):
                 human_goals = np.empty((n_humans,2), dtype=np.float64)
                 human_reached_first_goal = [False for z in range(n_humans)]
                 # Take episode data of tests without robot
@@ -200,9 +216,9 @@ if not SKIP_PHASE_3:
             results_file_extracted_data[test] = test_extracted_data
             # Print info
             print(f"TEST {results} - {test}")
-            print(f"N° humans that reached the goal in {test_data_with_robot[test]['specifics']['trials']} trials: ", np.sum(n_humans_reached_goal, axis = 0))
+            print(f"N° humans that reached the goal in {n_successful_trials} successful trials: ", np.sum(n_humans_reached_goal, axis = 0))
             print("Average humans time to goal: ", np.nansum(human_time_to_goal, axis=(0,1)) / np.sum(n_humans_reached_goal, axis = 0))
-            print(f"Average episode duration: {np.sum(episode_times, axis = 0) / test_data_with_robot[test]['specifics']['trials']}")
+            print(f"Average episode duration: {np.sum(episode_times, axis = 0) / n_successful_trials}")
             print("")
         extracted_data_no_robot[results] = results_file_extracted_data
     # Save extracted data in an output file
