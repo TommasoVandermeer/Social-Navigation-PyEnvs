@@ -5,6 +5,7 @@ import matplotlib.colors as mcolors
 from matplotlib.axis import Axis
 from matplotlib.gridspec import GridSpec
 from itertools import zip_longest
+from scipy.stats import ttest_ind
 import pickle
 import numpy as np
 
@@ -14,13 +15,14 @@ HUMAN_TIMES_FILE = "human_times.pkl"
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
-HEAT_MAP = False # If true, heatmaps are plotted
+HEAT_MAP = True # If true, heatmaps are plotted
 CURVE_PLOTS = False # If true, curves are plotted
-HUMAN_TIMES_BOX_PLOTS = True # If true, humans' time to goal with and without robot are plotted
+HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
                   "ssp_on_orca.pkl",
+                  "orca_on_orca.pkl",
                   "cadrl_on_orca_on_orca.pkl",
                   "cadrl_on_sfm_guo_on_orca.pkl",
                   "cadrl_on_hsfm_new_guo_on_orca.pkl",
@@ -32,6 +34,7 @@ TESTED_ON_ORCA = ["bp_on_orca.pkl",
                   "lstm_rl_on_hsfm_new_guo_on_orca.pkl"]
 TESTED_ON_SFM_GUO = ["bp_on_sfm_guo.pkl",
                      "ssp_on_sfm_guo.pkl",
+                     "orca_on_sfm_guo.pkl",
                      "cadrl_on_orca_on_sfm_guo.pkl",
                      "cadrl_on_sfm_guo_on_sfm_guo.pkl",
                      "cadrl_on_hsfm_new_guo_on_sfm_guo.pkl",
@@ -43,6 +46,7 @@ TESTED_ON_SFM_GUO = ["bp_on_sfm_guo.pkl",
                      "lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl"]
 TESTED_ON_HSFM_NEW_GUO = ["bp_on_hsfm_new_guo.pkl",
                           "ssp_on_hsfm_new_guo.pkl",
+                          "orca_on_hsfm_new_guo.pkl",
                           "cadrl_on_orca_on_hsfm_new_guo.pkl",
                           "cadrl_on_sfm_guo_on_hsfm_new_guo.pkl",
                           "cadrl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
@@ -64,6 +68,7 @@ TRAINED_ON_HSFM_NEW_GUO = ["cadrl_on_hsfm_new_guo_on_orca.pkl","cadrl_on_hsfm_ne
 TRAINED_POLICIES_TESTS = TRAINED_ON_ORCA + TRAINED_ON_SFM_GUO + TRAINED_ON_HSFM_NEW_GUO
 POLICY_NAMES = ["bp",
                 "ssp",
+                "orca",
                 "cadrl_on_orca",
                 "cadrl_on_sfm_guo",
                 "cadrl_on_hsfm_new_guo",
@@ -99,12 +104,12 @@ def add_labels(ax:Axis, x:list[str], y:pd.Series):
 
 def plot_single_heatmap(matrix:np.array, ax, metric_name:str):
     ax.imshow(matrix)
-    ax.set_xlabel("Test environment")
-    ax.set_ylabel("Train environment")
+    ax.set_xlabel("Train environment")
+    ax.set_ylabel("Test environment")
     ax.set_xticks(np.arange(len(ENVIRONMENTS)), labels=ENVIRONMENTS_DISPLAY_NAME)
     ax.set_yticks(np.arange(len(ENVIRONMENTS)), labels=ENVIRONMENTS_DISPLAY_NAME)
     for i in range(len(ENVIRONMENTS)):
-        for j in range(len(ENVIRONMENTS)): ax.text(j, i, matrix[i, j], ha="center", va="center", color="w", weight='bold')
+        for j in range(len(ENVIRONMENTS)): ax.text(i, j, matrix[i, j], ha="center", va="center", color="w", weight='bold')
     ax.set_title(metric_name)
 
 def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, more_plots:bool):
@@ -305,9 +310,9 @@ for k, test in enumerate(TESTS):
         indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
         # Complete data has dimensions (n_results_files, n_humans_tests, n_trials, n_metrics)
         for i, environment in enumerate(ENVIRONMENTS):
-            if i == 0: env_indexes = [indexes[test] for test in TESTED_ON_ORCA]
-            elif i == 1: env_indexes = [indexes[test] for test in TESTED_ON_SFM_GUO]
-            else: env_indexes = [indexes[test] for test in TESTED_ON_HSFM_NEW_GUO]
+            if i == 0: env_indexes = [indexes[a] for a in TESTED_ON_ORCA]
+            elif i == 1: env_indexes = [indexes[a] for a in TESTED_ON_SFM_GUO]
+            else: env_indexes = [indexes[a] for a in TESTED_ON_HSFM_NEW_GUO]
             # Extracting data
             data = complete_data[env_indexes,k]
             # Plotting
@@ -329,6 +334,32 @@ for k, test in enumerate(TESTS):
             # Plotting
             plot_single_test_metrics(test, environment, df_env, True) 
     if HEAT_MAP:
+        ## Data for T-tests
+        # Find numerical indexes of testing environments in the dataframe
+        indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
+        metrics_idxs = [METRICS.index("time_to_goal"),METRICS.index("path_length"),METRICS.index("space_compliance"),METRICS.index("SPL")]
+        # Complete data has dimensions (n_results_files, n_humans_tests, n_trials, n_metrics)
+        train_tests = [TRAINED_ON_ORCA, TRAINED_ON_SFM_GUO, TRAINED_ON_HSFM_NEW_GUO]
+        test_tests = [TESTED_ON_ORCA, TESTED_ON_SFM_GUO, TESTED_ON_HSFM_NEW_GUO]
+        data = [] # (train_env & test_env, metrics, non-nan realizations)
+        for i in range(len(train_tests)):
+            for j in range(len(test_tests)):
+                test_set = list(set(train_tests[i]) & set(test_tests[j]))
+                env_indexes = [indexes[a] for a in test_set]
+                # Extracting data
+                one_data = complete_data[env_indexes,k]
+                ij_data = []
+                for m, metric in enumerate(metrics_idxs): 
+                    not_filtered_data = np.reshape(np.array([one_data[env,:,metric] for env in range(len(one_data))], dtype=np.float64),(300,))
+                    ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
+                data.append(ij_data)
+        for i in range(len(data)):
+            for j in range(len(data)):
+                print(ttest_ind(data[i][0][:],data[j][0][:])) # time_to_goal
+                print(ttest_ind(data[i][1][:],data[j][1][:])) # path_length
+                print(ttest_ind(data[i][2][:],data[j][2][:])) # space_compliance
+                print(ttest_ind(data[i][3][:],data[j][3][:])) # SPL
+        ## Heatmaps
         # Heatmap for each n_humans test
         plot_heatmaps(dataframe.loc[TRAINED_POLICIES_TESTS, :], test)
         # Heatmap for average above all n_humans tests

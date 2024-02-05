@@ -7,11 +7,12 @@ import pandas as pd
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_DATA = True # If true, resulting metrics are exported
-MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies"
+MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies_2"
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
 RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","ssp_on_orca.pkl","ssp_on_sfm_guo.pkl","ssp_on_hsfm_new_guo.pkl",
+                 "orca_on_orca.pkl","orca_on_sfm_guo.pkl","orca_on_hsfm_new_guo.pkl",
                  "cadrl_on_orca_on_orca.pkl","cadrl_on_orca_on_sfm_guo.pkl","cadrl_on_orca_on_hsfm_new_guo.pkl",
                  "cadrl_on_sfm_guo_on_orca.pkl","cadrl_on_sfm_guo_on_sfm_guo.pkl","cadrl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "cadrl_on_hsfm_new_guo_on_orca.pkl","cadrl_on_hsfm_new_guo_on_sfm_guo.pkl","cadrl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",

@@ -18,7 +18,7 @@ ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,2,RANDOMIZE_HUMAN_POSITIONS,"social_momentum",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,4,RANDOMIZE_HUMAN_POSITIONS,"social_momentum",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
