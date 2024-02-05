@@ -2,6 +2,7 @@ from social_gym.src.utils import bound_angle
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
+from social_gym.src.social_momentum import *
 from scipy.integrate import solve_ivp
 import rvo2
 import numpy as np
@@ -34,6 +35,7 @@ class MotionModelManager:
         self.robot = robot
         self.walls = walls
         self.orca = False
+        self.sm = False
         if runge_kutta and motion_model_title=="orca": raise NotImplementedError
         self.set_human_motion_model(motion_model_title)
         self.robot_motion_model_title = None # Robot policy can be set later
@@ -230,8 +232,13 @@ class MotionModelManager:
             for wall in self.walls:
                 self.sim.addObstacle(list(wall.vertices))
             self.sim.processObstacles()
+        elif self.motion_model_title == "social_momentum": 
+            self.sm = True; self.headed = False; self.orca = False; self.include_mass = False
+            self.n_actions = 20
+            self.actions_angles = [((2*math.pi) / self.n_actions) * i for i in range(self.n_actions)]
+            for human in self.humans: human.action_set = [np.array([math.cos(angle), math.sin(angle)], dtype=np.float64) * human.desired_speed for angle in self.actions_angles]
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
-        if self.motion_model_title != "orca": 
+        if "sfm" in self.motion_model_title: 
             for human in self.humans: human.set_parameters(motion_model_title)
             # Check wether all agents parameters are equal, because if so, computation can be fastened
             self.all_equal_humans = True
@@ -295,7 +302,7 @@ class MotionModelManager:
                 self.humans[i].update()
 
     def update_humans(self, t:float, dt:float):
-        if not self.orca: ## SFM & HSFM (both Euler and RK45)
+        if not self.orca and not self.sm: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
                 self.compute_forces()
                 if not self.headed: # SFM Euler
@@ -313,7 +320,7 @@ class MotionModelManager:
                     for i, human in enumerate(self.humans):
                         self.set_new_headed_state_from_rk45_solution(human, solution.y[i*N_HEADED_STATES:i*N_HEADED_STATES+N_HEADED_STATES,-1])
                         self.headed_agent_update_linear_velocity(human) # We update the linear velocity here becaue CrowdNav uses linear velocity for Observable and Full states      
-        else: ## ORCA (only Euler)
+        elif self.orca: ## ORCA (only Euler)
             self.sim.setTimeStep(dt)
             self.sim.doStep()
             for i, agent in enumerate(self.agents):
@@ -323,6 +330,17 @@ class MotionModelManager:
                 self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
                 self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
                 self.update_goals_orca(i)
+        elif self.sm: ## SOCIAL MOMENTUM
+            actions = []
+            for i, human in enumerate(self.humans):
+                self.update_goals(human)
+                collision_free_actions = filter_action_set_for_collisions(i, self.humans, self.robot, human.action_set, self.consider_robot, dt)
+                reactive_agents = update_reactive_agents(i, self.humans, self.robot, self.consider_robot)
+                actions.append(optimize_momentum(human, reactive_agents, collision_free_actions, dt))
+            for i, human in enumerate(self.humans):
+                human.position += human.linear_velocity * dt
+                human.linear_velocity = actions[i] 
+        else: raise ValueError("Motion model for umans not correctly set")
 
     def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
         desired_direction = compute_desired_force(human)
