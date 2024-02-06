@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.axis import Axis
-from matplotlib.gridspec import GridSpec
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+from matplotlib.colors import ListedColormap
 from itertools import zip_longest
 from scipy.stats import ttest_ind
 import pickle
@@ -18,6 +19,7 @@ BOX_PLOTS = False # If true, boxplot are printed
 HEAT_MAP = True # If true, heatmaps are plotted
 CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
+T_TEST_P_VALUE_THRESHOLD = 0.05
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
@@ -103,7 +105,7 @@ def add_labels(ax:Axis, x:list[str], y:pd.Series):
     for i, name in enumerate(x): ax.text(name, y.iloc[i]/2, bar_labels[i], ha = 'center', bbox = dict(facecolor = 'white', alpha = .5))
 
 def plot_single_heatmap(matrix:np.array, ax, metric_name:str):
-    ax.imshow(matrix)
+    ax.imshow(matrix.T)
     ax.set_xlabel("Train environment")
     ax.set_ylabel("Test environment")
     ax.set_xticks(np.arange(len(ENVIRONMENTS)), labels=ENVIRONMENTS_DISPLAY_NAME)
@@ -111,6 +113,31 @@ def plot_single_heatmap(matrix:np.array, ax, metric_name:str):
     for i in range(len(ENVIRONMENTS)):
         for j in range(len(ENVIRONMENTS)): ax.text(i, j, matrix[i, j], ha="center", va="center", color="w", weight='bold')
     ax.set_title(metric_name)
+
+def plot_single_ttest_map(matrix:np.array, ax):
+    # Create custom colormap
+    color_values = np.array([[1.0, 1.0, 1.0, 1.0],[0.0, 1.0, 0.0, 1.0],[1.0, 0.0, 0.0, 1.0]], dtype=np.float64)
+    pvalue_colormap = ListedColormap(color_values)
+    color_matrix = np.empty((len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS)), dtype=np.float64)
+    for r in range(len(ENVIRONMENTS)):
+        for c in range(len(ENVIRONMENTS)):
+            for i in range(len(ENVIRONMENTS)):
+                for j in range(len(ENVIRONMENTS)): 
+                    if r == i and c == j: color_matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] = 0.1
+                    else: color_matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] = 0.4 if matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] <= T_TEST_P_VALUE_THRESHOLD else 0.7
+    # Plot
+    ax.matshow(color_matrix.T, cmap=pvalue_colormap)
+    ax.hlines([-0.5,2.5,5.5,8.5], -0.5, 8.5, linewidth=2, colors='black')
+    ax.vlines([-0.5,2.5,5.5,8.5], -0.5, 8.5, linewidth=2, colors='black')
+    ax.hlines([-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5], -0.5, 8.5, linewidth=1, colors='black')
+    ax.vlines([-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5], -0.5, 8.5, linewidth=1, colors='black')
+    ax.set(xticklabels='', yticklabels='', xlim=[-0.5,8.5], ylim=[-0.5,8.5], title=f'pvalue of t-test', xticks=[], yticks=[])
+    for r in range(len(ENVIRONMENTS)):
+        for c in range(len(ENVIRONMENTS)):
+            for i in range(len(ENVIRONMENTS)):
+                for j in range(len(ENVIRONMENTS)): 
+                    if r == i and c == j: continue
+                    else: ax.text(r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j, str(round(matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j],2)), va='center', ha='center')
 
 def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, more_plots:bool):
     if not more_plots:
@@ -195,32 +222,27 @@ def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
             patch.set_facecolor(color)
     # Legend
     figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
-
-def plot_heatmaps(data:pd.DataFrame, test:str):
+    
+def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, metrics:list[str]):
+    # Data shape (test & train env combination, n_metrics, samples)
+    # T-test Data shape (metric, test_env_combination, test_env_combination, 3)
     ## Initialize metrics matrices
-    time_to_goal_matrix = np.empty((3,3), dtype=np.float64)
-    path_length_matrix = np.empty((3,3), dtype=np.float64)
-    space_compliance_matrix = np.empty((3,3), dtype=np.float64)
-    spl_matrix = np.empty((3,3), dtype=np.float64)
+    n_metrics = len(metrics)
+    average_metrics = np.empty((n_metrics,len(ENVIRONMENTS),len(ENVIRONMENTS)), dtype=np.float64)
     ## Extract data
-    train_tests = [TRAINED_ON_ORCA, TRAINED_ON_SFM_GUO, TRAINED_ON_HSFM_NEW_GUO]
-    test_tests = [TESTED_ON_ORCA, TESTED_ON_SFM_GUO, TESTED_ON_HSFM_NEW_GUO]
-    for i in range(len(ENVIRONMENTS)):
-        for j in range(len(ENVIRONMENTS)):
-            test_set = list(set(train_tests[i]) & set(test_tests[j]))
-            time_to_goal_matrix[i,j] = round(data.loc[test_set]["time_to_goal"].sum() / len(test_set),2)
-            path_length_matrix[i,j] = round(data.loc[test_set]["path_length"].sum() / len(test_set),2)
-            space_compliance_matrix[i,j] = round(data.loc[test_set]["space_compliance"].sum() / len(test_set),2)
-            spl_matrix[i,j] = round(data.loc[test_set]["SPL"].sum() / len(test_set),2)
-    ## Plot heatmaps
-    figure, ax = plt.subplots(2,2)
+    for i in range(len(data)):
+        for j in range(n_metrics): average_metrics[j,i//len(ENVIRONMENTS),i%len(ENVIRONMENTS)] = round(np.sum(data[i][j]) / len(data[i][j]), 2)
+    ## Plot heatmaps with T-test pvalues
+    figure = plt.figure()
     figure.suptitle("Average metrics over all trained robot policies - " + test)
-    plot_single_heatmap(time_to_goal_matrix, ax[0,0], "Time to Goal")
-    plot_single_heatmap(path_length_matrix, ax[0,1], "Path Length")
-    plot_single_heatmap(space_compliance_matrix, ax[1,0], "Space Compliance")
-    plot_single_heatmap(spl_matrix, ax[1,1], "SPL")
-    figure.tight_layout()
-
+    outer = GridSpec(int(n_metrics/2), int(n_metrics/2), figure=figure, wspace=0.2, hspace=0.2)
+    for i in range(n_metrics): # For each metric
+        inner = GridSpecFromSubplotSpec(1, 2, subplot_spec=outer[i], wspace=0.1, hspace=0.1)
+        ax1 = figure.add_subplot(inner[0])
+        ax2 = figure.add_subplot(inner[1])
+        plot_single_heatmap(average_metrics[i], ax1, metrics[i]) # Heatmap with average values
+        plot_single_ttest_map(ttest_data[i,:,:,1], ax2) # P-value of T-tests
+        
 def plot_curves(data:list[pd.DataFrame], test_env:str):
     # Extract data
     time_to_goal_data = np.empty((len(data[0].index.values),len(TESTS)), dtype=np.float64)
@@ -242,7 +264,7 @@ def plot_human_times_boxplots(test:str, environment:str, ep_times:list, hu_times
     # ep_times(list(np.array)) - (11,successful_trials) - first dimension is list
     # hu_times(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
     # n_humans(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
-    figure =plt.figure()
+    figure = plt.figure()
     figure.suptitle(f"Test environment: {environment} - {test}")
     gs = GridSpec(2, 3, figure=figure)
     ax1 = figure.add_subplot(gs[0,0])
@@ -334,10 +356,11 @@ for k, test in enumerate(TESTS):
             # Plotting
             plot_single_test_metrics(test, environment, df_env, True) 
     if HEAT_MAP:
-        ## Data for T-tests
+        ## Extracting data
         # Find numerical indexes of testing environments in the dataframe
         indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
-        metrics_idxs = [METRICS.index("time_to_goal"),METRICS.index("path_length"),METRICS.index("space_compliance"),METRICS.index("SPL")]
+        metrics_names = ["time_to_goal","path_length","space_compliance","SPL"]
+        metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
         # Complete data has dimensions (n_results_files, n_humans_tests, n_trials, n_metrics)
         train_tests = [TRAINED_ON_ORCA, TRAINED_ON_SFM_GUO, TRAINED_ON_HSFM_NEW_GUO]
         test_tests = [TESTED_ON_ORCA, TESTED_ON_SFM_GUO, TESTED_ON_HSFM_NEW_GUO]
@@ -353,20 +376,29 @@ for k, test in enumerate(TESTS):
                     not_filtered_data = np.reshape(np.array([one_data[env,:,metric] for env in range(len(one_data))], dtype=np.float64),(300,))
                     ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
                 data.append(ij_data)
-        for i in range(len(data)):
-            for j in range(len(data)):
-                print(ttest_ind(data[i][0][:],data[j][0][:])) # time_to_goal
-                print(ttest_ind(data[i][1][:],data[j][1][:])) # path_length
-                print(ttest_ind(data[i][2][:],data[j][2][:])) # space_compliance
-                print(ttest_ind(data[i][3][:],data[j][3][:])) # SPL
+        # T-test
+        ttest_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
+        for r in range(len(ENVIRONMENTS)):
+            for c in range(len(ENVIRONMENTS)):
+                for i in range(len(data)):
+                        for m in range(len(metrics_idxs)):
+                            ttest = ttest_ind(data[(r*len(ENVIRONMENTS)) + c][m][:],data[i][m][:])
+                            ttest_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
         ## Heatmaps
-        # Heatmap for each n_humans test
-        plot_heatmaps(dataframe.loc[TRAINED_POLICIES_TESTS, :], test)
+        plot_heatmaps(data, test, ttest_data, metrics_names)
         # Heatmap for average above all n_humans tests
-        if k == 0: average_df = dataframe.loc[TRAINED_POLICIES_TESTS, :]
+        if k == 0: average_data = data.copy()
         else: 
-            average_df += dataframe.loc[TRAINED_POLICIES_TESTS, :]
-            if k == len(TESTS) - 1: average_df /= len(TESTS); plot_heatmaps(average_df, "Average of all tests")
+            for i, combination in enumerate(average_data): average_data[i] = [np.append(combination[metric], data[i][metric], axis = 0) for metric in range(len(combination))]
+            if k == len(TESTS) - 1: 
+                ttest_average_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
+                for r in range(len(ENVIRONMENTS)):
+                    for c in range(len(ENVIRONMENTS)):
+                        for i in range(len(data)):
+                                for m in range(len(metrics_idxs)):
+                                    ttest = ttest_ind(average_data[(r*len(ENVIRONMENTS)) + c][m][:],average_data[i][m][:])
+                                    ttest_average_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
+                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, metrics_names)
     if CURVE_PLOTS:
         if k == 0: all_test_on_orca_dataframes = []; all_test_on_sfm_dataframes = []; all_test_on_hsfm_dataframes = []
         all_test_on_orca_dataframes.append(dataframe.loc[TESTED_ON_ORCA, :])
