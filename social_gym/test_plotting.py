@@ -119,12 +119,10 @@ def plot_single_ttest_map(matrix:np.array, ax):
     color_values = np.array([[1.0, 1.0, 1.0, 1.0],[0.0, 1.0, 0.0, 1.0],[1.0, 0.0, 0.0, 1.0]], dtype=np.float64)
     pvalue_colormap = ListedColormap(color_values)
     color_matrix = np.empty((len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS)), dtype=np.float64)
-    for r in range(len(ENVIRONMENTS)):
-        for c in range(len(ENVIRONMENTS)):
-            for i in range(len(ENVIRONMENTS)):
-                for j in range(len(ENVIRONMENTS)): 
-                    if r == i and c == j: color_matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] = 0.1
-                    else: color_matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] = 0.4 if matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j] <= T_TEST_P_VALUE_THRESHOLD else 0.7
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]): 
+            if matrix[i,j] == 1.0: color_matrix[i,matrix.shape[1] - j - 1] = 0.1
+            else: color_matrix[i,matrix.shape[1] - j - 1] = 0.4 if matrix[i,j] <= T_TEST_P_VALUE_THRESHOLD else 0.7
     # Plot
     ax.matshow(color_matrix.T, cmap=pvalue_colormap)
     ax.hlines([-0.5,2.5,5.5,8.5], -0.5, 8.5, linewidth=2, colors='black')
@@ -132,12 +130,10 @@ def plot_single_ttest_map(matrix:np.array, ax):
     ax.hlines([-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5], -0.5, 8.5, linewidth=1, colors='black')
     ax.vlines([-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5], -0.5, 8.5, linewidth=1, colors='black')
     ax.set(xticklabels='', yticklabels='', xlim=[-0.5,8.5], ylim=[-0.5,8.5], title=f'pvalue of t-test', xticks=[], yticks=[])
-    for r in range(len(ENVIRONMENTS)):
-        for c in range(len(ENVIRONMENTS)):
-            for i in range(len(ENVIRONMENTS)):
-                for j in range(len(ENVIRONMENTS)): 
-                    if r == i and c == j: continue
-                    else: ax.text(r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j, str(round(matrix[r*len(ENVIRONMENTS)+i,c*len(ENVIRONMENTS)+j],2)), va='center', ha='center')
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]): 
+            if matrix[j,i] == 1.0: continue
+            else: ax.text(i,matrix.shape[1] - j - 1, str(round(matrix[i,j],2)), va='center', ha='center')
 
 def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, more_plots:bool):
     if not more_plots:
@@ -376,13 +372,16 @@ for k, test in enumerate(TESTS):
                     not_filtered_data = np.reshape(np.array([one_data[env,:,metric] for env in range(len(one_data))], dtype=np.float64),(300,))
                     ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
                 data.append(ij_data)
-        # T-test
+        # if k == 0: 
+        #     for i, d in enumerate(data): print(f"Train env: {ENVIRONMENTS[i//len(ENVIRONMENTS)]} - Test env: {ENVIRONMENTS[i%len(ENVIRONMENTS)]} - Average time to goal: {round(np.sum(d[0]) / len(d[0]),2)}")
+        ## T-test
         ttest_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
         for r in range(len(ENVIRONMENTS)):
             for c in range(len(ENVIRONMENTS)):
                 for i in range(len(data)):
                         for m in range(len(metrics_idxs)):
                             ttest = ttest_ind(data[(r*len(ENVIRONMENTS)) + c][m][:],data[i][m][:])
+                            # if k == 0 and m == 0: print(f"Time to goal T-test {ENVIRONMENTS[r]} - {ENVIRONMENTS[c]} VS {ENVIRONMENTS[i//len(ENVIRONMENTS)]} - {ENVIRONMENTS[i%len(ENVIRONMENTS)]}: {ttest.pvalue}")
                             ttest_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
         ## Heatmaps
         plot_heatmaps(data, test, ttest_data, metrics_names)
