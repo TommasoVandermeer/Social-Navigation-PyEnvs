@@ -36,7 +36,7 @@ ROBOT_POLICIES = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca","ssp","bp","cadrl",
                  "sarl","lstm_rl"]
 HUMAN_POLICIES = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
-                 "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
+                 "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca","socialforce"]
 LOGGING_BASE_DIR = "tests"
 RESULTS_BASE_DIR = "results"
 if ROBOT_POLICY in TRAINABLE_POLICIES: LOGGING_FILE_NAME = ROBOT_MODEL_DIR[13:] + "_on_" + HUMAN_POLICY + ".log"
@@ -70,7 +70,8 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
             if robot_policy_index < 10: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=False, runge_kutta=True)
             elif robot_policy_index == 10: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=False)
             elif robot_policy_index >= 11 and robot_policy_index < 13: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True)
-            else: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),robot_model_dir), il=False)
+            elif robot_policy_index >= 13 and robot_policy_index < 16: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),robot_model_dir), il=False)
+            else: raise ValueError(f"Robot policy {robot_policy} not available for tests, available policies are: {ROBOT_POLICIES}")
             simulator.robot.set_radius_and_update_graphics(ROBOT_RADIUS)
             ## RUN FOR MAX TIME PER EPISODE
             human_states, robot_states, trial_collisions, trial_time_to_goal, trial_success, trial_truncated = simulator.run_k_steps(int(TIME_PER_EPISODE/TIME_STEP), additional_info=True, stop_when_collision_or_goal=True, save_states_time_step=ROBOT_TIME_STEP)

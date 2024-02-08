@@ -5,6 +5,7 @@ from social_gym.src.agent import Agent
 from social_gym.src.social_momentum import *
 from scipy.integrate import solve_ivp
 import rvo2
+import socialforce
 import numpy as np
 
 N_GENERAL_STATES = 8
@@ -34,8 +35,9 @@ class MotionModelManager:
         self.humans = humans
         self.robot = robot
         self.walls = walls
-        self.orca = False
-        self.sm = False
+        self.orca = False # ORCA bool controller
+        self.sm = False # Social Momentum bool controller
+        self.sf = False # CrowdNav SocialForce bool controller
         if runge_kutta and motion_model_title=="orca": raise NotImplementedError
         self.set_human_motion_model(motion_model_title)
         self.robot_motion_model_title = None # Robot policy can be set later
@@ -237,6 +239,12 @@ class MotionModelManager:
             self.n_actions = 20
             self.actions_angles = [((2*math.pi) / self.n_actions) * i for i in range(self.n_actions)]
             for human in self.humans: human.action_set = [np.array([math.cos(angle), math.sin(angle)], dtype=np.float64) * human.desired_speed for angle in self.actions_angles]
+        elif self.motion_model_title == "socialforce": 
+            # raise NotImplementedError("The model is currently being implemented and will be available soon.")
+            self.sf = True; self.headed = False; self.orca = False; self.include_mass = False
+            initial_state = np.array([[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans], dtype=np.float64)
+            if self.consider_robot: initial_state = np.append(initial_state, [[self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]], axis = 0)
+            self.sf_sim = socialforce.Simulator(initial_state, delta_t=0.25, v0 = 10, sigma = 0.3)
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if "sfm" in self.motion_model_title: 
             for human in self.humans: human.set_parameters(motion_model_title)
@@ -293,6 +301,7 @@ class MotionModelManager:
                 self.humans[i].angular_velocity = state[i,5]
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
                 if self.orca: self.set_state_orca(i)
+                if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
         else:
             # We only care about position and yaw [x, y, yaw], state can be of any form
             for i in range(len(self.humans)):
@@ -302,7 +311,7 @@ class MotionModelManager:
                 self.humans[i].update()
 
     def update_humans(self, t:float, dt:float):
-        if not self.orca and not self.sm: ## SFM & HSFM (both Euler and RK45)
+        if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
                 self.compute_forces()
                 if not self.headed: # SFM Euler
@@ -320,7 +329,7 @@ class MotionModelManager:
                     for i, human in enumerate(self.humans):
                         self.set_new_headed_state_from_rk45_solution(human, solution.y[i*N_HEADED_STATES:i*N_HEADED_STATES+N_HEADED_STATES,-1])
                         self.headed_agent_update_linear_velocity(human) # We update the linear velocity here becaue CrowdNav uses linear velocity for Observable and Full states      
-        elif self.orca: ## ORCA (only Euler)
+        elif self.orca and not self.sm and not self.sf: ## ORCA (only Euler)
             self.sim.setTimeStep(dt)
             self.sim.doStep()
             for i, agent in enumerate(self.agents):
@@ -330,7 +339,7 @@ class MotionModelManager:
                 self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
                 self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
                 self.update_goals_orca(i)
-        elif self.sm: ## SOCIAL MOMENTUM
+        elif not self.orca and self.sm and not self.sf: ## SOCIAL MOMENTUM
             actions = []
             for i, human in enumerate(self.humans):
                 self.update_goals(human)
@@ -340,6 +349,18 @@ class MotionModelManager:
             for i, human in enumerate(self.humans):
                 human.position += human.linear_velocity * dt
                 human.linear_velocity = actions[i] 
+        elif not self.orca and not self.sm and self.sf: ## CROWDNAV SOCIALFORCE
+            self.sf_sim.delta_t = dt
+            self.sf_sim.step()
+            if self.consider_robot: self.sf_sim.state[len(self.humans), :6] = [self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]
+            for i, human in enumerate(self.humans):
+                human.linear_velocity[0] = self.sf_sim.state[i, 2]
+                human.linear_velocity[1] = self.sf_sim.state[i, 3]
+                human.position[0] = self.sf_sim.state[i, 0]
+                human.position[1] = self.sf_sim.state[i, 1]
+                self.update_goals(human)
+                self.sf_sim.state[i, 4] = human.goals[0][0]
+                self.sf_sim.state[i, 5] = human.goals[0][1]
         else: raise ValueError("Motion model for umans not correctly set")
 
     def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
