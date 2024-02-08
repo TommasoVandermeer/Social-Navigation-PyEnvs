@@ -6,7 +6,7 @@ from matplotlib.axis import Axis
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.colors import ListedColormap
 from itertools import zip_longest
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, f_oneway
 import pickle
 import numpy as np
 
@@ -16,7 +16,8 @@ HUMAN_TIMES_FILE = "human_times.pkl"
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
-HEAT_MAP = True # If true, heatmaps are plotted
+HEAT_MAP = False # If true, heatmaps are plotted
+SARL_ONLY_HEATMAPS = True # If true, heatmaps are plotted considering only sarl policies
 CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 T_TEST_P_VALUE_THRESHOLD = 0.05
@@ -68,6 +69,9 @@ TRAINED_ON_HSFM_NEW_GUO = ["cadrl_on_hsfm_new_guo_on_orca.pkl","cadrl_on_hsfm_ne
                            "sarl_on_hsfm_new_guo_on_orca.pkl","sarl_on_hsfm_new_guo_on_sfm_guo.pkl","sarl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
                            "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 TRAINED_POLICIES_TESTS = TRAINED_ON_ORCA + TRAINED_ON_SFM_GUO + TRAINED_ON_HSFM_NEW_GUO
+SARL_POLICIES_RESULTS = ["sarl_on_orca_on_orca.pkl","sarl_on_orca_on_sfm_guo.pkl","sarl_on_orca_on_hsfm_new_guo.pkl",
+                 "sarl_on_sfm_guo_on_orca.pkl","sarl_on_sfm_guo_on_sfm_guo.pkl","sarl_on_sfm_guo_on_hsfm_new_guo.pkl",
+                 "sarl_on_hsfm_new_guo_on_orca.pkl","sarl_on_hsfm_new_guo_on_sfm_guo.pkl","sarl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 POLICY_NAMES = ["bp",
                 "ssp",
                 "orca",
@@ -219,7 +223,7 @@ def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
     # Legend
     figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
     
-def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, metrics:list[str]):
+def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, metrics:list[str], only_sarl=False):
     # Data shape (test & train env combination, n_metrics, samples)
     # T-test Data shape (metric, test_env_combination, test_env_combination, 3)
     ## Initialize metrics matrices
@@ -230,7 +234,8 @@ def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, metrics:li
         for j in range(n_metrics): average_metrics[j,i//len(ENVIRONMENTS),i%len(ENVIRONMENTS)] = round(np.sum(data[i][j]) / len(data[i][j]), 2)
     ## Plot heatmaps with T-test pvalues
     figure = plt.figure()
-    figure.suptitle("Average metrics over all trained robot policies - " + test)
+    if only_sarl: figure.suptitle("Average metrics for SARL robot policies - " + test)
+    else: figure.suptitle("Average metrics over all trained robot policies - " + test)
     outer = GridSpec(int(n_metrics/2), int(n_metrics/2), figure=figure, wspace=0.2, hspace=0.2)
     for i in range(n_metrics): # For each metric
         inner = GridSpecFromSubplotSpec(1, 2, subplot_spec=outer[i], wspace=0.1, hspace=0.1)
@@ -374,6 +379,11 @@ for k, test in enumerate(TESTS):
                 data.append(ij_data)
         # if k == 0: 
         #     for i, d in enumerate(data): print(f"Train env: {ENVIRONMENTS[i//len(ENVIRONMENTS)]} - Test env: {ENVIRONMENTS[i%len(ENVIRONMENTS)]} - Average time to goal: {round(np.sum(d[0]) / len(d[0]),2)}")
+        ## Anova tests
+        for m, metric in enumerate(metrics_names):
+            print(f"Test Anova on {metric} - {test}")
+            F_statistic, pvalue = f_oneway(*[data[i][m] for i in range(len(data))])
+            print(F_statistic, pvalue)
         ## T-test
         ttest_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
         for r in range(len(ENVIRONMENTS)):
@@ -385,6 +395,52 @@ for k, test in enumerate(TESTS):
                             ttest_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
         ## Heatmaps
         plot_heatmaps(data, test, ttest_data, metrics_names)
+        # Heatmap for average above all n_humans tests
+        if k == 0: average_data = data.copy()
+        else: 
+            for i, combination in enumerate(average_data): average_data[i] = [np.append(combination[metric], data[i][metric], axis = 0) for metric in range(len(combination))]
+            if k == len(TESTS) - 1: 
+                ttest_average_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
+                for r in range(len(ENVIRONMENTS)):
+                    for c in range(len(ENVIRONMENTS)):
+                        for i in range(len(data)):
+                                for m in range(len(metrics_idxs)):
+                                    ttest = ttest_ind(average_data[(r*len(ENVIRONMENTS)) + c][m][:],average_data[i][m][:])
+                                    ttest_average_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
+                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, metrics_names, only_sarl=True)
+    if SARL_ONLY_HEATMAPS:
+        ## Extracting data
+        # Find numerical indexes of testing environments in the dataframe
+        indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
+        metrics_names = ["time_to_goal","path_length","space_compliance","SPL"]
+        metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+        # Complete data has dimensions (n_results_files, n_humans_tests, n_trials, n_metrics)
+        data = [] # (train_env & test_env, metrics, non-nan realizations)
+        for i, file in enumerate(SARL_POLICIES_RESULTS):
+            env_indexes = indexes[file]
+            # Extracting data
+            one_data = complete_data[env_indexes,k]
+            ij_data = []
+            for m, metric in enumerate(metrics_idxs): 
+                not_filtered_data = np.reshape(np.array(one_data[:,metric], dtype=np.float64),(100,))
+                ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
+            data.append(ij_data)
+        ## Anova tests
+        for m, metric in enumerate(metrics_names):
+            print(f"Test Anova on {metric} - {test}")
+            F_statistic, pvalue = f_oneway(*[data[i][m] for i in range(len(data))])
+            print(F_statistic, pvalue)
+        ## T-test
+        ttest_data = np.empty((len(metrics_idxs),len(ENVIRONMENTS)*len(ENVIRONMENTS),len(ENVIRONMENTS)*len(ENVIRONMENTS),3), dtype=np.float64) # (metric, test_env_combination, test_env_combination, 3)
+        for r in range(len(ENVIRONMENTS)):
+            for c in range(len(ENVIRONMENTS)):
+                for i in range(len(data)):
+                        for m in range(len(metrics_idxs)):
+                            ttest = ttest_ind(data[(r*len(ENVIRONMENTS)) + c][m][:],data[i][m][:])
+                            # if k == 0 and m == 0: print(f"Time to goal T-test {ENVIRONMENTS[r]} - {ENVIRONMENTS[c]} VS {ENVIRONMENTS[i//len(ENVIRONMENTS)]} - {ENVIRONMENTS[i%len(ENVIRONMENTS)]}: {ttest.pvalue}")
+                            ttest_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
+        ## Heatmaps
+        plot_heatmaps(data, test, ttest_data, metrics_names, only_sarl=True)
         # Heatmap for average above all n_humans tests
         if k == 0: average_data = data.copy()
         else: 

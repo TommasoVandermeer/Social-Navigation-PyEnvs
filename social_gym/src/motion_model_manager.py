@@ -350,9 +350,9 @@ class MotionModelManager:
                 human.position += human.linear_velocity * dt
                 human.linear_velocity = actions[i] 
         elif not self.orca and not self.sm and self.sf: ## CROWDNAV SOCIALFORCE
+            if self.consider_robot: self.sf_sim.state[len(self.humans), :6] = [self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]
             self.sf_sim.delta_t = dt
             self.sf_sim.step()
-            if self.consider_robot: self.sf_sim.state[len(self.humans), :6] = [self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]
             for i, human in enumerate(self.humans):
                 human.linear_velocity[0] = self.sf_sim.state[i, 2]
                 human.linear_velocity[1] = self.sf_sim.state[i, 3]

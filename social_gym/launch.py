@@ -15,21 +15,21 @@ from custom_config.config_example import data
 HEADLESS = False
 INSERT_ROBOT = True
 ROBOT_VISIBLE = True
-RANDOMIZE_HUMAN_POSITIONS = True
+RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,21,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"socialforce",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
-TIME_STEP = 1/100
+TIME_STEP = 1/60
 social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
 social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
 # social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
+social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
