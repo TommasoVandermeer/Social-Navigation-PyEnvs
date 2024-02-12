@@ -87,8 +87,7 @@ class SocialNavSim:
             global ROBOT_SAMPLING_TIME
             ROBOT_SAMPLING_TIME = time_step
             self.robot.time_step = time_step
-            if self.robot.policy is not None:
-                self.robot.policy.time_step = time_step
+            if self.robot.policy is not None: self.robot.policy.time_step = time_step
         self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
 
     def reset_sim(self, restart_gui=False, reset_robot=True):

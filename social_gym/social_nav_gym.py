@@ -3,6 +3,7 @@ import numpy as np
 import logging
 from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.info import *
+from social_gym.src.utils import is_multiple
 
 HEADLESS = False
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
@@ -59,6 +60,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.config = config
         self.time_limit = config.getint('env', 'time_limit')
         self.time_step = config.getfloat('env', 'time_step')
+        self.robot_time_step = config.getfloat('env', 'robot_time_step')
+        if not is_multiple(self.robot_time_step, self.time_step): raise ValueError("Robot time step must be a multiple of time step")
+        self.time_step_factor = int(self.robot_time_step / self.time_step)
         self.randomize_attributes = config.getboolean('env', 'randomize_attributes')
         self.success_reward = config.getfloat('reward', 'success_reward')
         self.collision_penalty = config.getfloat('reward', 'collision_penalty')
@@ -146,7 +150,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.reset_sim(reset_robot=False)
         if self.safety_space > 0: self.motion_model_manager.set_safety_space(self.safety_space)
         self.set_time_step(self.time_step)
-        self.set_robot_time_step(self.time_step)
+        self.set_robot_time_step(self.robot_time_step)
         # Initialize some variables used later
         self.states = list()
         if hasattr(self.robot.policy, 'action_values'): self.action_values = list()

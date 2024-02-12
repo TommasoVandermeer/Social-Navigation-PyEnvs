@@ -16,9 +16,9 @@ HUMAN_TIMES_FILE = "human_times.pkl"
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
-HEAT_MAP = False # If true, heatmaps are plotted
+HEAT_MAP = True # If true, heatmaps are plotted
 SARL_ONLY_HEATMAPS = False # If true, heatmaps are plotted considering only sarl policies
-SARL_ONLY_BOXPLOTS = True # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
+SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
 CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 T_TEST_P_VALUE_THRESHOLD = 0.05
@@ -497,7 +497,7 @@ for k, test in enumerate(TESTS):
                                 for m in range(len(metrics_idxs)):
                                     ttest = ttest_ind(average_data[(r*len(ENVIRONMENTS)) + c][m][:],average_data[i][m][:])
                                     ttest_average_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
-                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, anova_results, metrics_names)
+                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, anova_results, metrics_names, only_sarl=True)
     if SARL_ONLY_BOXPLOTS:
         ## Extracting data
         # Find numerical indexes of testing environments in the dataframe
