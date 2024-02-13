@@ -39,7 +39,7 @@ def main(env_config_dir, policy_name, policy_config_dir, train_config_dir, outpu
     stdout_handler = logging.StreamHandler(sys.stdout)
     level = logging.INFO if not debug else logging.DEBUG
     logging.basicConfig(level=level, handlers=[stdout_handler, file_handler],
-                        format='%(asctime)s, %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
+                        format='%(asctime)s, %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S", force=True)
     device = torch.device("cuda:0" if torch.cuda.is_available() and gpu else "cpu")
     logging.info('Using device: %s', device)
 
