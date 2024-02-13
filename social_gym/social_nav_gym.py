@@ -112,8 +112,6 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if phase == 'test': self.human_times = [0] * self.human_num
         else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)
         if not self.robot.policy.multiagent_training: self.train_val_sim = 'circle_crossing'
-        if (self.time_step > 0.05) and ('hsfm' in self.human_policy): self.rk45 = True
-        else: self.rk45 = False
         if self.config.get('humans', 'policy') == 'trajnet': raise NotImplementedError
         else:
             counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],'val': 0, 'test': self.case_capacity['val']}
@@ -123,12 +121,12 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,self.rk45,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
+                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.train_val_sim == 'square_crossing': raise NotImplementedError
                 else:
                     if self.test_sim == 'circle_crossing':
                         # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,self.rk45,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
+                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
                     elif self.test_sim == 'square_crossing': raise NotImplementedError
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
             else:
@@ -166,18 +164,20 @@ class SocialNavGym(gym.Env, SocialNavSim):
         Detect collision, compute reward and info, update environment and return (ob, reward, terminated, truncated, info)
         """
         # Collision detection and check if reaching the goal
-        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.time_step)
+        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.robot_time_step)
         # Compute Reward, truncated, terminated, and info
-        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.time_step)
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.robot_time_step)
         # Store state, action value and attention weights
         self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
         if hasattr(self.robot.policy, 'action_values'): self.action_values.append(self.robot.policy.action_values)
         if hasattr(self.robot.policy, 'get_attention_weights'): self.attention_weights.append(self.robot.policy.get_attention_weights())
-        # Update robot state
-        self.robot.step(action, self.time_step)
-        # Update humans state
-        self.motion_model_manager.update_humans(self.global_time, self.time_step)
-        self.global_time += self.time_step
+        # If the robot time step is different from the environment timestep, we apply the same action for robot_timestep/timestep times
+        for _ in range(self.time_step_factor):
+            # Update robot state
+            self.robot.step(action, self.time_step)
+            # Update humans state
+            self.motion_model_manager.update_humans(self.global_time, self.time_step)
+            self.global_time += self.time_step
         # Compute observation
         ob = self.compute_humans_observable_state()
         self.updated = True
@@ -188,18 +188,23 @@ class SocialNavGym(gym.Env, SocialNavSim):
         Makes a step of the environment when the robot is moving following a human policy.
         """
         # Collision detection and check if reaching the goal
-        next_robot_state, action = self.motion_model_manager.get_next_robot_full_state(self.time_step)
-        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.time_step)
+        _, action = self.motion_model_manager.get_next_robot_full_state(self.robot_time_step)
+        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.robot_time_step)
         # Compute Reward, truncated, terminated, and info
-        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.time_step)
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.robot_time_step)
         # Store state, action value and attention weights
         self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
-        # Update robot state
-        # self.motion_model_manager.update_robot(self.global_time, self.time_step)
-        self.motion_model_manager.set_robot_state(next_robot_state)
-        # Update humans state
-        self.motion_model_manager.update_humans(self.global_time, self.time_step)
-        self.global_time += self.time_step
+        # If the robot time step is different from the environment timestep, we apply the same action for robot_timestep/timestep times
+        for i in range(self.time_step_factor):
+            # Update robot state
+            if i == 0:
+                self.motion_model_manager.update_robot_pose(self.time_step)
+                self.motion_model_manager.update_robot(self.global_time, self.robot_time_step, just_velocities=True)
+            else:
+                self.motion_model_manager.update_robot_pose(self.time_step)
+            # Update humans state
+            self.motion_model_manager.update_humans(self.global_time, self.time_step)
+            self.global_time += self.time_step
         # Compute observation
         ob = self.compute_humans_observable_state()
         self.updated = True

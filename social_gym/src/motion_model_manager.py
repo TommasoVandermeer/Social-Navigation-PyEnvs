@@ -529,7 +529,7 @@ class MotionModelManager:
             self.update_goals_orca(len(self.humans), robot_sim=True, robot=True)
             for wall in self.walls: self.robot_sim.addObstacle(list(wall.vertices))
             self.robot_sim.processObstacles()
-        else: raise Exception(f"The human motion model '{self.robot_motion_model_title}' does not exist")
+        else: raise Exception(f"The robot motion model '{self.robot_motion_model_title}' does not exist")
         if self.robot_motion_model_title != "orca": self.robot.set_parameters(self.robot_motion_model_title)
 
     def compute_robot_forces(self):
