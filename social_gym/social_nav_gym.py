@@ -100,6 +100,19 @@ class SocialNavGym(gym.Env, SocialNavSim):
         elif self.robot.sensor == 'RGB': raise NotImplementedError
         return ob
 
+    def check_actual_collisions_and_goal(self):
+        """
+        Based on the current state, this function checks if the robot collides with any human and if it has reacheed the goal.
+        """
+        dmin = 10000.0
+        collision = False
+        for human in self.humans:
+            distance = np.linalg.norm(human.position - self.robot.position) - human.radius - self.robot.radius
+            dmin = distance if distance < dmin else dmin
+            if dmin <= 0: collision = True
+        reaching_goal = np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius
+        return collision, dmin, reaching_goal
+
     def reset(self, phase='test', test_case=None):
         """
         Set px, py, gx, gy, vx, vy, theta for robot and humans
@@ -156,7 +169,6 @@ class SocialNavGym(gym.Env, SocialNavSim):
         # Get current observation and info
         ob = self.compute_humans_observable_state()
         info = Nothing()
-
         return ob, {0: info}
 
     def step(self, action):
@@ -180,33 +192,31 @@ class SocialNavGym(gym.Env, SocialNavSim):
             self.global_time += self.time_step
         # Compute observation
         ob = self.compute_humans_observable_state()
+        # Set the state of the gym env as updated
         self.updated = True
         return ob, reward, terminated, truncated, {0: info}
 
     def imitation_learning_step(self):
         """
         Makes a step of the environment when the robot is moving following a human policy.
+        The imitation learning step compute the reward and infos with the actual state at the end of the update.
         """
-        # Collision detection and check if reaching the goal
-        _, action = self.motion_model_manager.get_next_robot_full_state(self.robot_time_step)
-        collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, self.robot_time_step)
-        # Compute Reward, truncated, terminated, and info
-        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.robot_time_step)
         # Store state, action value and attention weights
         self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
         # If the robot time step is different from the environment timestep, we apply the same action for robot_timestep/timestep times
-        for i in range(self.time_step_factor):
+        for _ in range(self.time_step_factor):
             # Update robot state
-            if i == 0:
-                self.motion_model_manager.update_robot_pose(self.time_step)
-                self.motion_model_manager.update_robot(self.global_time, self.robot_time_step, just_velocities=True)
-            else:
-                self.motion_model_manager.update_robot_pose(self.time_step)
+            self.motion_model_manager.update_robot(self.global_time, self.time_step)
             # Update humans state
             self.motion_model_manager.update_humans(self.global_time, self.time_step)
             self.global_time += self.time_step
         # Compute observation
         ob = self.compute_humans_observable_state()
+        # Collision detection and check if reaching the goal
+        collision, dmin, reaching_goal = self.check_actual_collisions_and_goal()
+        # Compute Reward, truncated, terminated, and info
+        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.global_time, self.robot_time_step)
+        # Set the state of the gym env as updated
         self.updated = True
         return ob, reward, terminated, truncated, {0: info}
 
