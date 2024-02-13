@@ -199,7 +199,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
     def imitation_learning_step(self):
         """
         Makes a step of the environment when the robot is moving following a human policy.
-        The imitation learning step compute the reward and infos with the actual state at the end of the update.
+        The imitation learning step computes the reward and infos with the actual state at the end of the update.
         """
         # Store state, action value and attention weights
         self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
