@@ -1,35 +1,36 @@
 import os
 import math
 import numpy as np
+import time
 from social_gym.social_nav_sim import SocialNavSim
 from custom_config.config_example import data
 # from custom_config.config_corridor import data
 
 ## Motion models: sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
-## hsfm_new, hsfm_new_guo, hsfm_new_moussaid, orca
+## hsfm_new, hsfm_new_guo, hsfm_new_moussaid, orca, social_momentum, socialforce (Crowdnav SFM)
 
 ### SIMULATOR INITIALIZATION
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 # Circular crossing - config_data: [radius, n_actors, random, motion_model, headless, runge_kutta,s insert_robot, randomize_human_attributes, robot_visible]
 HEADLESS = False
-INSERT_ROBOT = True
-ROBOT_VISIBLE = True
+INSERT_ROBOT = False
+ROBOT_VISIBLE = False
 RANDOMIZE_HUMAN_POSITIONS = False
 RANDOMIZE_HUMAN_ATTRIBUTES = False
 RUNGE_KUTTA = False
-social_nav = SocialNavSim([7,25,RANDOMIZE_HUMAN_POSITIONS,"socialforce",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
+social_nav = SocialNavSim([7,25,RANDOMIZE_HUMAN_POSITIONS,"sfm_guo",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
 TIME_STEP = 1/100
 social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
-social_nav.set_robot_time_step(1/4)
+# social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
 # social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
-social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
+# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans

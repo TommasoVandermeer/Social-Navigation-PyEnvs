@@ -3,6 +3,7 @@ from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
 from social_gym.src.social_momentum import *
+from social_gym.src.forces_parallel import *
 from scipy.integrate import solve_ivp
 import rvo2
 import socialforce

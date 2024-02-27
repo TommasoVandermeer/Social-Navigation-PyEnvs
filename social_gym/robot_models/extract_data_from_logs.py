@@ -8,14 +8,14 @@ MODEL_DIRS = ["cadrl_on_orca","cadrl_on_sfm_guo","cadrl_on_hsfm_new_guo",
               "sarl_on_orca","sarl_on_sfm_guo","sarl_on_hsfm_new_guo",
               "lstm_rl_on_orca","lstm_rl_on_sfm_guo","lstm_rl_on_hsfm_new_guo"]
 ### Implementation variables (do not change)
-BASE_DIR = base_dir = os.path.dirname(__file__)
+BASE_DIR = base_dir = os.path.join(os.path.dirname(__file__),"new")
 COLORS = list(mcolors.TABLEAU_COLORS.values())
 
 figure, ax = plt.subplots(1, 1)
 figure.subplots_adjust(right=0.80)
 n = 500 # Moving average window
-figure.suptitle(f"Simple moving average over {n} episodes window of the discounted reward during robot policies training")
-ax.set(xlabel='Episode', ylabel=r'Discounted reward ($\gamma$ = 0.9)', xlim=[-500,10500])
+figure.suptitle(f"Simple moving average over {n} episodes window of the return during robot policies training")
+ax.set(xlabel='Episode', ylabel=r'Return ($\gamma$ = 0.9)', xlim=[-500,15500])
 for i, model in enumerate(MODEL_DIRS):
     # Read log file
     with open(os.path.join(BASE_DIR,model,"output.log")) as f: lines = f.readlines()
@@ -35,7 +35,7 @@ figure, ax = plt.subplots(1, 1)
 figure.subplots_adjust(right=0.80)
 n = 500 # Moving average window
 figure.suptitle(f"Simple moving average over {n} episodes window of the success rate during robot policies training")
-ax.set(xlabel='Episode', ylabel='Success rate', xlim=[-500,10500])
+ax.set(xlabel='Episode', ylabel='Success rate', xlim=[-500,15500])
 for i, model in enumerate(MODEL_DIRS):
     # Read log file
     with open(os.path.join(BASE_DIR,model,"output.log")) as f: lines = f.readlines()

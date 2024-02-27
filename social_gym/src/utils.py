@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from numba import njit
 
 def bound_angle(angle):
     if angle > math.pi: angle -= 2 * math.pi
@@ -40,3 +41,11 @@ def point_to_segment_dist(x1, y1, x2, y2, x3, y3):
 def is_multiple(number, dividend, tolerance=1e-7):
     mod = number % dividend
     return (abs(mod) <= tolerance) or (abs(dividend - mod) <= tolerance)
+
+@njit(nogil=True)
+def two_dim_norm(array:np.ndarray):
+    return math.sqrt(array[0]**2 + array[1]**2)
+
+@njit(nogil=True)
+def two_dim_dot_product(array1:np.ndarray, array2:np.ndarray):
+    return array1[0]*array2[0] + array1[1]*array2[1]
