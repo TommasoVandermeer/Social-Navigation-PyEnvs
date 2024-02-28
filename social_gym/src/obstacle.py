@@ -27,8 +27,8 @@ class Obstacle(pygame.sprite.Sprite):
             if vertices[i][0] > max_x: max_x = vertices[i][0]
             if vertices[i][1] < min_y: min_y = vertices[i][1]
             if vertices[i][1] > max_y: max_y = vertices[i][1]
-            if i < len(vertices)-1: self.segments[i] = [vertices[i], vertices[i+1]]
-            else: self.segments[i] = [vertices[i], vertices[0]]
+            if i < len(vertices)-1: self.segments[i] = [min(vertices[i], vertices[i+1]), max(vertices[i], vertices[i+1])]
+            else: self.segments[i] = [min(vertices[i], vertices[0]), max(vertices[i], vertices[0])]
 
         self.bounding_box_x_length = max_x - min_x
         self.bounding_box_y_length = max_y - min_y

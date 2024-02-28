@@ -43,14 +43,13 @@ class HumanAgent(Agent):
         return np.array([*np.copy(self.position),self.yaw,*np.copy(self.linear_velocity),*np.copy(self.body_velocity),self.angular_velocity,
                          self.radius,self.mass,*self.goals[0],self.desired_speed], np.float64)
         
-    def set_state(self, pose:np.ndarray, velocity:np.ndarray):
-        self.position = pose[0:2]
-        if not self.headed:
-            self.linear_velocity = velocity
-        else:
-            self.yaw = pose[2]
-            self.body_velocity = velocity[0:2]
-            self.angular_velocity = velocity[2]
+    def set_state(self, pose_and_velocity:np.ndarray):
+        # [px,py,theta,vx,vy,bvx,bvy,omega]
+        self.position = pose_and_velocity[0:2]
+        self.yaw = pose_and_velocity[2]
+        self.linear_velocity = pose_and_velocity[3:5]
+        self.body_velocity = pose_and_velocity[5:7]
+        self.angular_velocity = pose_and_velocity[7]
 
     def get_parameters(self, model:str):
         # Params array should be of the form: [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda] (length = 20)
@@ -113,7 +112,7 @@ class HumanAgent(Agent):
             params[16] = self.ko
             params[17] = self.kd
             params[18] = self.alpha
-            params[11] = self.k_lambda
+            params[19] = self.k_lambda
         elif (model == 'hsfm_moussaid'):
             params[0] = self.relaxation_time
             params[9] = self.Ei
@@ -128,7 +127,7 @@ class HumanAgent(Agent):
             params[16] = self.ko
             params[17] = self.kd
             params[18] = self.alpha
-            params[11] = self.k_lambda
+            params[19] = self.k_lambda
         elif (model == 'hsfm_new'):
             params[0] = self.relaxation_time
             params[1] = self.Ai
@@ -140,7 +139,7 @@ class HumanAgent(Agent):
             params[16] = self.ko
             params[17] = self.kd
             params[18] = self.alpha
-            params[11] = self.k_lambda
+            params[19] = self.k_lambda
         elif (model == 'hsfm_new_guo'):
             params[0] = self.relaxation_time
             params[1] = self.Ai
@@ -156,7 +155,7 @@ class HumanAgent(Agent):
             params[16] = self.ko
             params[17] = self.kd
             params[18] = self.alpha
-            params[11] = self.k_lambda
+            params[19] = self.k_lambda
         elif (model == 'hsfm_new_moussaid'):
             params[0] = self.relaxation_time
             params[9] = self.Ei
@@ -171,4 +170,5 @@ class HumanAgent(Agent):
             params[16] = self.ko
             params[17] = self.kd
             params[18] = self.alpha
-            params[11] = self.k_lambda
+            params[19] = self.k_lambda
+        return params

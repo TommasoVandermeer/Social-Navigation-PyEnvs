@@ -49,3 +49,19 @@ def two_dim_norm(array:np.ndarray):
 @njit(nogil=True)
 def two_dim_dot_product(array1:np.ndarray, array2:np.ndarray):
     return array1[0]*array2[0] + array1[1]*array2[1]
+
+@njit(nogil=True)
+def two_by_two_matrix_mul_two_dim_array(matrix:np.ndarray, array:np.ndarray):
+    return np.array([matrix[0,0] * array[0] + matrix[0,1] * array[1], matrix[1,0] * array[0] + matrix[1,1] * array[1]], np.float64)
+
+@njit(nogil=True)
+def bound_two_dim_array_norm(array:np.ndarray, limit:np.float64):
+    array_norm = two_dim_norm(array)
+    if array_norm > limit: array = (array / array_norm) * limit
+    return array
+
+@njit(nogil=True)
+def jitted_bound_angle(angle):
+    if angle > math.pi: angle -= 2 * math.pi
+    if angle < -math.pi: angle += 2 * math.pi
+    return angle
