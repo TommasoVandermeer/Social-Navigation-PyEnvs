@@ -3,8 +3,11 @@ import numpy as np
 from numba import njit
 
 def bound_angle(angle):
-    if angle > math.pi: angle -= 2 * math.pi
-    if angle < -math.pi: angle += 2 * math.pi
+    two_pi = 2 * math.pi
+    if angle >= two_pi: angle %= two_pi # Wrap angle in [-360°,360°]
+    if angle <= -two_pi: angle %= -two_pi # Wrap angle in [-360°,360°]
+    if angle > math.pi: angle -= two_pi
+    if angle < -math.pi: angle += two_pi
     return angle
 
 def round_time(time):
@@ -60,8 +63,4 @@ def bound_two_dim_array_norm(array:np.ndarray, limit:np.float64):
     if array_norm > limit: array = (array / array_norm) * limit
     return array
 
-@njit(nogil=True)
-def jitted_bound_angle(angle):
-    if angle > math.pi: angle -= 2 * math.pi
-    if angle < -math.pi: angle += 2 * math.pi
-    return angle
+jitted_bound_angle = njit(nogil=True)(bound_angle)

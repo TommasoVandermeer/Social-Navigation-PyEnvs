@@ -263,7 +263,7 @@ class MotionModelManager:
             self.goals[:,:,:] = np.NaN
             for i, human in enumerate(self.humans):
                 for j, goal in enumerate(human.goals):
-                    self.goals[i,j] = np.array(goal, np.float64)
+                    self.goals[i,j] = np.array(goal.copy(), np.float64)
             if len(self.walls) > 0:
                 max_n_segments = np.max([len(obs.segments) for obs in self.walls])
                 self.obstacles = np.empty((len(self.walls),max_n_segments,2,2), np.float64)
@@ -337,64 +337,18 @@ class MotionModelManager:
                 self.humans[i].yaw = state[i,2]
                 self.humans[i].update()
 
-    # def update_humans(self, t:float, dt:float):
-    #     if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
-    #         if not self.runge_kutta:
-    #             self.compute_forces()
-    #             if not self.headed: # SFM Euler
-    #                 for agent in self.humans: self.euler_not_headed_single_agent_update(agent, dt, self.include_mass)
-    #             else: # HSFM Euler
-    #                 for agent in self.humans: self.euler_headed_single_agent_update(agent, dt)
-    #         else:
-    #             if not self.headed: # SFM RK45
-    #                 current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
-    #                 solution = solve_ivp(self.f_rk45_not_headed, (t, t+dt), current_state, method='RK45')
-    #                 for i, human in enumerate(self.humans): self.set_new_not_headed_state_from_rk45_solution(human, solution.y[i*N_NOT_HEADED_STATES:i*N_NOT_HEADED_STATES+N_NOT_HEADED_STATES,-1])
-    #             else: # HSFM RK45
-    #                 current_state = np.reshape(self.get_human_states(include_goal=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
-    #                 solution = solve_ivp(self.f_rk45_headed, (t, t+dt), current_state, method='RK45')
-    #                 for i, human in enumerate(self.humans):
-    #                     self.set_new_headed_state_from_rk45_solution(human, solution.y[i*N_HEADED_STATES:i*N_HEADED_STATES+N_HEADED_STATES,-1])
-    #                     self.headed_agent_update_linear_velocity(human) # We update the linear velocity here becaue CrowdNav uses linear velocity for Observable and Full states      
-    #     elif self.orca and not self.sm and not self.sf: ## ORCA (only Euler)
-    #         self.sim.setTimeStep(dt)
-    #         self.sim.doStep()
-    #         for i, agent in enumerate(self.agents):
-    #             if i == len(self.humans): self.set_state_orca(i); continue # Robot
-    #             self.humans[i].linear_velocity[0] = self.sim.getAgentVelocity(agent)[0]
-    #             self.humans[i].linear_velocity[1] = self.sim.getAgentVelocity(agent)[1]
-    #             self.humans[i].position[0] = self.sim.getAgentPosition(agent)[0]
-    #             self.humans[i].position[1] = self.sim.getAgentPosition(agent)[1]
-    #             self.update_goals_orca(i)
-    #     elif not self.orca and self.sm and not self.sf: ## SOCIAL MOMENTUM
-    #         actions = []
-    #         for i, human in enumerate(self.humans):
-    #             self.update_goals(human)
-    #             collision_free_actions = filter_action_set_for_collisions(i, self.humans, self.robot, human.action_set, self.consider_robot, dt)
-    #             reactive_agents = update_reactive_agents(i, self.humans, self.robot, self.consider_robot)
-    #             actions.append(optimize_momentum(human, reactive_agents, collision_free_actions, dt))
-    #         for i, human in enumerate(self.humans):
-    #             human.position += human.linear_velocity * dt
-    #             human.linear_velocity = actions[i] 
-    #     elif not self.orca and not self.sm and self.sf: ## CROWDNAV SOCIALFORCE
-    #         if self.consider_robot: self.sf_sim.state[len(self.humans), :6] = [self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]
-    #         self.sf_sim.delta_t = dt
-    #         self.sf_sim.step()
-    #         for i, human in enumerate(self.humans):
-    #             human.linear_velocity[0] = self.sf_sim.state[i, 2]
-    #             human.linear_velocity[1] = self.sf_sim.state[i, 3]
-    #             human.position[0] = self.sf_sim.state[i, 0]
-    #             human.position[1] = self.sf_sim.state[i, 1]
-    #             self.update_goals(human)
-    #             self.sf_sim.state[i, 4] = human.goals[0][0]
-    #             self.sf_sim.state[i, 5] = human.goals[0][1]
-    #     else: raise ValueError("Motion model for umans not correctly set")
-
     def update_humans(self, t:float, dt:float):
         if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
+                ### PARALLEL SFM/HSFM
                 self.states = update_agents_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, all_params_equal=self.all_equal_humans)
                 for i, human in enumerate(self.humans): human.set_state(self.states[i,0:8])
+                ### END PARALLEL SFM/HSFM
+                # self.compute_forces()
+                # if not self.headed: # SFM Euler
+                #     for agent in self.humans: self.euler_not_headed_single_agent_update(agent, dt, self.include_mass)
+                # else: # HSFM Euler
+                #     for agent in self.humans: self.euler_headed_single_agent_update(agent, dt)
             else:
                 if not self.headed: # SFM RK45
                     current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))

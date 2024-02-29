@@ -6,6 +6,9 @@ import logging
 from crowd_nav.policy_no_train.policy import Policy
 from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.utils.state import ObservableState, FullState
+from numba import njit, prange
+from social_gym.src.utils import two_dim_norm, two_dim_dot_product
+import math
 
 
 def mlp(input_dim, mlp_dims, last_relu=False):
@@ -13,11 +16,72 @@ def mlp(input_dim, mlp_dims, last_relu=False):
     mlp_dims = [input_dim] + mlp_dims
     for i in range(len(mlp_dims) - 1):
         layers.append(nn.Linear(mlp_dims[i], mlp_dims[i + 1]))
-        if i != len(mlp_dims) - 2 or last_relu:
-            layers.append(nn.ReLU())
+        if i != len(mlp_dims) - 2 or last_relu: layers.append(nn.ReLU())
     net = nn.Sequential(*layers)
     return net
 
+@njit(nogil=True)
+def feedforward(state:np.ndarray, value_network:np.ndarray):
+    return 0.0
+
+@njit(nogil=True)
+def transform_state_to_agent_centric(state:np.ndarray):
+    # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1] (14)
+    # Output state is in the form: [dg,v_pref,theta,radius,vx,vy,px1,py1,vx1,vy1,radius1,da,radius_sum] (13)
+    transformed_state = np.empty((13,), np.float64)
+    rot = math.atan2(state[6] - state[1], state[5] - state[0]) 
+    transformed_state[0] = two_dim_norm(state[5:7] - state[0:2]) # dg
+    transformed_state[1] = state[7] # vpref
+    transformed_state[2] = 0.0 # theta
+    transformed_state[3] = state[4] # radius
+    transformed_state[4] = state[2] * math.cos(rot) + state[3] * math.sin(rot) # vx
+    transformed_state[5] = state[3] * math.cos(rot) - state[2] * math.sin(rot) # vy
+    transformed_state[6] = (state[9] - state[0]) * math.cos(rot) + (state[10] - state[1]) * math.sin(rot) # px1
+    transformed_state[7] = (state[10] - state[1]) * math.cos(rot) - (state[9] - state[0]) * math.sin(rot) # py1 
+    transformed_state[8] = state[11] * math.cos(rot) + state[12] * math.sin(rot) # vx1
+    transformed_state[9] = state[12] * math.cos(rot) - state[11] * math.sin(rot) # vy1
+    transformed_state[10] = state[13] # radius1
+    transformed_state[11] = two_dim_norm(state[9:11] - state[0:2]) # da
+    transformed_state[12] = state[4] + state[13] # radius_sum
+    return transformed_state
+
+@njit(nogil=True, parallel=True)
+def compute_best_action(action_space:np.ndarray, next_humans_state:np.ndarray, current_robot_state:np.ndarray, value_network:np.ndarray, dt:np.float64, gamma:np.float64):
+    ### Humans states are in the form: [px,py,vx,vy,r]
+    ### Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
+    n_actions = len(action_space)
+    n_humans = len(next_humans_state)
+    actions_value = np.empty((n_actions,), np.float64)
+    for ii in prange(n_actions):
+        ## Compute next robot position
+        current_robot_state[0:2] += action_space[ii] * dt
+        # TODO: Use social_nav_sim method for computing reward
+        ## Collision detection
+        dmin = np.iinfo(np.int64).max
+        collision = False
+        for j in range(n_humans):
+            distance = two_dim_norm(next_humans_state[j][0:2] - current_robot_state[0:2]) - next_humans_state[j][4] - current_robot_state[4]
+            if distance < 0: collision = True; break
+            elif (distance >= 0) and (distance < dmin): dmin = distance
+        ## Check if robot reached goal
+        distance_to_goal = two_dim_norm(current_robot_state[0:2] - current_robot_state[5:7])
+        reached_goal = distance_to_goal < current_robot_state[4]
+        ## Compute reward
+        if collision: reward = -0.25
+        elif reached_goal: reward = 1
+        elif dmin < 0.2 and not collision: reward = (dmin - 0.2) * 0.5 * dt
+        else: reward = 0
+        ## Compute action value
+        state_values = np.empty((n_humans,), np.float64)
+        for j in prange(n_humans):
+            # Transform state to be compatible with the Value Network input
+            state = np.concatenate((current_robot_state, next_humans_state[j]))
+            rotated_state = transform_state_to_agent_centric(state)
+            # Feed input into the value network
+            state_values[j] = feedforward(rotated_state, value_network)
+        actions_value[ii] = reward + pow(gamma, dt * current_robot_state[7]) * np.min(state_values)
+    best_action = np.copy(action_space[np.argmax(actions_value)])
+    return best_action
 
 class ValueNetwork(nn.Module):
     def __init__(self, input_dim, mlp_dims):
@@ -27,7 +91,6 @@ class ValueNetwork(nn.Module):
     def forward(self, state):
         value = self.value_network(state)
         return value
-
 
 class CADRL(Policy):
     def __init__(self):
@@ -58,6 +121,7 @@ class CADRL(Policy):
         self.set_common_parameters(config)
         mlp_dims = [int(x) for x in config.get('cadrl', 'mlp_dims').split(', ')]
         self.model = ValueNetwork(self.joint_state_dim, mlp_dims)
+        self.value_network = np.empty((len(mlp_dims)+1,), np.float64)
         self.multiagent_training = config.getboolean('cadrl', 'multiagent_training')
         logging.debug('Policy: CADRL without occupancy map')
 
@@ -91,9 +155,15 @@ class CADRL(Policy):
             rotations = np.linspace(-np.pi / 4, np.pi / 4, self.rotation_samples)
 
         action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
+        self.action_space_ndarray = np.empty((self.speed_samples * self.rotation_samples,2), np.float64)
+        ii = 0
         for rotation, speed in itertools.product(rotations, speeds):
+            # Array for parallelization
+            self.action_space_ndarray[ii] = np.array([speed * np.cos(rotation), speed * np.sin(rotation)], np.float64)
+            # Standard array of actions
             if holonomic: action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
             else: action_space.append(ActionRot(speed, rotation))
+            ii += 1
 
         self.speeds = speeds
         self.rotations = rotations
@@ -136,33 +206,61 @@ class CADRL(Policy):
         """
         if self.phase is None or self.device is None: raise AttributeError('Phase, device attributes have to be set!')
         if self.phase == 'train' and self.epsilon is None: raise AttributeError('Epsilon attribute has to be set in training phase')
-
         if self.reach_destination(state): 
             return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         if self.action_space is None: self.build_action_space(state.self_state.v_pref)
-
         probability = np.random.random()
         if self.phase == 'train' and probability < self.epsilon: max_action = self.action_space[np.random.choice(len(self.action_space))]
         else:
-            self.action_values = list()
-            max_min_value = float('-inf')
-            max_action = None
-            for action in self.action_space:
-                next_self_state = self.propagate(state.self_state, action)
-                ob, reward = self.env.onestep_lookahead(action, self.time_step)
-                batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device) for next_human_state in ob], dim=0)
-                # VALUE UPDATE
-                outputs = self.model(self.rotate(batch_next_states))
-                min_output, min_index = torch.min(outputs, 0)
-                min_value = reward + pow(self.gamma, self.time_step * state.self_state.v_pref) * min_output.data.item()
-                self.action_values.append(min_value)
-                if min_value > max_min_value:
-                    max_min_value = min_value
-                    max_action = action
-
+            r = state.self_state
+            h = state.human_states
+            current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
+            next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+            ## Compute next human state assuming constant velocity 
+            # TODO: As before, make a step of for humans with their policy to compute next state
+            for hs in next_humans_state: hs[0:2] += hs[2:4] * self.time_step
+            ## Find best action
+            max_action = ActionXY(*compute_best_action(self.action_space_ndarray, next_humans_state, current_robot_state, self.value_network, self.time_step, self.gamma))
         if self.phase == 'train': self.last_state = self.transform(state)
-
         return max_action
+
+    # def predict(self, state):
+    #     """
+    #     Input state is the joint state of robot concatenated by the observable state of other agents
+
+    #     To predict the best action, agent samples actions and propagates one step to see how good the next state is
+    #     thus the reward function is needed
+
+    #     """
+    #     if self.phase is None or self.device is None: raise AttributeError('Phase, device attributes have to be set!')
+    #     if self.phase == 'train' and self.epsilon is None: raise AttributeError('Epsilon attribute has to be set in training phase')
+
+    #     if self.reach_destination(state): 
+    #         return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
+    #     if self.action_space is None: self.build_action_space(state.self_state.v_pref)
+
+    #     probability = np.random.random()
+    #     if self.phase == 'train' and probability < self.epsilon: max_action = self.action_space[np.random.choice(len(self.action_space))]
+    #     else:
+    #         self.action_values = list()
+    #         max_min_value = float('-inf')
+    #         max_action = None
+    #         for action in self.action_space:
+    #             next_self_state = self.propagate(state.self_state, action)
+    #             ob, reward = self.env.onestep_lookahead(action, self.time_step)
+    #             batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device) for next_human_state in ob], dim=0)
+    #             # VALUE UPDATE
+    #             outputs = self.model(self.rotate(batch_next_states))
+    #             min_output, min_index = torch.min(outputs, 0)
+    #             min_value = reward + pow(self.gamma, self.time_step * state.self_state.v_pref) * min_output.data.item()
+    #             self.action_values.append(min_value)
+    #             if min_value > max_min_value:
+    #                 max_min_value = min_value
+    #                 max_action = action
+
+    #     if self.phase == 'train': self.last_state = self.transform(state)
+
+    #     return max_action
 
     def transform(self, state):
         """

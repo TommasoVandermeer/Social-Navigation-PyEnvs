@@ -3,6 +3,10 @@ import numpy as np
 from numba import njit, prange
 from social_gym.src.utils import jitted_bound_angle, two_dim_norm, two_dim_dot_product, two_by_two_matrix_mul_two_dim_array, bound_two_dim_array_norm
 
+# TODO: Add robot visibility for humans 
+# TODO: Add robot moving using the SFM
+# TODO: Check social force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation might be wrong)
+
 @njit(nogil=True)
 def compute_rotational_matrix_parallel(agent_state:np.ndarray):
     """
@@ -225,24 +229,25 @@ def update_agents_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
                 if gidx < first_nan_idx - 1: goals[i][gidx,:] = goals[i][gidx+1,:]
                 else: goals[i][gidx,:] = reached_goal
             agents_state[i,10:12] = goals[i][0]
+            updated_state[i,10:12] = goals[i][0]
         ## Update obstacles
         if obstacles is not None:
-            obstacles_closest_points = np.zeros((len(obstacles),2), np.float64)
-            # TODO: Parallelize this loop
-            for j, obs in enumerate(obstacles):
-                min_distance = np.iinfo(np.int64).max
-                closest_point = np.zeros((2,), np.float64)
-                for k in range(len(obs)):
-                    if obs[k][0][0] == np.NaN: continue
-                    else:
-                        t = (two_dim_dot_product(agents_state[i,0:2] - obs[k][0], obs[k][1] - obs[k][0])) / (two_dim_norm(obs[k][1] - obs[k][0]) ** 2)
-                        t_star = min(max(0, t), 1)
-                        h = obs[k][0] + t_star * (obs[k][1] - obs[k][0])
-                        distance = two_dim_norm(h - agents_state[i,0:2])
-                        if distance <= min_distance:
-                            closest_point = h
-                            min_distance = distance
-                obstacles_closest_points[j] = closest_point
+            n_obstacles = len(obstacles)
+            n_segments = len(obstacles[0])
+            obstacles_closest_points = np.zeros((n_obstacles,2), np.float64)
+            distances = np.zeros((n_obstacles, n_segments,), np.float64)
+            closest_points = np.zeros((n_obstacles, n_segments,2), np.float64)
+            for j in prange(n_obstacles * n_segments):
+                oidx = j // n_segments
+                sidx = j % n_segments
+                if np.isnan(obstacles[oidx,sidx,0,0]):
+                    distances[oidx,sidx] = np.iinfo(np.int64).max
+                else:
+                    t = (two_dim_dot_product(agents_state[i,0:2] - obstacles[oidx][sidx][0], obstacles[oidx][sidx][1] - obstacles[oidx][sidx][0])) / (two_dim_norm(obstacles[oidx][sidx][1] - obstacles[oidx][sidx][0]) ** 2)
+                    t_star = min(max(0, t), 1)
+                    closest_points[oidx,sidx] = obstacles[oidx][sidx][0] + t_star * (obstacles[oidx][sidx][1] - obstacles[oidx][sidx][0])
+                    distances[oidx,sidx] = two_dim_norm(closest_points[oidx,sidx] - agents_state[i,0:2])
+            for j in range(n_obstacles): obstacles_closest_points[j] = closest_points[j,np.argmin(distances[j])]
         ## Compute rotational matrix and current linear velocity
         if headed > 0: 
             rotational_matrix = compute_rotational_matrix_parallel(agents_state[i])
