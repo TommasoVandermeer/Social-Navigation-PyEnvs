@@ -3,7 +3,7 @@ from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
 from social_gym.src.social_momentum import *
-from social_gym.src.forces_parallel import update_agents_parallel
+from social_gym.src.forces_parallel import update_humans_parallel
 from scipy.integrate import solve_ivp
 import rvo2
 import socialforce
@@ -16,6 +16,7 @@ ORCA_DEFAULTS = [10,10,5,5] # neighbor_dist, max_neighbors, time_horizon, time_h
 SFMS = ["sfm_helbing","sfm_guo","sfm_moussaid",
         "hsfm_farina","hsfm_guo","hsfm_moussaid",
         "hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
+PARALLEL = True
 
 class Group:
     def __init__(self):
@@ -252,29 +253,27 @@ class MotionModelManager:
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if "sfm" in self.motion_model_title: 
             for human in self.humans: human.set_parameters(motion_model_title)
-
-            ### Added for parallel SFM/HSFM
-            self.sfm_type = SFMS.index(motion_model_title)
-            self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
-            self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], np.float64)
-            # Transform goals and obstacles in np.ndarray
-            max_n_goals = np.max([len(human.goals) for human in self.humans])
-            self.goals = np.empty((len(self.humans),max_n_goals,2), np.float64)
-            self.goals[:,:,:] = np.NaN
-            for i, human in enumerate(self.humans):
-                for j, goal in enumerate(human.goals):
-                    self.goals[i,j] = np.array(goal.copy(), np.float64)
-            if len(self.walls) > 0:
-                max_n_segments = np.max([len(obs.segments) for obs in self.walls])
-                self.obstacles = np.empty((len(self.walls),max_n_segments,2,2), np.float64)
-                self.obstacles[:,:,:,:] = np.NaN
-                for i, obs in enumerate(self.walls):
-                    for j, segment in obs.segments.items():
-                        self.obstacles[i,j,0] = np.array([segment[0][0], segment[0][1]], np.float64)
-                        self.obstacles[i,j,1] = np.array([segment[1][0], segment[1][1]], np.float64)
-            else: self.obstacles = None
-            ###
-
+            if PARALLEL:
+                self.sfm_type = SFMS.index(motion_model_title)
+                self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
+                if self.consider_robot: self.states = np.append(self.states, [self.robot.get_safe_state()], axis = 0)
+                self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], np.float64)
+                # Transform goals and obstacles in np.ndarray
+                max_n_goals = np.max([len(human.goals) for human in self.humans])
+                self.goals = np.empty((len(self.humans),max_n_goals,2), np.float64)
+                self.goals[:,:,:] = np.NaN
+                for i, human in enumerate(self.humans):
+                    for j, goal in enumerate(human.goals):
+                        self.goals[i,j] = np.array(goal.copy(), np.float64)
+                if len(self.walls) > 0:
+                    max_n_segments = np.max([len(obs.segments) for obs in self.walls])
+                    self.obstacles = np.empty((len(self.walls),max_n_segments,2,2), np.float64)
+                    self.obstacles[:,:,:,:] = np.NaN
+                    for i, obs in enumerate(self.walls):
+                        for j, segment in obs.segments.items():
+                            self.obstacles[i,j,0] = np.array([segment[0][0], segment[0][1]], np.float64)
+                            self.obstacles[i,j,1] = np.array([segment[1][0], segment[1][1]], np.float64)
+                else: self.obstacles = None  
             # Check wether all agents parameters are equal, because if so, computation can be fastened
             self.all_equal_humans = True
             for i, human in enumerate(self.humans):
@@ -340,15 +339,16 @@ class MotionModelManager:
     def update_humans(self, t:float, dt:float):
         if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
-                ### PARALLEL SFM/HSFM
-                self.states = update_agents_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, all_params_equal=self.all_equal_humans)
-                for i, human in enumerate(self.humans): human.set_state(self.states[i,0:8])
-                ### END PARALLEL SFM/HSFM
-                # self.compute_forces()
-                # if not self.headed: # SFM Euler
-                #     for agent in self.humans: self.euler_not_headed_single_agent_update(agent, dt, self.include_mass)
-                # else: # HSFM Euler
-                #     for agent in self.humans: self.euler_headed_single_agent_update(agent, dt)
+                if PARALLEL:
+                    if self.consider_robot: self.states[-1] = self.robot.get_safe_state()
+                    self.states = update_humans_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, all_params_equal=self.all_equal_humans, last_is_robot=self.consider_robot)
+                    for i, human in enumerate(self.humans): human.set_state(self.states[i,0:8])
+                else:
+                    self.compute_forces()
+                    if not self.headed: # SFM Euler
+                        for agent in self.humans: self.euler_not_headed_single_agent_update(agent, dt, self.include_mass)
+                    else: # HSFM Euler
+                        for agent in self.humans: self.euler_headed_single_agent_update(agent, dt)
             else:
                 if not self.headed: # SFM RK45
                     current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))

@@ -825,7 +825,7 @@ class SocialNavSim:
         # Detect collision and reaching goal
         collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, time_step)
         # Compute reward, terminated, truncated, and info
-        reward, terminated, truncated, info = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.sim_t, time_step)
+        reward, _, _, _ = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.sim_t, time_step)
         # Next state computation
         if not self.updated: ob = self.last_observation.copy()
         else:

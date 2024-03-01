@@ -16,14 +16,14 @@ HUMAN_TIMES_FILE = "human_times.pkl"
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
-HEAT_MAP = True # If true, heatmaps are plotted
+HEAT_MAP = False # If true, heatmaps are plotted
 SARL_ONLY_HEATMAPS = False # If true, heatmaps are plotted considering only sarl policies
 SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
 CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 T_TEST_P_VALUE_THRESHOLD = 0.05
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
-TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
+TESTS = ["5_humans","15_humans","25_humans","35_humans"] # ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
                   "ssp_on_orca.pkl",
                   "orca_on_orca.pkl",
@@ -256,10 +256,10 @@ def plot_curves(data:list[pd.DataFrame], test_env:str):
     figure, ax = plt.subplots(1,1)
     figure.subplots_adjust(right=0.80)
     figure.suptitle("Average time to goal over tests with increasing crowd density - Environment: " + test_env)
-    ax.set(xlabel="N° humans", ylabel="Average time to Goal", xticklabels=["0","5 humans","7 humans","14 humans","21 humans","28 humans","35 humans"])
-    for i, test in enumerate(tests): ax.plot(time_to_goal_data[i], label=test, color=COLORS[i % 10], linewidth=2)
+    ax.set(xlabel="N° humans", ylabel="Average time to Goal", xticks=np.arange(len(TESTS)), xticklabels=TESTS)
+    for i, test in enumerate(tests): ax.plot(time_to_goal_data[i], label=test, color=COLORS[i % 10], linewidth=2.5)
     ax.grid()
-    handles, labels = ax.get_legend_handles_labels()
+    handles, _ = ax.get_legend_handles_labels()
     figure.legend(handles, POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
 
 def plot_human_times_boxplots(test:str, environment:str, ep_times:list, hu_times:list, n_humans:list):

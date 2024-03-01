@@ -3,7 +3,6 @@ import numpy as np
 from numba import njit, prange
 from social_gym.src.utils import jitted_bound_angle, two_dim_norm, two_dim_dot_product, two_by_two_matrix_mul_two_dim_array, bound_two_dim_array_norm
 
-# TODO: Add robot visibility for humans 
 # TODO: Add robot moving using the SFM
 # TODO: Check social force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation might be wrong)
 
@@ -56,7 +55,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
     """
     n_humans = len(agents_state)
     state = agents_state[idx]
-    social_force = np.array([0.0,0.0])
+    social_force = np.zeros((n_humans,2), np.float64)
     for j in prange(n_humans):
         if idx==j: continue
         # TODO: Add safety_space to rij (and so the the states of each agent)
@@ -68,8 +67,8 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
         if type < 2:
             tij = np.array([-nij[1],nij[0]])
             delta_vij = two_dim_dot_product(agents_state[j][3:5] - state[3:5],tij)
-            if type == 0: social_force += (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + agent_params[11]  * max(0.0,real_distance) * delta_vij * tij
-            elif type == 1: social_force += (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + (agent_params[5] * math.exp((real_distance) / agent_params[7]) + agent_params[11]  * max(0.0,real_distance) * delta_vij) * tij
+            if type == 0: social_force[j] = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + agent_params[11]  * max(0.0,real_distance) * delta_vij * tij
+            elif type == 1: social_force[j] = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + (agent_params[5] * math.exp((real_distance) / agent_params[7]) + agent_params[11]  * max(0.0,real_distance) * delta_vij) * tij
         elif type == 2:
             velocity_difference = state[3:5] - agents_state[j][3:5]
             interaction_vector = agent_params[12] * (velocity_difference) - nij
@@ -81,8 +80,8 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
             Fij = agent_params[13] * interaction_norm
             delta_vij = two_dim_dot_product(-velocity_difference, hij)
             # TODO: Check if the formula is correct
-            social_force += -(agent_params[9] * math.exp(-distance/Fij) * (math.exp(-(agent_params[15]*Fij*theta_ij)**2) * iij + kij * math.exp(-(agent_params[14]*Fij*theta_ij)**2)*hij) + agent_params[10] * max(0.0,real_distance) * iij + agent_params[11] * max(0.0,real_distance) * delta_vij * hij)
-    return social_force
+            social_force[j] = -(agent_params[9] * math.exp(-distance/Fij) * (math.exp(-(agent_params[15]*Fij*theta_ij)**2) * iij + kij * math.exp(-(agent_params[14]*Fij*theta_ij)**2)*hij) + agent_params[10] * max(0.0,real_distance) * iij + agent_params[11] * max(0.0,real_distance) * delta_vij * hij)
+    return np.sum(social_force, axis=0)
 
 @njit(nogil=True, parallel=True)
 def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_params:np.ndarray):
@@ -98,11 +97,11 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
     returns:
     - social_force (numpy.ndarray): for each agent in the form [sfx, sfy]
     """
-    n_humans = len(agents_state)
-    social_force = np.zeros((n_humans,2), np.float64)
-    for idx in prange(n_humans*n_humans):
-        i = idx // n_humans
-        j = idx % n_humans
+    n_agents = len(agents_state)
+    social_force = np.zeros((n_agents,n_agents,2), np.float64)
+    for idx in prange(n_agents*n_agents):
+        i = idx // n_agents
+        j = idx % n_agents
         if i >= j: continue
         else:
             # TODO: Add safety_space to rij (and so the the states of each agent)
@@ -129,9 +128,9 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
                 delta_vij = two_dim_dot_product(-velocity_difference, hij)
                 # TODO: Check if the formula is correct
                 pairwise_social_force = -(agent_params[9] * math.exp(-distance/Fij) * (math.exp(-(agent_params[15]*Fij*theta_ij)**2) * iij + kij * math.exp(-(agent_params[14]*Fij*theta_ij)**2)*hij) + agent_params[10] * max(0.0,real_distance) * iij + agent_params[11] * max(0.0,real_distance) * delta_vij * hij)
-            social_force[i] += pairwise_social_force
-            social_force[j] -= pairwise_social_force
-    return social_force    
+            social_force[i,j] = pairwise_social_force
+            social_force[j,i] = -pairwise_social_force
+    return np.sum(social_force, axis=1)    
 
 @njit(nogil=True, parallel=True)
 def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:np.ndarray, agent_params:np.ndarray):
@@ -183,9 +182,9 @@ def compute_torque_force_parallel(agent_state:np.ndarray, inertia:np.float64, dr
     return torque_force
 
 @njit(nogil=True, parallel=True)
-def update_agents_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, agents_params:np.ndarray, dt:float, all_params_equal=False): 
+def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, agents_params:np.ndarray, dt:float, all_params_equal=False, last_is_robot=False): 
     """
-    Makes a step of dt length by means of the Headed / Social Force Model (depends on which type is passed).
+    Makes a step (for humans) of dt length by means of the Headed / Social Force Model (depends on which type is passed).
 
     args:
     - type (int):
@@ -209,6 +208,7 @@ def update_agents_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
     """
     if type < 0 or type > 8: raise ValueError(f"Type {type} does not exist for this implementation")
     n_agents = len(agents_state)
+    if last_is_robot: n_agents -= 1
     updated_state = np.copy(agents_state)
     soc_force_type = type % 3
     obs_force_type = 0 if type in [0,2,3,5,6,8] else 1
@@ -279,4 +279,33 @@ def update_agents_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
         else:
             updated_state[i,3:5] += (global_forces[i] / updated_state[i,9]) * dt # Linear velocity
             updated_state[i,3:5] = bound_two_dim_array_norm(updated_state[i,3:5], updated_state[i,12]) # Bound linear velocity
+    return updated_state
+
+@njit(nogil=True)
+def update_robot_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, robot_params:np.ndarray, dt:float, all_params_equal=False):
+    """
+    Makes a step (for the robot) of dt length by means of the Headed / Social Force Model (depends on which type is passed).
+
+    args:
+    - type (int):
+        -- 0: SFM Helbing
+        -- 1: SFM Guo
+        -- 2: SFM Moussaid
+        -- 3: HSFM Farina
+        -- 4: HSFM Guo
+        -- 5: HSFM Moussaid
+        -- 6: HSFM New
+        -- 7: HSFM New Guo
+        -- 8: HSFM New Moussaid
+    - agents_state (numpy.ndarray): state of each agent where each state is in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
+    - goals (numpy.ndarray): goals of the robot in the form [g1,g2,g3,...] and each one is in the form [gpx, gpy]
+    - obstacles (numpy.ndarray): array of all the obstacles [o1,o2,...] in the environment, each oi is an array [si1,si2,...] containing the obstacle segments,
+      each segment sij is 2d array containing vertices [vij1, vij2] and each vertex vijk is a 2d vector [vijk_x,vijk_y]
+    - robot_params (numpy.ndarray): params of the robot in the form [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda]
+
+    returns:
+    - updated_state (numpy.ndarray): updated state of the robot in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
+    """
+    if type < 0 or type > 8: raise ValueError(f"Type {type} does not exist for this implementation")
+    updated_state = np.copy(agents_state)
     return updated_state

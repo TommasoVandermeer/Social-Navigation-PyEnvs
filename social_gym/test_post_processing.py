@@ -7,7 +7,7 @@ import pandas as pd
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_DATA = True # If true, resulting metrics are exported
-MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies_2"
+MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies"
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -23,7 +23,7 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
                  "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
-TESTS = ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
+TESTS = ["5_humans","15_humans","25_humans","35_humans"] # ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
@@ -204,69 +204,36 @@ if SINGLE_PROCESSING:
 
     metrics, complete_metrics  = single_results_file_post_processing(test_data)
     metrics_dataframe = pd.DataFrame(metrics, columns=METRICS, index=TESTS)
-    five_humans_complete_metrics = pd.DataFrame(complete_metrics[0], columns=METRICS)
-    seven_humans_complete_metrics = pd.DataFrame(complete_metrics[1], columns=METRICS)
-    fourteen_humans_complete_metrics = pd.DataFrame(complete_metrics[2], columns=METRICS)
-    twentyone_humans_complete_metrics = pd.DataFrame(complete_metrics[3], columns=METRICS)
-    twentyeight_humans_complete_metrics = pd.DataFrame(complete_metrics[4], columns=METRICS)
-    thirtyfive_humans_complete_metrics = pd.DataFrame(complete_metrics[5], columns=METRICS)
     print(metrics_dataframe.head())
+    complete_metrics = []
+    for i, test in enumerate(TESTS): complete_metrics.append(pd.DataFrame(complete_metrics[i], columns=METRICS))
     if EXPORT_DATA:
         file_name = os.path.join(metrics_dir,f"Metrics_{test_data['5_humans']['specifics']['robot_policy']}_on_{test_data['5_humans']['specifics']['human_policy']}.xlsx")
         with pd.ExcelWriter(file_name) as writer: 
             metrics_dataframe.to_excel(writer, sheet_name='average metrics')
-            five_humans_complete_metrics.to_excel(writer, sheet_name='5_humans')
-            seven_humans_complete_metrics.to_excel(writer, sheet_name='7_humans')
-            fourteen_humans_complete_metrics.to_excel(writer, sheet_name='14_humans')
-            twentyone_humans_complete_metrics.to_excel(writer, sheet_name='21_humans')
-            twentyeight_humans_complete_metrics.to_excel(writer, sheet_name='28_humans')
-            thirtyfive_humans_complete_metrics.to_excel(writer, sheet_name='35_humans')
+            for i, test in enumerate(TESTS): complete_metrics[i].to_excel(writer, sheet_name=f'{test}')
 # MULTIPLE POST-PROCESSING
 else:
     # Here we'll save the metrics for each policy for each type of test (based on n humans)
-    five_humans_test_metrics = []
-    seven_humans_test_metrics = []
-    fourteen_humans_test_metrics = []
-    twentyone_humans_test_metrics = []
-    twentyeight_humans_test_metrics = []
-    thirtyfive_humans_test_metrics = []
+    test_metrics = [[] for _ in range(len(TESTS))]
     # Here we'll save complete metrics data
     complete_metrics_data = np.empty((len(RESULTS_FILES),len(TESTS),100,len(METRICS))) # We assume there are 100 trials for each test
     # Post-processing
     for i, results in enumerate(RESULTS_FILES):
-        with open(os.path.join(os.path.dirname(__file__),'tests','results',results), "rb") as f:
-            test_data = pickle.load(f)
+        with open(os.path.join(os.path.dirname(__file__),'tests','results',results), "rb") as f: test_data = pickle.load(f)
         metrics, complete_metrics = single_results_file_post_processing(test_data)
         complete_metrics_data[i] = complete_metrics
         metrics_for_each_test = [test_metrics for test_metrics in metrics]
-        five_humans_test_metrics.append(metrics_for_each_test[0])
-        seven_humans_test_metrics.append(metrics_for_each_test[1])
-        fourteen_humans_test_metrics.append(metrics_for_each_test[2])
-        twentyone_humans_test_metrics.append(metrics_for_each_test[3])
-        twentyeight_humans_test_metrics.append(metrics_for_each_test[4])
-        thirtyfive_humans_test_metrics.append(metrics_for_each_test[5])
+        for j in range(len(TESTS)): test_metrics[j].append(metrics_for_each_test[j])    
     # Dataframes creation
-    five_humans_metrics_dataframe = pd.DataFrame(five_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(five_humans_metrics_dataframe.head())
-    seven_humans_metrics_dataframe = pd.DataFrame(seven_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(seven_humans_metrics_dataframe.head())
-    fourteen_humans_metrics_dataframe = pd.DataFrame(fourteen_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(fourteen_humans_metrics_dataframe.head())
-    twentyone_humans_metrics_dataframe = pd.DataFrame(twentyone_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(twentyone_humans_metrics_dataframe.head())
-    twentyeight_humans_metrics_dataframe = pd.DataFrame(twentyeight_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(twentyeight_humans_metrics_dataframe.head())
-    thirtyfive_humans_metrics_dataframe = pd.DataFrame(thirtyfive_humans_test_metrics, columns=METRICS, index=RESULTS_FILES)
-    print(thirtyfive_humans_metrics_dataframe.head())
+    test_dataframes = []
+    for i in range(len(TESTS)):
+        test_dataframes.append(pd.DataFrame(test_metrics[i], columns=METRICS, index=RESULTS_FILES)) 
+        print(test_dataframes[i].head())
     # Export data
     if EXPORT_DATA:
         excel_file_name = os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.xlsx")
-        with pd.ExcelWriter(excel_file_name) as writer: 
-            five_humans_metrics_dataframe.to_excel(writer, sheet_name='5_humans')
-            seven_humans_metrics_dataframe.to_excel(writer, sheet_name='7_humans')
-            fourteen_humans_metrics_dataframe.to_excel(writer, sheet_name='14_humans')
-            twentyone_humans_metrics_dataframe.to_excel(writer, sheet_name='21_humans')
-            twentyeight_humans_metrics_dataframe.to_excel(writer, sheet_name='28_humans')
-            thirtyfive_humans_metrics_dataframe.to_excel(writer, sheet_name='35_humans')
+        with pd.ExcelWriter(excel_file_name) as writer:
+            for i, test in enumerate(TESTS): test_dataframes[i].to_excel(writer, sheet_name=f'{test}') 
         with open(os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.pkl"), "wb") as f: pickle.dump(complete_metrics_data, f); f.close()
         

@@ -27,7 +27,7 @@ for i, model in enumerate(MODEL_DIRS):
     moving_average_reward = np.convolve(reward, np.ones(n)/n, mode='valid')
     x = np.arange(n,len(reward)+1)
     # Plot learning curve
-    ax.plot(x,moving_average_reward, color=COLORS[(i+3) % len(COLORS)], label=model)
+    ax.plot(x,moving_average_reward, color=COLORS[(i+3) % len(COLORS)], label=model, linewidth=2.5)
 handles, labels = ax.get_legend_handles_labels()
 figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
@@ -47,7 +47,7 @@ for i, model in enumerate(MODEL_DIRS):
     moving_average_success = np.convolve(success, np.ones(n)/n, mode='valid')
     x = np.arange(n,len(success)+1)
     # Plot learning curve
-    ax.plot(x,moving_average_success, color=COLORS[(i+3) % len(COLORS)], label=model)
+    ax.plot(x,moving_average_success, color=COLORS[(i+3) % len(COLORS)], label=model, linewidth=2.5)
 handles, labels = ax.get_legend_handles_labels()
 figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
 
