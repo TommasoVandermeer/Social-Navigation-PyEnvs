@@ -16,7 +16,7 @@ ORCA_DEFAULTS = [10,10,5,5] # neighbor_dist, max_neighbors, time_horizon, time_h
 SFMS = ["sfm_helbing","sfm_guo","sfm_moussaid",
         "hsfm_farina","hsfm_guo","hsfm_moussaid",
         "hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
-PARALLEL = True
+PARALLEL = False
 
 class Group:
     def __init__(self):

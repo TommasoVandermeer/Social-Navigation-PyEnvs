@@ -10,7 +10,8 @@ from numba import njit, prange
 from social_gym.src.utils import two_dim_norm, two_dim_dot_product
 import math
 
-PARALLEL = True
+# WARNING: Parallel feature slightly modifies the policy behavior
+PARALLEL = False
 
 @njit(nogil=True)
 def transform_state_to_agent_centric(state:np.ndarray):
