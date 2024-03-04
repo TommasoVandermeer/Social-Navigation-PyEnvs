@@ -44,6 +44,7 @@ class SocialNavSim:
 
         if scenario == "custom_config": self.config_data = config_data
         elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
+        elif scenario == "parallel_traffic": self.config_data = self.generate_parallel_traffic_scenario(**config_data)
         else: raise Exception(f"Scenario '{scenario}' does not exist")
 
         self.reset_sim(restart_gui=True)
@@ -176,6 +177,7 @@ class SocialNavSim:
         else: 
             self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
             self.robot_controlled = False
+        if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: self.motion_model_manager.parallel_traffic_humans_respawn = True
 
         # Simulation variables
         self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
@@ -289,8 +291,61 @@ class SocialNavSim:
         self.config_data = data
         return data
 
-    def generate_square_crossing_human(self, config_data:list):
-        raise NotImplementedError
+    def generate_parallel_traffic_scenario(self, **kwargs):
+        ## Get input data
+        insert_robot = kwargs["insert_robot"] if "insert_robot" in kwargs else False
+        human_policy = kwargs["human_policy"] if "human_policy" in kwargs else "sfm_guo"
+        headless = kwargs["headless"] if "headless" in kwargs else False
+        runge_kutta = kwargs["runge_kutta"] if "runge_kutta" in kwargs else False
+        robot_visible = kwargs["robot_visible"] if "robot_visible" in kwargs else False
+        robot_radius = kwargs["robot_radius"] if "robot_radius" in kwargs else 0.3
+        traffic_length = kwargs["traffic_length"] if "traffic_length" in kwargs else 14
+        traffic_height = kwargs["traffic_height"] if "traffic_height" in kwargs else 3
+        n_actors = kwargs["n_actors"] if "n_actors" in kwargs else 10
+        randomize_human_attributes = kwargs["randomize_human_attributes"] if "randomize_human_attributes" in kwargs else False
+        ## Generate robot initial condition
+        if insert_robot: robot = {"pos": [- (traffic_length / 2) + 1, 0], "yaw": 0.0, "radius": robot_radius, "goals": [[(traffic_length / 2) - 1, 0],[- (traffic_length / 2) + 1, 0]]}
+        ## Generate humans initial condition
+        humans = {}
+        humans_des_speed = []
+        humans_radius = []
+        if randomize_human_attributes:
+            for i in range(n_actors):
+                humans_des_speed.append(np.random.uniform(0.5, 1.5))
+                humans_radius.append(np.random.uniform(0.3, 0.5))
+        else: #TODO: Load it from config
+            for i in range(n_actors):
+                humans_des_speed.append(1.0)
+                humans_radius.append(0.3)
+        humans_area = 0
+        for r in humans_radius: humans_area += math.pi * (r**2)
+        if humans_area > traffic_length * traffic_height * 0.4: raise ValueError("Number of humans specified is too big for desided traffic height and length")
+        humans_pos = []
+        for i in range(n_actors):
+            while True:
+                a = 0 + humans_radius[i]
+                b = traffic_length - humans_radius[i]
+                pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=np.float64)
+                collide = False
+                for j in range(len(humans_pos)):
+                    other_human_pos = humans_pos[j]
+                    if np.linalg.norm(pos - other_human_pos) - humans_radius[i] - humans_radius[j] - 0.1 < 0: # This is  discomfort distance
+                        collide = True 
+                        break
+                if not collide:
+                    humans_pos.append(pos)
+                    humans[i] = {"pos": [pos[0], pos[1]],
+                                 "yaw": bound_angle(-math.pi),
+                                 "goals": [[-(traffic_length / 2)-3, pos[1]]],
+                                 "des_speed": humans_des_speed[i],
+                                 "radius": humans_radius[i]}
+                    break
+        ## Generate final data
+        if insert_robot: data = {"motion_model": human_policy, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": robot_visible, "grid": True, "walls": [], "humans": humans, "robot": robot}
+        else: data = {"motion_model": human_policy, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "walls": [], "humans": humans}
+        ## Set parallel traffic humans respawn
+        self.parallel_traffic_humans_respawn = True
+        return data
 
     def render_sim(self):
         self.display = pygame.Surface((int(DISPLAY_SIZE / self.zoom),int(DISPLAY_SIZE / self.zoom))) # For zooming

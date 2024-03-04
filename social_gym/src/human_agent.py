@@ -12,6 +12,7 @@ class HumanAgent(Agent):
         display_radius = self.radius * self.ratio
         self.group_id = group_id
         self.goals = goals
+        self.incremental_index = label
 
         self.set_parameters(self.motion_model)
 

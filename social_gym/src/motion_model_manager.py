@@ -44,6 +44,7 @@ class MotionModelManager:
         self.sm = False # Social Momentum bool controller
         self.sf = False # CrowdNav SocialForce bool controller
         if runge_kutta and motion_model_title=="orca": raise NotImplementedError
+        self.parallel_traffic_humans_respawn = False
         self.set_human_motion_model(motion_model_title)
         self.robot_motion_model_title = None # Robot policy can be set later
 
@@ -62,6 +63,10 @@ class MotionModelManager:
                 agent.goals.append(goal_back)
     
     def update_goals(self, agent:Agent):
+        if self.parallel_traffic_humans_respawn and isinstance(agent, HumanAgent):
+            if np.linalg.norm(agent.position - agent.goals[0]) < 3:
+                    print(f"Respawn {agent.incremental_index}")
+                    ### Implement respawn logic
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < agent.radius)):
             goal = agent.goals[0]
             agent.goals.remove(goal)
