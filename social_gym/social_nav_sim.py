@@ -179,7 +179,7 @@ class SocialNavSim:
             self.robot_controlled = False
         if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: 
             self.motion_model_manager.parallel_traffic_humans_respawn = True
-            self.motion_model_manager.respawn_x_lower_bound = self.respawn_x_lower_bound
+            self.motion_model_manager.respawn_bounds = self.respawn_bounds
 
         # Simulation variables
         self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
@@ -351,7 +351,7 @@ class SocialNavSim:
         else: data = {"motion_model": human_policy, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "walls": [], "humans": humans}
         ## Set parallel traffic humans respawn
         self.parallel_traffic_humans_respawn = True
-        self.respawn_x_lower_bound = (traffic_length / 2)
+        self.respawn_bounds = ((traffic_length / 2), (traffic_height / 2))
         return data
 
     def render_sim(self):
