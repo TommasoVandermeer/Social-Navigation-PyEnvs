@@ -21,10 +21,9 @@ from custom_config.config_example import data
 # RUNGE_KUTTA = False
 # social_nav = SocialNavSim([7,5,RANDOMIZE_HUMAN_POSITIONS,"orca",HEADLESS,RUNGE_KUTTA,INSERT_ROBOT,RANDOMIZE_HUMAN_ATTRIBUTES,ROBOT_VISIBLE],scenario="circular_crossing")
 ## Parallel traffic scenario - config_data: {radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible}
-np.random.seed(0)
 social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-                                         "traffic_length": 14, "traffic_height": 3, "n_actors": 25, "randomize_human_attributes": False},
+                                         "traffic_length": 14, "traffic_height": 3, "n_actors": 35, "randomize_human_attributes": False},
                           scenario = "parallel_traffic")
 
 ### SIMULATION UTILS
