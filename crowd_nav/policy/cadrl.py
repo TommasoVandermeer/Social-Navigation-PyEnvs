@@ -10,7 +10,7 @@ from numba import njit, prange
 from social_gym.src.utils import two_dim_norm, two_dim_dot_product
 import math
 
-# WARNING: Parallel feature slightly modifies the policy behavior
+# WARNING: Parallel feature slightly modifies the policy behavior, only holonomic kinematics are supported
 PARALLEL = False
 
 @njit(nogil=True)
@@ -217,9 +217,10 @@ class CADRL(Policy):
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
                 next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
-                ## Compute next human state assuming constant velocity 
+                ## Compute next human state assuming constant velocity
+                next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)  
                 # TODO: As before, make a step of for humans with their policy to compute next state
-                for hs in next_humans_state: hs[0:2] += hs[2:4] * self.time_step
+                for i, hs in enumerate(next_humans_state): hs[0:4] = next_humans_pos_and_vel[i]
                 ## Compute Value Network input and rewards
                 rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_robot_state, self.time_step)
                 ## Compute Value Network output - BOTTLENECK

@@ -6,8 +6,9 @@ import pickle
 from social_gym.social_nav_sim import SocialNavSim
 
 ### GLOBAL VARIABLES TO BE SET TO RUN THE TEST # [5,7,14,21,28,35]
-N_HUMANS = np.array([5,7,14,21,28,35], dtype=int) # With 42 and 49 humans and a radius of 7 meters the code is unable to find a random initial configuration and remains stucked
+N_HUMANS = np.array([5,15,25,35], dtype=int)
 CIRCLE_RADIUS = 7
+SCENARIO = "parallel_traffic" # "circular_crossing" or "parallel_traffic"
 TRIALS = 100
 TIME_PER_EPISODE = 50
 HEADLESS = True
@@ -53,7 +54,7 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
         test_truncated = []
         if SAVE_STATES:
             # TODO: Save human radiuses (also on multiple tests)
-            test_specifics = {"humans": n_agents, "circle_radius": CIRCLE_RADIUS, "trials": TRIALS,
+            test_specifics = {"humans": n_agents, "circle_radius": CIRCLE_RADIUS, "trials": TRIALS, "scenario": SCENARIO,
                                 "max_episode_time": TIME_PER_EPISODE, "fully_cooperative": FULLY_COOPERATIVE,
                                 "time_step": TIME_STEP, "robot_time_step": ROBOT_TIME_STEP, "seed_offset": SEED_OFFSET, "robot_radius": ROBOT_RADIUS,
                                 "runge_kutta": RUNGE_KUTTA, "human_policy": human_policy, "robot_policy": robot_policy,
@@ -62,7 +63,13 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
         for trial in range(TRIALS):
             if trial % 20 == 0: logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
             np.random.seed(SEED_OFFSET + trial)
-            simulator = SocialNavSim([CIRCLE_RADIUS,n_agents,True,human_policy,HEADLESS,RUNGE_KUTTA,True,False,FULLY_COOPERATIVE], "circular_crossing")
+            if SCENARIO == "parallel_traffic": 
+                simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
+                                          "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
+                                          "traffic_length": 14, "traffic_height": 3, "n_actors": n_agents, "randomize_human_attributes": False},
+                                         scenario = "parallel_traffic")
+            elif SCENARIO == "circular_crossing":
+                simulator = SocialNavSim([CIRCLE_RADIUS,n_agents,True,human_policy,HEADLESS,RUNGE_KUTTA,True,False,FULLY_COOPERATIVE], scenario = "circular_crossing")
             if trial == 0 and SAVE_STATES: test_specifics["humans_radiuses"] = [human.radius for human in simulator.humans] # Save human radiuses
             simulator.set_time_step(TIME_STEP)
             simulator.set_robot_time_step(ROBOT_TIME_STEP)

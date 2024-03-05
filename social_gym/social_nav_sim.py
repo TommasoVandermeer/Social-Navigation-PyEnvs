@@ -177,7 +177,9 @@ class SocialNavSim:
         else: 
             self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
             self.robot_controlled = False
-        if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: self.motion_model_manager.parallel_traffic_humans_respawn = True
+        if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: 
+            self.motion_model_manager.parallel_traffic_humans_respawn = True
+            self.motion_model_manager.respawn_x_lower_bound = self.respawn_x_lower_bound
 
         # Simulation variables
         self.robot_env_same_timestep = (SAMPLING_TIME == ROBOT_SAMPLING_TIME)
@@ -323,8 +325,10 @@ class SocialNavSim:
         humans_pos = []
         for i in range(n_actors):
             while True:
-                a = 0 + humans_radius[i]
-                b = traffic_length - humans_radius[i]
+                # a = 0 + humans_radius[i]
+                # b = traffic_length - humans_radius[i]
+                a = -(traffic_length/2 ) + humans_radius[i]
+                b = traffic_length/2 - humans_radius[i]
                 pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=np.float64)
                 collide = False
                 for j in range(len(humans_pos)):
@@ -332,6 +336,8 @@ class SocialNavSim:
                     if np.linalg.norm(pos - other_human_pos) - humans_radius[i] - humans_radius[j] - 0.1 < 0: # This is  discomfort distance
                         collide = True 
                         break
+                if insert_robot and np.linalg.norm(pos - np.array(robot["pos"], np.float64)) - humans_radius[i] - robot["radius"] - 0.1 < 0: # This is  discomfort distance
+                    collide = True
                 if not collide:
                     humans_pos.append(pos)
                     humans[i] = {"pos": [pos[0], pos[1]],
@@ -345,6 +351,7 @@ class SocialNavSim:
         else: data = {"motion_model": human_policy, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "walls": [], "humans": humans}
         ## Set parallel traffic humans respawn
         self.parallel_traffic_humans_respawn = True
+        self.respawn_x_lower_bound = (traffic_length / 2)
         return data
 
     def render_sim(self):

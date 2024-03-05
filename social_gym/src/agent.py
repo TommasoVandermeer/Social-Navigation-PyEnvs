@@ -51,6 +51,9 @@ class Agent():
         self.position = pose[0:2]
         self.yaw = pose[2]
 
+    def set_goals(self, goals:list[list[float]]):
+        self.goals = goals
+
     def move(self):
         self.rect.centerx = round(self.position[0] * self.ratio)
         self.rect.centery = round((self.real_size - self.position[1]) * self.ratio)

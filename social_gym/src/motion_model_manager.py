@@ -63,10 +63,6 @@ class MotionModelManager:
                 agent.goals.append(goal_back)
     
     def update_goals(self, agent:Agent):
-        if self.parallel_traffic_humans_respawn and isinstance(agent, HumanAgent):
-            if np.linalg.norm(agent.position - agent.goals[0]) < 3:
-                    print(f"Respawn {agent.incremental_index}")
-                    ### Implement respawn logic
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < agent.radius)):
             goal = agent.goals[0]
             agent.goals.remove(goal)
@@ -333,6 +329,9 @@ class MotionModelManager:
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
                 if self.orca: self.set_state_orca(i)
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
+                if PARALLEL and self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],*self.states[i,-1]], np.float64)
+                if PARALLEL and not self.headed: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],*self.states[i,-1]], np.float64)
+                if PARALLEL: pass # IMPLEMENT self.goals update logic
         else:
             # We only care about position and yaw [x, y, yaw], state can be of any form
             for i in range(len(self.humans)):
@@ -341,7 +340,8 @@ class MotionModelManager:
                 self.humans[i].yaw = state[i,2]
                 self.humans[i].update()
 
-    def update_humans(self, t:float, dt:float):
+    def update_humans(self, t:float, dt:float, post_update=True):
+        ### Update humans
         if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
                 if PARALLEL:
@@ -398,6 +398,17 @@ class MotionModelManager:
                 self.sf_sim.state[i, 4] = human.goals[0][0]
                 self.sf_sim.state[i, 5] = human.goals[0][1]
         else: raise ValueError("Motion model for umans not correctly set")
+        ### Post-update changes
+        if post_update:
+            if self.parallel_traffic_humans_respawn:
+                for iindex, human in enumerate(self.humans):
+                    if np.linalg.norm(human.position - human.goals[0]) < 3:
+                        ### Respawn logic
+                        human.position[0] = max(max([h.position[0] for h in self.humans]) + (max([h.radius for h in self.humans]) * 2), self.respawn_x_lower_bound)
+                        if self.orca: self.sim.setAgentPosition(self.agents[iindex], (human.position[0], human.position[1]))
+                        if self.sf: self.sf_sim.state[iindex, 0:2] = human.position
+                        if PARALLEL: self.states[iindex, 0:2] = human.position
+                        human.set_goals([[human.goals[0][0], human.position[1]]])
 
     def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
         desired_direction = compute_desired_force(human)
@@ -679,7 +690,7 @@ class MotionModelManager:
         - next_human_observable_states (np.array): next humans observable states (n, 4), for each agent (px, py, vx, vy)
         """
         current_human_states = self.get_human_states(include_goal=True, headed=self.headed)
-        self.update_humans(0, dt)
+        self.update_humans(0, dt, post_update=False)
         next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
         self.set_human_states(current_human_states)
         return next_human_observable_states
