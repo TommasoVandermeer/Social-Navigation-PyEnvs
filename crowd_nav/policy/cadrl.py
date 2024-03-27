@@ -7,11 +7,11 @@ from crowd_nav.policy_no_train.policy import Policy
 from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.utils.state import ObservableState, FullState
 from numba import njit, prange
-from social_gym.src.utils import two_dim_norm, two_dim_dot_product
+from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_distance
 import math
 
 # WARNING: Parallel feature slightly modifies the policy behavior, only holonomic kinematics are supported
-PARALLEL = False
+PARALLEL = True
 
 @njit(nogil=True)
 def transform_state_to_agent_centric(state:np.ndarray):
@@ -50,7 +50,11 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
         dmin = np.iinfo(np.int64).max
         collision = False
         for j in range(n_humans):
-            distance = two_dim_norm(next_humans_state[j][0:2] - next_robot_position) - next_humans_state[j][4] - current_robot_state[4]
+            difference = next_humans_state[j][0:2] - next_robot_position
+            velocity_difference = next_humans_state[j][2:4] - action_space[ii]
+            e = difference + velocity_difference * dt
+            distance = jitted_point_to_segment_distance(difference[0], difference[1], e[0], e[1], 0, 0) - next_humans_state[j][4] - current_robot_state[4]
+            # distance = two_dim_norm(next_humans_state[j][0:2] - next_robot_position) - next_humans_state[j][4] - current_robot_state[4]
             if distance < 0: collision = True; break
             elif (distance >= 0) and (distance < dmin): dmin = distance
         ## Check if robot reached goal
@@ -62,8 +66,8 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
         elif dmin < 0.2 and not collision: rewards[ii] = (dmin - 0.2) * 0.5 * dt
         else: rewards[ii] = 0
         ## Compute rotated state
-        next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8]], np.float64)
-        for j in range(n_humans):
+        next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8], 0.0], np.float64) # WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
+        for j in prange(n_humans):
             # Transform state to be compatible with the Value Network input
             state = np.concatenate((next_robot_state, next_humans_state[j]))
             rotated_states[ii,j] = transform_state_to_agent_centric(state)
@@ -156,8 +160,9 @@ class CADRL(Policy):
             rotations = np.linspace(-np.pi / 4, np.pi / 4, self.rotation_samples)
 
         action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
-        self.action_space_ndarray = np.empty((self.speed_samples * self.rotation_samples,2), np.float64)
-        ii = 0
+        self.action_space_ndarray = np.empty((self.speed_samples * self.rotation_samples + 1,2), np.float64)
+        self.action_space_ndarray[0] = np.array([0, 0], np.float64)
+        ii = 1
         for rotation, speed in itertools.product(rotations, speeds):
             # Array for parallelization
             self.action_space_ndarray[ii] = np.array([speed * np.cos(rotation), speed * np.sin(rotation)], np.float64)
@@ -227,6 +232,7 @@ class CADRL(Policy):
                 value_network_min_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
                     batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13))
+                    # batch_next_states = torch.cat([torch.Tensor([rotated_state]).to(self.device) for rotated_state in rotated_states[ii]], dim=0)
                     outputs = self.model(batch_next_states)  
                     min_output, _ = torch.min(outputs, 0)
                     value_network_min_outputs[ii] = min_output.data.item()

@@ -10,6 +10,7 @@ ROBOT_RADIUS = 0.3
 HUMANS_RADIUS = 0.3
 ROBOT_PREF_SPEED = 1.0
 HUMANS_PREF_SPEED = 1.0
+SCENARIO = "circle_crossing" # "parallel_traffic" or "circle_crossing"
 ### IMPLEMENTATION VARIABLES, DO NOT CHANGE
 ENV_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/env.config')
 POLICY_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/policy.config')
@@ -35,9 +36,10 @@ def write_env_config_file(human_policy:str, time_limit=TIME_LIMIT, robot_pref_sp
                 "\n" +
                 "\n" +
                 "[sim] \n" +
-                "train_val_sim = circle_crossing \n" +
-                "test_sim = circle_crossing \n" +
-                "square_width = 10 \n" +
+                "train_val_sim = " + SCENARIO + "\n" +
+                "test_sim = " + SCENARIO + "\n" +
+                "traffic_length = 14 \n" +
+                "traffic_height = 3 \n" +
                 "circle_radius = 7 \n" +
                 "human_num = 5 \n" +
                 "\n" +

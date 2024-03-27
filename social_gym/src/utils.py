@@ -63,4 +63,16 @@ def bound_two_dim_array_norm(array:np.ndarray, limit:np.float64):
     if array_norm > limit: array = (array / array_norm) * limit
     return array
 
+@njit(nogil=True)
+def jitted_point_to_segment_distance(x1:np.float64, y1:np.float64, x2:np.float64, y2:np.float64, x3:np.float64, y3:np.float64):
+    px = x2 - x1
+    py = y2 - y1
+    if px == 0 and py == 0: return two_dim_norm(np.array([x3-x1, y3-y1], np.float64))
+    u = ((x3 - x1) * px + (y3 - y1) * py) / (px * px + py * py)
+    if u > 1: u = 1
+    elif u < 0: u = 0
+    x = x1 + u * px
+    y = y1 + u * py
+    return two_dim_norm(np.array([x - x3, y-y3], np.float64))
+
 jitted_bound_angle = njit(nogil=True)(bound_angle)
