@@ -30,7 +30,7 @@ ZOOM_BOUNDS = [0.5, 2]
 SCROLL_BOUNDS = [-500,500]
 
 class SocialNavSim:
-    def __init__(self, config_data, scenario="custom_config"):
+    def __init__(self, config_data, scenario = "custom_config", parallelize = False):
         pygame.init()
         self.pygame_init = True
 
@@ -41,9 +41,10 @@ class SocialNavSim:
         self.walls = pygame.sprite.Group()
         self.humans = []
         self.mode = scenario
+        self.parallelize = parallelize
 
         if scenario == "custom_config": self.config_data = config_data
-        elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(config_data)
+        elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(**config_data)
         elif scenario == "parallel_traffic": self.config_data = self.generate_parallel_traffic_scenario(**config_data)
         else: raise Exception(f"Scenario '{scenario}' does not exist")
 
@@ -170,12 +171,12 @@ class SocialNavSim:
         if hasattr(self, "motion_model_manager") and self.motion_model_manager.robot_motion_model_title is not None:
             robot_motion_model_title = self.motion_model_manager.robot_motion_model_title
             robot_runge_kutta = self.motion_model_manager.robot_runge_kutta
-            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize)
             self.motion_model_manager.set_robot_motion_model(robot_motion_model_title, robot_runge_kutta)
             self.robot_crowdnav_policy = False
             self.robot_controlled = True
         else: 
-            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites())
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize)
             self.robot_controlled = False
         if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: 
             self.motion_model_manager.parallel_traffic_humans_respawn = True
@@ -193,18 +194,19 @@ class SocialNavSim:
         self.updates_time = 0.0
         self.previous_updates_time = 0.0
 
-    def generate_circular_crossing_setting(self, config_data:list, robot_radius=None):
-        radius = config_data[0]
-        n_actors = config_data[1]
-        rand = config_data[2]
-        model = config_data[3]
-        headless = config_data[4]
-        runge_kutta = config_data[5]
-        insert_robot = config_data[6]
-        randomize_human_attributes = config_data[7]
-        robot_visible = config_data[8]
-        if robot_radius is not None: robot_r = robot_radius
-        else: robot_r = 0.3
+    def generate_circular_crossing_setting(self, **kwargs):
+        ## Get input data
+        insert_robot = kwargs["insert_robot"] if "insert_robot" in kwargs else False
+        model = kwargs["human_policy"] if "human_policy" in kwargs else "sfm_guo"
+        headless = kwargs["headless"] if "headless" in kwargs else False
+        runge_kutta = kwargs["runge_kutta"] if "runge_kutta" in kwargs else False
+        robot_visible = kwargs["robot_visible"] if "robot_visible" in kwargs else False
+        robot_r = kwargs["robot_radius"] if "robot_radius" in kwargs else 0.3
+        radius = kwargs["circle_radius"] if "circle_radius" in kwargs else 7
+        n_actors = kwargs["n_actors"] if "n_actors" in kwargs else 10
+        randomize_human_attributes = kwargs["randomize_human_attributes"] if "randomize_human_attributes" in kwargs else False
+        rand = kwargs["randomize_human_positions"] if "randomize_human_positions" in kwargs else False
+        # Generate humans initial condition
         center = np.array([0,0],dtype=np.float64) # [self.real_size/2,self.real_size/2]
         humans = {}
         humans_des_speed = []
@@ -352,6 +354,7 @@ class SocialNavSim:
         ## Set parallel traffic humans respawn
         self.parallel_traffic_humans_respawn = True
         self.respawn_bounds = ((traffic_length / 2), (traffic_height / 2))
+        self.config_data = data
         return data
 
     def render_sim(self):

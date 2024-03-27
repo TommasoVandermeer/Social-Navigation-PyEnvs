@@ -449,7 +449,7 @@ for k, test in enumerate(TESTS):
                                 for m in range(len(metrics_idxs)):
                                     ttest = ttest_ind(average_data[(r*len(ENVIRONMENTS)) + c][m][:],average_data[i][m][:])
                                     ttest_average_data[m,(r*len(ENVIRONMENTS)) + i//len(ENVIRONMENTS), (c*len(ENVIRONMENTS)) + i%len(ENVIRONMENTS)] = np.array([ttest.statistic, ttest.pvalue, ttest.df], dtype=np.float64)
-                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, anova_results, metrics_names, only_sarl=True)
+                plot_heatmaps(average_data, "Average of all tests", ttest_average_data, anova_results, metrics_names, only_sarl=False)
     if SARL_ONLY_HEATMAPS:
         ## Extracting data
         # Find numerical indexes of testing environments in the dataframe

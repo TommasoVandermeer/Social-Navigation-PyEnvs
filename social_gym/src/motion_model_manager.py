@@ -16,7 +16,6 @@ ORCA_DEFAULTS = [10,10,5,5] # neighbor_dist, max_neighbors, time_horizon, time_h
 SFMS = ["sfm_helbing","sfm_guo","sfm_moussaid",
         "hsfm_farina","hsfm_guo","hsfm_moussaid",
         "hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
-PARALLEL = False
 
 class Group:
     def __init__(self):
@@ -33,13 +32,14 @@ class Group:
         return len(self.group_agents)
 
 class MotionModelManager:
-    def __init__(self, motion_model_title:str, consider_robot:bool, runge_kutta:bool, humans:list[HumanAgent], robot:RobotAgent, walls:list):
+    def __init__(self, motion_model_title:str, consider_robot:bool, runge_kutta:bool, humans:list[HumanAgent], robot:RobotAgent, walls:list, parallelize = False):
         self.consider_robot = consider_robot
         self.runge_kutta = runge_kutta
         self.update_targets = True
         self.humans = humans
         self.robot = robot
         self.walls = walls
+        self.parallel = parallelize
         self.orca = False # ORCA bool controller
         self.sm = False # Social Momentum bool controller
         self.sf = False # CrowdNav SocialForce bool controller
@@ -56,11 +56,13 @@ class MotionModelManager:
         return velocity
     
     def rewind_goals(self, agent:Agent, goal:list):
-        if ((agent.goals) and (agent.goals[0] != goal)):
-            while agent.goals[0] != goal:
-                goal_back = agent.goals[0]
-                agent.goals.remove(goal_back)
-                agent.goals.append(goal_back)
+        if goal not in agent.goals: agent.set_goals([goal]) # If the goal is not in the list, we overwrite the goal list (used for parallel traffic scenario, where goals list is dynamic)
+        else:
+            if ((agent.goals) and (agent.goals[0] != goal)):
+                while agent.goals[0] != goal:
+                    goal_back = agent.goals[0]
+                    agent.goals.remove(goal_back)
+                    agent.goals.append(goal_back)
     
     def update_goals(self, agent:Agent):
         if ((agent.goals) and (np.linalg.norm(agent.goals[0] - agent.position) < agent.radius)):
@@ -254,7 +256,7 @@ class MotionModelManager:
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if "sfm" in self.motion_model_title: 
             for human in self.humans: human.set_parameters(motion_model_title)
-            if PARALLEL:
+            if self.parallel:
                 self.sfm_type = SFMS.index(motion_model_title)
                 self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
                 if self.consider_robot: self.states = np.append(self.states, [self.robot.get_safe_state()], axis = 0)
@@ -329,9 +331,20 @@ class MotionModelManager:
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
                 if self.orca: self.set_state_orca(i)
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
-                if PARALLEL and self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],*self.states[i,-1]], np.float64)
-                if PARALLEL and not self.headed: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],*self.states[i,-1]], np.float64)
-                if PARALLEL: pass # IMPLEMENT self.goals update logic
+                if self.parallel:
+                    if self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
+                    if self.headed: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
+                    # Goals update logic
+                    if not any(np.array_equal(goal, state[i,6:8]) for goal in self.goals[i]): self.goals[i] = state[i,6:8] # If the goal is not in the list, we insert it at the beginning (used for parallel traffic scenario, where goals list is dynamic)
+                    else:
+                        if not np.array_equal(self.goals[i,0], state[i,6:8]):
+                            if np.isnan(self.goals[i]).any(): first_nan_idx = np.argwhere(np.isnan(self.goals[i]))[0][0]
+                            else: first_nan_idx = len(self.goals[i])
+                            while not np.array_equal(self.goals[i,0], state[i,6:8]):
+                                reached_goal = np.copy(self.goals[i][0])
+                                for gidx in range(first_nan_idx):
+                                    if gidx < first_nan_idx - 1: self.goals[i][gidx,:] = self.goals[i][gidx+1,:]
+                                    else: self.goals[i][gidx,:] = reached_goal
         else:
             # We only care about position and yaw [x, y, yaw], state can be of any form
             for i in range(len(self.humans)):
@@ -344,10 +357,16 @@ class MotionModelManager:
         ### Update humans
         if not self.orca and not self.sm and not self.sf: ## SFM & HSFM (both Euler and RK45)
             if not self.runge_kutta:
-                if PARALLEL:
+                if self.parallel:
                     if self.consider_robot: self.states[-1] = self.robot.get_safe_state()
                     self.states = update_humans_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, all_params_equal=self.all_equal_humans, last_is_robot=self.consider_robot)
-                    for i, human in enumerate(self.humans): human.set_state(self.states[i,0:8])
+                    for i, human in enumerate(self.humans): 
+                        human.set_state(self.states[i,0:8])
+                        # Update human human goal for state change
+                        if not np.array_equal(np.array(human.goals[0], np.float64), self.states[i,10:12]):
+                            goal = human.goals[0]
+                            human.goals.remove(goal)
+                            human.goals.append(goal)
                 else:
                     self.compute_forces()
                     if not self.headed: # SFM Euler
@@ -409,8 +428,11 @@ class MotionModelManager:
                         else: human.position[1] = max(human.position[1], -self.respawn_bounds[1])
                         if self.orca: self.sim.setAgentPosition(self.agents[iindex], (human.position[0], human.position[1]))
                         if self.sf: self.sf_sim.state[iindex, 0:2] = human.position
-                        if PARALLEL: self.states[iindex, 0:2] = human.position
                         human.set_goals([[human.goals[0][0], human.position[1]]])
+                        if self.parallel:
+                            self.states[iindex, 0:2] = np.copy(human.position)
+                            self.states[iindex, 6:8] = np.array(human.goals[0], np.float64)
+                            self.goals[iindex] = np.array(human.goals, np.float64)                      
 
     def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
         desired_direction = compute_desired_force(human)

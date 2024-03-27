@@ -4,7 +4,8 @@ from numba import njit, prange
 from social_gym.src.utils import jitted_bound_angle, two_dim_norm, two_dim_dot_product, two_by_two_matrix_mul_two_dim_array, bound_two_dim_array_norm
 
 # TODO: Add robot moving using the SFM
-# TODO: Check social force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation might be wrong)
+# TODO: Add safety space
+# TODO: Check obstacle force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation is wrong)
 
 @njit(nogil=True)
 def compute_rotational_matrix_parallel(agent_state:np.ndarray):

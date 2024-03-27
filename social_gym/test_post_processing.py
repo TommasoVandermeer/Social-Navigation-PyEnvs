@@ -117,8 +117,10 @@ def single_results_file_post_processing(test_data:dict):
                     if instant_jerk_norm > maximum_jerk: maximum_jerk = instant_jerk_norm
             # Averaged metrics over time
             average_velocity /= len(episode["robot_states"])
-            average_acceleration /= (len(episode["robot_states"]) - 1)
-            average_jerk /= (len(episode["robot_states"]) - 2)
+            if len(episode["robot_states"]) > 1: average_acceleration /= (len(episode["robot_states"]) - 1)
+            else: average_acceleration = 0
+            if len(episode["robot_states"]) > 2: average_jerk /= (len(episode["robot_states"]) - 2)
+            else: average_jerk = 0
             average_distance /= len(episode["robot_states"])
             space_compliance /= len(episode["robot_states"])
             # Save metrics for each trial

@@ -71,7 +71,10 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
                                           "traffic_length": TRAFFIC_LENGTH, "traffic_height": TRAFFIC_HEIGHT, "n_actors": n_agents, "randomize_human_attributes": False},
                                          scenario = "parallel_traffic")
             elif SCENARIO == "circular_crossing":
-                simulator = SocialNavSim([CIRCLE_RADIUS,n_agents,True,human_policy,HEADLESS,RUNGE_KUTTA,True,False,FULLY_COOPERATIVE], scenario = "circular_crossing")
+                simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
+                                         "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
+                                         "circle_radius": CIRCLE_RADIUS, "n_actors": n_agents, "randomize_human_positions": True, "randomize_human_attributes": False}, 
+                                         scenario = "circular_crossing")
             if trial == 0 and SAVE_STATES: test_specifics["humans_radiuses"] = [human.radius for human in simulator.humans] # Save human radiuses
             simulator.set_time_step(TIME_STEP)
             simulator.set_robot_time_step(ROBOT_TIME_STEP)

@@ -6,6 +6,7 @@ from social_gym.src.info import *
 from social_gym.src.utils import is_multiple
 
 HEADLESS = False
+PARALLEL = False # WARNING: Add safety space to forces parallel before training with parallelization
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -20,9 +21,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
         """
         ## Start the Social-Nav-Simulator
-        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-        super().__init__([7,5,False,"hsfm_new_moussaid",HEADLESS,False,True,False,True],scenario="circular_crossing")
-
+        super().__init__(config_data = {"insert_robot":True, "robot_visibile":False, "headless": HEADLESS}, scenario="circular_crossing", parallelize = PARALLEL)
         ## Initialize attributes
         self.time_limit = None
         self.time_step = None
@@ -76,7 +75,8 @@ class SocialNavGym(gym.Env, SocialNavSim):
                               'test': config.getint('env', 'test_size')}
             self.train_val_sim = config.get('sim', 'train_val_sim')
             self.test_sim = config.get('sim', 'test_sim')
-            self.square_width = config.getfloat('sim', 'square_width')
+            self.traffic_height = config.getfloat('sim', 'traffic_height')
+            self.traffic_length = config.getfloat('sim', 'traffic_length')
             self.circle_radius = config.getfloat('sim', 'circle_radius')
             self.human_num = config.getint('sim', 'human_num')
         else: raise NotImplementedError
@@ -87,7 +87,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if self.randomize_attributes: logging.info("Randomize human's radius and preferred speed")
         else: logging.info("Not randomize human's radius and preferred speed")
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_sim, self.test_sim))
-        logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
+        logging.info('Traffic length: {}, Traffic height: {}, circle width: {}'.format(self.traffic_length, self.traffic_height, self.circle_radius))
 
     def set_safety_space(self, safety_space:float):
         self.safety_space = safety_space
@@ -124,7 +124,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.global_time = 0
         if phase == 'test': self.human_times = [0] * self.human_num
         else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)
-        if not self.robot.policy.multiagent_training: self.train_val_sim = 'circle_crossing'
+        # if not self.robot.policy.multiagent_training: self.train_val_sim = 'circle_crossing'
         if self.config.get('humans', 'policy') == 'trajnet': raise NotImplementedError
         else:
             counter_offset = {'train': self.case_capacity['val'] + self.case_capacity['test'],'val': 0, 'test': self.case_capacity['val']}
@@ -133,14 +133,26 @@ class SocialNavGym(gym.Env, SocialNavSim):
                 if phase in ['train', 'val']:
                     human_num = self.human_num if self.robot.policy.multiagent_training else 1
                     if self.train_val_sim == 'circle_crossing':
-                        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
-                    elif self.train_val_sim == 'square_crossing': raise NotImplementedError
+                        self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = human_num, randomize_human_positions = True, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                    elif self.train_val_sim == 'parallel_traffic':
+                        self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
+                                                                randomize_human_attributes = self.randomize_attributes)
                 else:
                     if self.test_sim == 'circle_crossing':
-                        # Parameters: [radius, n_actors, random, motion_model, headless, runge_kutta, insert_robot, randomize_human_attributes, robot_visible]
-                        self.generate_circular_crossing_setting([self.circle_radius,self.human_num,True,self.human_policy,HEADLESS,False,True,self.randomize_attributes,self.robot.visible], robot_radius=self.robot_radius)
-                    elif self.test_sim == 'square_crossing': raise NotImplementedError
+                        self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = human_num, randomize_human_positions = True, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                    elif self.test_sim == 'parallel_traffic':
+                        self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
+                                                                randomize_human_attributes = self.randomize_attributes)
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
             else:
                 assert phase == 'test'
