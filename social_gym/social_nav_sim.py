@@ -785,6 +785,9 @@ class SocialNavSim:
         else: 
             self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
             self.robot_crowdnav_policy = False
+        if self.parallelize: 
+            self.robot.policy.parallelize = True
+            self.robot.parallelize = True
 
     def transform_human_states(self, state:np.array):
         """

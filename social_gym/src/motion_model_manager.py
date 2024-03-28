@@ -254,7 +254,7 @@ class MotionModelManager:
             if self.consider_robot: initial_state = np.append(initial_state, [[self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]], axis = 0)
             self.sf_sim = socialforce.Simulator(initial_state, delta_t=0.25, v0 = 10, sigma = 0.3)
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
-        if "sfm" in self.motion_model_title: 
+        if self.motion_model_title in SFMS: 
             for human in self.humans: human.set_parameters(motion_model_title)
             if self.parallel:
                 self.sfm_type = SFMS.index(motion_model_title)
@@ -331,7 +331,7 @@ class MotionModelManager:
                 self.rewind_goals(self.humans[i], [state[i,6],state[i,7]])
                 if self.orca: self.set_state_orca(i)
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
-                if self.parallel:
+                if self.parallel and not self.orca and not self.sm and not self.sf:
                     if self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
                     if self.headed: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
                     # Goals update logic

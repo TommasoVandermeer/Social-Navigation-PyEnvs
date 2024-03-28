@@ -10,9 +10,6 @@ from numba import njit, prange
 from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_distance
 import math
 
-# WARNING: Parallel feature slightly modifies the policy behavior, only holonomic kinematics are supported
-PARALLEL = True
-
 @njit(nogil=True)
 def transform_state_to_agent_centric(state:np.ndarray):
     # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1] (14)
@@ -119,6 +116,7 @@ class CADRL(Policy):
         self.cell_num = None
         self.cell_size = None
         self.om_channel_size = None
+        self.parallelize = False
         self.self_state_dim = 6
         self.human_state_dim = 7
         self.joint_state_dim = self.self_state_dim + self.human_state_dim
@@ -217,14 +215,13 @@ class CADRL(Policy):
         probability = np.random.random()
         if self.phase == 'train' and probability < self.epsilon: max_action = self.action_space[np.random.choice(len(self.action_space))]
         else:
-            if PARALLEL:
+            if self.parallelize:
                 r = state.self_state
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
                 next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
-                ## Compute next human state assuming constant velocity
+                ## Compute next human state querying env (not assuming constant velocity)
                 next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)  
-                # TODO: As before, make a step of for humans with their policy to compute next state
                 for i, hs in enumerate(next_humans_state): hs[0:4] = next_humans_pos_and_vel[i]
                 ## Compute Value Network input and rewards
                 rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_robot_state, self.time_step)

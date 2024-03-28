@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from crowd_nav.utils.action import ActionRot, ActionXY
-from crowd_nav.policy.cadrl import CADRL
+from crowd_nav.policy.cadrl import CADRL, compute_rotated_states_and_reward, compute_action_value
 
 
 class MultiHumanRL(CADRL):
@@ -29,36 +29,61 @@ class MultiHumanRL(CADRL):
         if self.phase == 'train' and probability < self.epsilon:
             max_action = self.action_space[np.random.choice(len(self.action_space))]
         else:
-            self.action_values = list()
-            max_value = float('-inf')
-            max_action = None
-            for action in self.action_space:
-                next_self_state = self.propagate(state.self_state, action)
+            if self.parallelize:
+                r = state.self_state
+                h = state.human_states
+                current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
+                next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                ## Compute next human state querying env (not assuming constant velocity)
                 if self.query_env:
-                    next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
-                else:
-                    next_human_states = [self.propagate(human_state, ActionXY(human_state.vx, human_state.vy))
-                                       for human_state in state.human_states]
-                    reward = self.compute_reward(next_self_state, next_human_states)
-                batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
-                                              for next_human_state in next_human_states], dim=0)
-                rotated_batch_input = self.rotate(batch_next_states).unsqueeze(0)
-                if self.with_om:
-                    if occupancy_maps is None:
-                        occupancy_maps = self.build_occupancy_maps(next_human_states).unsqueeze(0)
-                    rotated_batch_input = torch.cat([rotated_batch_input, occupancy_maps.to(self.device)], dim=2)
-                # VALUE UPDATE
-                next_state_value = self.model(rotated_batch_input).data.item()
-                value = reward + pow(self.gamma, self.time_step * state.self_state.v_pref) * next_state_value
-                self.action_values.append(value)
-                if value > max_value:
-                    max_value = value
-                    max_action = action
-            if max_action is None:
-                raise ValueError('Value network is not well trained. ')
+                    next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
+                    for i, hs in enumerate(next_humans_state): hs[0:4] = next_humans_pos_and_vel[i]
+                ## Compute next human state assuming constant velocity
+                else: raise NotImplementedError("Humans state propagation using constant velocity in the parallelized version has not been implemented yet.")
+                ## Compute Value Network input and rewards
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_robot_state, self.time_step)
+                ## Compute Value Network output - BOTTLENECK
+                value_network_outputs = np.zeros((len(rewards),), np.float64) 
+                for ii in range(len(rewards)):
+                    batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13)).unsqueeze(0)
+                    # batch_next_states = torch.cat([torch.Tensor([rotated_state]).to(self.device) for rotated_state in rotated_states[ii]], dim=0)
+                    ## Compute occupancy map
+                    if self.with_om:
+                        if occupancy_maps is None: occupancy_maps = self.build_occupancy_maps(next_human_states).unsqueeze(0)
+                        batch_next_states = torch.cat([batch_next_states, occupancy_maps.to(self.device)], dim=2)
+                    value_network_outputs[ii] = self.model(batch_next_states).data.item()
+                ## Compute action value 
+                action_values = compute_action_value(rewards, value_network_outputs, self.time_step, self.gamma, state.self_state.v_pref)
+                max_action = ActionXY(*self.action_space_ndarray[np.argmax(action_values)])
+            else:
+                self.action_values = list()
+                max_value = float('-inf')
+                max_action = None
+                for action in self.action_space:
+                    next_self_state = self.propagate(state.self_state, action)
+                    if self.query_env:
+                        next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
+                    else:
+                        next_human_states = [self.propagate(human_state, ActionXY(human_state.vx, human_state.vy))
+                                        for human_state in state.human_states]
+                        reward = self.compute_reward(next_self_state, next_human_states)
+                    batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
+                                                for next_human_state in next_human_states], dim=0)
+                    rotated_batch_input = self.rotate(batch_next_states).unsqueeze(0)
+                    if self.with_om:
+                        if occupancy_maps is None:
+                            occupancy_maps = self.build_occupancy_maps(next_human_states).unsqueeze(0)
+                        rotated_batch_input = torch.cat([rotated_batch_input, occupancy_maps.to(self.device)], dim=2)
+                    # VALUE UPDATE
+                    next_state_value = self.model(rotated_batch_input).data.item()
+                    value = reward + pow(self.gamma, self.time_step * state.self_state.v_pref) * next_state_value
+                    self.action_values.append(value)
+                    if value > max_value:
+                        max_value = value
+                        max_action = action
+                if max_action is None: raise ValueError('Value network is not well trained. ')
 
-        if self.phase == 'train':
-            self.last_state = self.transform(state)
+        if self.phase == 'train': self.last_state = self.transform(state)
 
         return max_action
 

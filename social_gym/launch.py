@@ -14,7 +14,7 @@ from custom_config.config_example import data
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
 np.random.seed(0)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "orca", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
                           scenario="circular_crossing", parallelize = False)

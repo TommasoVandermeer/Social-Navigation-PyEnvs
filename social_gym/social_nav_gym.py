@@ -146,12 +146,12 @@ class SocialNavGym(gym.Env, SocialNavSim):
                     if self.test_sim == 'circle_crossing':
                         self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
-                                                                circle_radius = self.circle_radius, n_actors = human_num, randomize_human_positions = True, 
+                                                                circle_radius = self.circle_radius, n_actors = self.human_num, randomize_human_positions = True, 
                                                                 randomize_human_attributes = self.randomize_attributes)
                     elif self.test_sim == 'parallel_traffic':
                         self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
-                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
+                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = self.human_num, 
                                                                 randomize_human_attributes = self.randomize_attributes)
                 self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
             else:
