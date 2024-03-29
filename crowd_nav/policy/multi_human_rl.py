@@ -33,15 +33,13 @@ class MultiHumanRL(CADRL):
                 r = state.self_state
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
                 ## Compute next human state querying env (not assuming constant velocity)
-                if self.query_env:
-                    next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
-                    for i, hs in enumerate(next_humans_state): hs[0:4] = next_humans_pos_and_vel[i]
+                if self.query_env: next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
                 ## Compute next human state assuming constant velocity
                 else: raise NotImplementedError("Humans state propagation using constant velocity in the parallelized version has not been implemented yet.")
                 ## Compute Value Network input and rewards
-                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_robot_state, self.time_step)
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step)
                 ## Compute Value Network output - BOTTLENECK
                 value_network_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
@@ -82,9 +80,7 @@ class MultiHumanRL(CADRL):
                         max_value = value
                         max_action = action
                 if max_action is None: raise ValueError('Value network is not well trained. ')
-
         if self.phase == 'train': self.last_state = self.transform(state)
-
         return max_action
 
     def compute_reward(self, nav, humans):

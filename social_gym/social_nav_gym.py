@@ -6,7 +6,8 @@ from social_gym.src.info import *
 from social_gym.src.utils import is_multiple
 
 HEADLESS = False
-PARALLEL = False # WARNING: Add safety space to forces parallel before training with parallelization
+PARALLELIZE_ROBOT = True
+PARALLELIZE_HUMANS = False # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -21,7 +22,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
         """
         ## Start the Social-Nav-Simulator
-        super().__init__(config_data = {"insert_robot":True, "robot_visibile":False, "headless": HEADLESS}, scenario="circular_crossing", parallelize = PARALLEL)
+        super().__init__(config_data = {"insert_robot":True, "robot_visibile":False, "headless": HEADLESS}, scenario="circular_crossing", parallelize_robot = PARALLELIZE_ROBOT, parallelize_humans = PARALLELIZE_HUMANS)
         ## Initialize attributes
         self.time_limit = None
         self.time_step = None

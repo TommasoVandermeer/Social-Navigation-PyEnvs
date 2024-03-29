@@ -149,7 +149,9 @@ class MotionModelManager:
         # Humans safety space
         if self.motion_model_title is not None:
             if "sfm" in self.motion_model_title:
-                for human in self.humans: human.safety_space = 0.01 + safety_space
+                for iii, human in enumerate(self.humans): 
+                    human.safety_space = 0.01 + safety_space
+                    if self.parallel: self.safety_space[iii] = 0.01 + safety_space
             elif self.motion_model_title == "orca":
                 if self.sim is not None:
                     for i, agent in enumerate(self.agents):
@@ -160,6 +162,7 @@ class MotionModelManager:
         if self.robot_motion_model_title is not None:
             if "sfm" in self.robot_motion_model_title:
                 self.robot.safety_space = 0.01 + safety_space
+                if self.parallel: self.safety_space[len(self.humans)] = 0.01 + safety_space
             elif self.robot_motion_model_title == "orca":
                 if self.robot_sim is not None: # Add safety space to Robot ORCA simulation
                     for i, agent in enumerate(self.robot_sim_agents):
@@ -258,6 +261,8 @@ class MotionModelManager:
             for human in self.humans: human.set_parameters(motion_model_title)
             if self.parallel:
                 self.sfm_type = SFMS.index(motion_model_title)
+                if self.consider_robot: self.safety_space = np.zeros(len(self.humans)+1, np.float64)
+                else: self.safety_space = np.zeros(len(self.humans), np.float64)
                 self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
                 if self.consider_robot: self.states = np.append(self.states, [self.robot.get_safe_state()], axis = 0)
                 self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], np.float64)
@@ -333,7 +338,7 @@ class MotionModelManager:
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
                 if self.parallel and not self.orca and not self.sm and not self.sf:
                     if self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
-                    if self.headed: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
+                    else: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
                     # Goals update logic
                     if not any(np.array_equal(goal, state[i,6:8]) for goal in self.goals[i]): self.goals[i] = state[i,6:8] # If the goal is not in the list, we insert it at the beginning (used for parallel traffic scenario, where goals list is dynamic)
                     else:
@@ -359,7 +364,7 @@ class MotionModelManager:
             if not self.runge_kutta:
                 if self.parallel:
                     if self.consider_robot: self.states[-1] = self.robot.get_safe_state()
-                    self.states = update_humans_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, all_params_equal=self.all_equal_humans, last_is_robot=self.consider_robot)
+                    self.states = update_humans_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, self.safety_space, all_params_equal=self.all_equal_humans, last_is_robot=self.consider_robot)
                     for i, human in enumerate(self.humans): 
                         human.set_state(self.states[i,0:8])
                         # Update human human goal for state change

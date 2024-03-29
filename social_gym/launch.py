@@ -14,15 +14,15 @@ from custom_config.config_example import data
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
 np.random.seed(0)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "orca", "headless": False,
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
-                          scenario="circular_crossing", parallelize = False)
+                          scenario="circular_crossing", parallelize_robot = False, parallelize_humans= False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
 # social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
 #                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
 #                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 1, "randomize_human_attributes": False},
-#                           scenario = "parallel_traffic", parallelize = False)
+#                           scenario = "parallel_traffic", parallelize_robot = True, parallelize_humans= False)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
@@ -31,13 +31,13 @@ social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
 social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_orca'), il=False)
+social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/cadrl_on_orca'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
 # social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
-# social_nav.motion_model_manager.set_safety_space(0.00)
+# social_nav.motion_model_manager.set_safety_space(0.15)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
@@ -60,7 +60,7 @@ social_nav.run_live()
 # social_nav.run_complete_rk45_simulation(final_time=5, sampling_time=1/60, plot_sample_time=3) # simulates only human motion
 # social_nav.run_from_precomputed_states(social_nav.human_states)
 ## Run from previously computed states (controlled speed) - Euler both humans and robot
-# SIMULATION_SECONDS = 20
+# SIMULATION_SECONDS = 50
 # human_states, robot_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
 # social_nav.run_from_precomputed_states(human_states, robot_poses=robot_states)
 

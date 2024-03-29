@@ -11,6 +11,7 @@ CIRCLE_RADIUS = 7
 TRAFFIC_LENGTH = 14
 TRAFFIC_HEIGHT = 3
 SCENARIO = "parallel_traffic" # "circular_crossing" or "parallel_traffic"
+PARALLELIZE_ROBOT = True
 TRIALS = 100
 TIME_PER_EPISODE = 50
 HEADLESS = True
@@ -65,16 +66,17 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
         for trial in range(TRIALS):
             if trial % 20 == 0: logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
             np.random.seed(SEED_OFFSET + trial)
+            parallelize_humans = True if n_agents >= 10 else False
             if SCENARIO == "parallel_traffic": 
                 simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
                                           "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
                                           "traffic_length": TRAFFIC_LENGTH, "traffic_height": TRAFFIC_HEIGHT, "n_actors": n_agents, "randomize_human_attributes": False},
-                                         scenario = "parallel_traffic")
+                                         scenario = "parallel_traffic", parallelize_robot=PARALLELIZE_ROBOT, parallelize_humans=parallelize_humans)
             elif SCENARIO == "circular_crossing":
                 simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
                                          "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
                                          "circle_radius": CIRCLE_RADIUS, "n_actors": n_agents, "randomize_human_positions": True, "randomize_human_attributes": False}, 
-                                         scenario = "circular_crossing")
+                                         scenario = "circular_crossing", parallelize_robot=PARALLELIZE_ROBOT, parallelize_humans=parallelize_humans)
             if trial == 0 and SAVE_STATES: test_specifics["humans_radiuses"] = [human.radius for human in simulator.humans] # Save human radiuses
             simulator.set_time_step(TIME_STEP)
             simulator.set_robot_time_step(ROBOT_TIME_STEP)

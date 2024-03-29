@@ -4,7 +4,6 @@ from numba import njit, prange
 from social_gym.src.utils import jitted_bound_angle, two_dim_norm, two_dim_dot_product, two_by_two_matrix_mul_two_dim_array, bound_two_dim_array_norm
 
 # TODO: Add robot moving using the SFM
-# TODO: Add safety space
 # TODO: Check obstacle force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation is wrong)
 
 @njit(nogil=True)
@@ -41,7 +40,7 @@ def compute_desired_force_parallel(agent_state:np.ndarray, agent_params:np.ndarr
     return desired_force
 
 @njit(nogil=True, parallel=True)
-def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, agent_params:np.ndarray):
+def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, agent_params:np.ndarray, safety_space:np.ndarray):
     """
     Computes the repulsive force exherted by other pedestrians to agent idx by means of the Social Force Model.
 
@@ -50,6 +49,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
     - idx (int): index of the agent for which the social_force between each interaction is computed
     - agents_state (numpy.ndarray): state of each agent where each state is in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
     - agent_params (numpy.ndarray): in the form [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda]
+    - safety_space (np.ndarray): safety space of each agents
 
     returns:
     - social_force (numpy.ndarray): in the form [sfx, sfy] for agent idx
@@ -59,8 +59,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
     social_force = np.zeros((n_humans,2), np.float64)
     for j in prange(n_humans):
         if idx==j: continue
-        # TODO: Add safety_space to rij (and so the the states of each agent)
-        rij = state[8] + agents_state[j][8]
+        rij = state[8] + agents_state[j][8] + safety_space[idx] + safety_space[j]
         difference = state[0:2] - agents_state[j][0:2]
         distance = two_dim_norm(difference)
         nij = difference / distance
@@ -85,7 +84,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
     return np.sum(social_force, axis=0)
 
 @njit(nogil=True, parallel=True)
-def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_params:np.ndarray):
+def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_params:np.ndarray, safety_space:np.ndarray):
     """
     Computes the repulsive force exherted by other pedestrians to each other agent by means of the Social Force Model.
     WARNING: This function assumes that all agents parameters are the same.
@@ -94,6 +93,7 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
     - type (int) => 0: Helbing, 1: Guo, 2: Moussaid
     - agents_state (numpy.ndarray): state of each agent where each state is in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
     - agent_params (numpy.ndarray): in the form [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda]
+    - safety_space (np.ndarray): safety space of each agents
 
     returns:
     - social_force (numpy.ndarray): for each agent in the form [sfx, sfy]
@@ -105,9 +105,8 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
         j = idx % n_agents
         if i >= j: continue
         else:
-            # TODO: Add safety_space to rij (and so the the states of each agent)
             pairwise_social_force = np.zeros((2,), np.float64)
-            rij = agents_state[i][8] + agents_state[j][8]
+            rij = agents_state[i][8] + agents_state[j][8] + safety_space[i] + safety_space[j]
             difference = agents_state[i][0:2] - agents_state[j][0:2]
             distance = two_dim_norm(difference)
             nij = difference / distance
@@ -134,7 +133,7 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
     return np.sum(social_force, axis=1)    
 
 @njit(nogil=True, parallel=True)
-def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:np.ndarray, agent_params:np.ndarray):
+def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:np.ndarray, agent_params:np.ndarray, safety_space:float):
     """
     Computes the repulsive force exherted by obstacles by means of the Social Force Model.
 
@@ -143,6 +142,7 @@ def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:
     - agent_state (numpy.ndarray): in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
     - obstacles (numpy.ndarray): array of obstacles where each one is in the form [opx, opy]
     - agent_params (numpy.ndarray): in the form [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda]
+    - safety_space (float): safety space of the agent
 
     returns:
     - obstacle_force (numpy.ndarray): in the form [ofx, ofy] 
@@ -150,13 +150,12 @@ def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:
     obstacle_force = np.array([0.0,0.0], np.float64)
     n_obstacles = len(obstacles)
     for i in prange(n_obstacles):
-        # TODO: Add safety_space to real_distance (and so the the states of each agent)
         difference = agent_state[0:2] - obstacles[i]
         distance = two_dim_norm(difference)
         niw = difference / distance
         tiw = np.array([-niw[1],niw[0]], dtype=np.float64)
         delta_viw = - two_dim_dot_product(agent_state[3:5], tiw)
-        real_distance = agent_state[8] - distance
+        real_distance = agent_state[8] - distance + safety_space
         if type == 0: obstacle_force += (agent_params[2] * math.exp((real_distance) / agent_params[4]) + agent_params[10] * max(0.0,real_distance)) * niw - agent_params[11] * max(0.0,real_distance) * delta_viw * tiw
         elif type == 1: obstacle_force += (agent_params[2] * math.exp((real_distance) / agent_params[4]) + agent_params[10] * max(0.0,real_distance)) * niw + (-agent_params[6] * math.exp((real_distance) / agent_params[8]) - agent_params[11] * max(0.0,real_distance)) * delta_viw * tiw
     obstacle_force /= n_obstacles
@@ -183,7 +182,7 @@ def compute_torque_force_parallel(agent_state:np.ndarray, inertia:np.float64, dr
     return torque_force
 
 @njit(nogil=True, parallel=True)
-def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, agents_params:np.ndarray, dt:float, all_params_equal=False, last_is_robot=False): 
+def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, agents_params:np.ndarray, dt:float, safety_space:np.ndarray, all_params_equal=False, last_is_robot=False): 
     """
     Makes a step (for humans) of dt length by means of the Headed / Social Force Model (depends on which type is passed).
 
@@ -203,6 +202,8 @@ def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
     - obstacles (numpy.ndarray): array of all the obstacles [o1,o2,...] in the environment, each oi is an array [si1,si2,...] containing the obstacle segments,
       each segment sij is 2d array containing vertices [vij1, vij2] and each vertex vijk is a 2d vector [vijkx,vijky]
     - agent_params (numpy.ndarray): params of each agent where each one is in the form [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda]
+    - dt (float): time step
+    - safety_space (np.ndarray): safety space of each agent
 
     returns:
     - updated_state (numpy.ndarray): state of each agent where each state is in the form [px,py,theta,vx,vy,bvx,bvy,omega,r,m,gx,gy,vd]
@@ -216,7 +217,7 @@ def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
     headed = type // 3
     ## Compute forces
     global_forces = np.zeros((n_agents,2), np.float64)
-    if all_params_equal: social_forces = compute_all_social_force_parallel(soc_force_type, agents_state, agents_params[0])
+    if all_params_equal: social_forces = compute_all_social_force_parallel(soc_force_type, agents_state, agents_params[0], safety_space)
     if headed > 0: 
         torque_forces = np.zeros((n_agents,), np.float64)
         inertias = np.zeros((n_agents,), np.float64)
@@ -254,10 +255,10 @@ def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
             rotational_matrix = compute_rotational_matrix_parallel(agents_state[i])
             agents_state[i,3:5] = two_by_two_matrix_mul_two_dim_array(rotational_matrix, agents_state[i,5:7])
         desired_force = compute_desired_force_parallel(agents_state[i], agents_params[i])
-        if obstacles is not None: obstacle_force = compute_obstacle_force_parallel(obs_force_type, agents_state[i], obstacles_closest_points, agents_params[i])
+        if obstacles is not None: obstacle_force = compute_obstacle_force_parallel(obs_force_type, agents_state[i], obstacles_closest_points, agents_params[i], safety_space[i])
         else: obstacle_force = np.zeros((2,), np.float64)
         if all_params_equal: social_force = social_forces[i]
-        else: social_force = compute_social_force_parallel(soc_force_type, i, agents_state, agents_params[i])
+        else: social_force = compute_social_force_parallel(soc_force_type, i, agents_state, agents_params[i], safety_space)
         input_force = desired_force + obstacle_force + social_force
         ## Compute final forces
         if headed == 0:

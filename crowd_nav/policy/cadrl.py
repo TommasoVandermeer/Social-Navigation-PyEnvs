@@ -7,7 +7,7 @@ from crowd_nav.policy_no_train.policy import Policy
 from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.utils.state import ObservableState, FullState
 from numba import njit, prange
-from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_distance
+from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_dist
 import math
 
 @njit(nogil=True)
@@ -32,11 +32,11 @@ def transform_state_to_agent_centric(state:np.ndarray):
     return transformed_state
 
 @njit(nogil=True, parallel=True)
-def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64):
+def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_and_vel:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64):
     ### Humans states are in the form: [px,py,vx,vy,r]
     ### Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
     n_actions = len(action_space)
-    n_humans = len(next_humans_state)
+    n_humans = len(current_humans_state)
     rewards = np.empty((n_actions,), np.float64)
     rotated_states = np.empty((n_actions, n_humans, 13), np.float64)
     for ii in prange(n_actions):
@@ -47,11 +47,10 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
         dmin = np.iinfo(np.int64).max
         collision = False
         for j in range(n_humans):
-            difference = next_humans_state[j][0:2] - next_robot_position
-            velocity_difference = next_humans_state[j][2:4] - action_space[ii]
+            difference = current_humans_state[j][0:2] - current_robot_state[0:2]
+            velocity_difference = current_humans_state[j][2:4] - action_space[ii]
             e = difference + velocity_difference * dt
-            distance = jitted_point_to_segment_distance(difference[0], difference[1], e[0], e[1], 0, 0) - next_humans_state[j][4] - current_robot_state[4]
-            # distance = two_dim_norm(next_humans_state[j][0:2] - next_robot_position) - next_humans_state[j][4] - current_robot_state[4]
+            distance = jitted_point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - current_humans_state[j][4] - current_robot_state[4]
             if distance < 0: collision = True; break
             elif (distance >= 0) and (distance < dmin): dmin = distance
         ## Check if robot reached goal
@@ -66,7 +65,8 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
         next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8], 0.0], np.float64) # WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
         for j in prange(n_humans):
             # Transform state to be compatible with the Value Network input
-            state = np.concatenate((next_robot_state, next_humans_state[j]))
+            next_human_state = np.append(next_humans_pose_and_vel[j], current_humans_state[j][4])
+            state = np.concatenate((next_robot_state, next_human_state))
             rotated_states[ii,j] = transform_state_to_agent_centric(state)
     return rotated_states, rewards
 
@@ -219,12 +219,11 @@ class CADRL(Policy):
                 r = state.self_state
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                next_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
                 ## Compute next human state querying env (not assuming constant velocity)
                 next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)  
-                for i, hs in enumerate(next_humans_state): hs[0:4] = next_humans_pos_and_vel[i]
                 ## Compute Value Network input and rewards
-                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_robot_state, self.time_step)
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step)
                 ## Compute Value Network output - BOTTLENECK
                 value_network_min_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):

@@ -30,7 +30,7 @@ ZOOM_BOUNDS = [0.5, 2]
 SCROLL_BOUNDS = [-500,500]
 
 class SocialNavSim:
-    def __init__(self, config_data, scenario = "custom_config", parallelize = False):
+    def __init__(self, config_data, scenario = "custom_config", parallelize_robot = False, parallelize_humans = False):
         pygame.init()
         self.pygame_init = True
 
@@ -41,7 +41,8 @@ class SocialNavSim:
         self.walls = pygame.sprite.Group()
         self.humans = []
         self.mode = scenario
-        self.parallelize = parallelize
+        self.parallelize_robot = parallelize_robot
+        self.parallelize_humans = parallelize_humans
 
         if scenario == "custom_config": self.config_data = config_data
         elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(**config_data)
@@ -171,12 +172,12 @@ class SocialNavSim:
         if hasattr(self, "motion_model_manager") and self.motion_model_manager.robot_motion_model_title is not None:
             robot_motion_model_title = self.motion_model_manager.robot_motion_model_title
             robot_runge_kutta = self.motion_model_manager.robot_runge_kutta
-            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize)
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize_humans)
             self.motion_model_manager.set_robot_motion_model(robot_motion_model_title, robot_runge_kutta)
             self.robot_crowdnav_policy = False
             self.robot_controlled = True
         else: 
-            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize)
+            self.motion_model_manager = MotionModelManager(self.motion_model, self.robot_visible, self.runge_kutta, self.humans, self.robot, self.walls.sprites(), parallelize = self.parallelize_humans)
             self.robot_controlled = False
         if hasattr(self, "parallel_traffic_humans_respawn") and self.parallel_traffic_humans_respawn: 
             self.motion_model_manager.parallel_traffic_humans_respawn = True
@@ -785,7 +786,7 @@ class SocialNavSim:
         else: 
             self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
             self.robot_crowdnav_policy = False
-        if self.parallelize: 
+        if self.parallelize_robot: 
             self.robot.policy.parallelize = True
             self.robot.parallelize = True
 
@@ -834,7 +835,7 @@ class SocialNavSim:
             # closest distance between boundaries of two agents
             closest_dist = point_to_segment_dist(difference[0], difference[1], e[0], e[1], 0, 0) - human.radius - self.robot.radius
             if closest_dist < 0: collision = True; break
-            elif closest_dist < dmin: dmin = closest_dist
+            elif (closest_dist >= 0) and (closest_dist < dmin): dmin = closest_dist
         # Check if reaching the goal
         if isinstance(action, np.ndarray): end_position = self.robot.position + action * time_step
         else: end_position = self.robot.compute_position(action, time_step)
@@ -894,7 +895,7 @@ class SocialNavSim:
         collision, dmin, reaching_goal = self.collision_detection_and_reaching_goal(action, time_step)
         # Compute reward, terminated, truncated, and info
         reward, _, _, _ = self.compute_reward_and_infos(collision, dmin, reaching_goal, self.sim_t, time_step)
-        # Next state computation
+        # Next humans' state computation
         if not self.updated: ob = self.last_observation.copy()
         else:
             ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
