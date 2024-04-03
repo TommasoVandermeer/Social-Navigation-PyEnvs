@@ -37,24 +37,24 @@ def is_multiple(number, dividend, tolerance=1e-7):
     mod = number % dividend
     return (abs(mod) <= tolerance) or (abs(dividend - mod) <= tolerance)
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def two_dim_norm(array:np.ndarray):
     return math.sqrt(array[0]**2 + array[1]**2)
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def two_dim_dot_product(array1:np.ndarray, array2:np.ndarray):
     return array1[0]*array2[0] + array1[1]*array2[1]
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def two_by_two_matrix_mul_two_dim_array(matrix:np.ndarray, array:np.ndarray):
     return np.array([matrix[0,0] * array[0] + matrix[0,1] * array[1], matrix[1,0] * array[0] + matrix[1,1] * array[1]], np.float64)
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def bound_two_dim_array_norm(array:np.ndarray, limit:np.float64):
     array_norm = two_dim_norm(array)
     if array_norm > limit: array = (array / array_norm) * limit
     return array
 
-jitted_bound_angle = njit(nogil=True)(bound_angle)
+jitted_bound_angle = njit(nogil=True, cache=True)(bound_angle)
 
-jitted_point_to_segment_dist = njit(nogil=True)(point_to_segment_dist)
+jitted_point_to_segment_dist = njit(nogil=True, cache=True)(point_to_segment_dist)

@@ -787,7 +787,7 @@ class SocialNavSim:
             self.set_human_motion_model_as_robot_policy(policy_name, runge_kutta)
             self.robot_crowdnav_policy = False
         if self.parallelize_robot: 
-            self.robot.policy.parallelize = True
+            if crowdnav_policy and hasattr(self.robot, "policy"): self.robot.policy.parallelize = True
             self.robot.parallelize = True
 
     def transform_human_states(self, state:np.array):

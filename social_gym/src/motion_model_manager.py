@@ -428,7 +428,8 @@ class MotionModelManager:
                 for iindex, human in enumerate(self.humans):
                     if np.linalg.norm(human.position - human.goals[0]) < 3:
                         ### Respawn logic
-                        human.position[0] = max(max([h.position[0] for h in self.humans]) + (max([h.radius for h in self.humans]) * 2), self.respawn_bounds[0])
+                        if self.consider_robot: human.position[0] = max(max([h.position[0] for h in self.humans] + [self.robot.position[0]]) + (max([h.radius + h.safety_space for h in self.humans] + [self.robot.radius + self.robot.safety_space]) * 2), self.respawn_bounds[0])
+                        else: human.position[0] = max(max([h.position[0] for h in self.humans]) + (max([h.radius + h.safety_space for h in self.humans]) * 2), self.respawn_bounds[0])
                         if human.position[1] >= 0: human.position[1] = min(human.position[1], self.respawn_bounds[1])
                         else: human.position[1] = max(human.position[1], -self.respawn_bounds[1])
                         if self.orca: self.sim.setAgentPosition(self.agents[iindex], (human.position[0], human.position[1]))

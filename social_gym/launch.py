@@ -13,16 +13,15 @@ from custom_config.config_example import data
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-np.random.seed(0)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
-                                         "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-                                         "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
-                          scenario="circular_crossing", parallelize_robot = False, parallelize_humans= False)
-## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
-# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
+# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
 #                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-#                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 1, "randomize_human_attributes": False},
-#                           scenario = "parallel_traffic", parallelize_robot = True, parallelize_humans= False)
+#                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
+#                           scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
+## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
+                                         "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
+                                         "traffic_length": 14, "traffic_height": 3, "n_actors": 5, "randomize_human_attributes": False},
+                          scenario = "parallel_traffic", parallelize_robot = True, parallelize_humans = True)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
@@ -35,7 +34,7 @@ social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-# social_nav.set_robot_policy(policy_name="sfm_guo", runge_kutta=False)
+# social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=False)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.15)
 ## Change robot radius

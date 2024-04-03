@@ -6,7 +6,7 @@ from social_gym.src.utils import jitted_bound_angle, two_dim_norm, two_dim_dot_p
 # TODO: Add robot moving using the SFM
 # TODO: Check obstacle force computation, consider saving pairwise contribution in array and sum them outside the parallel loop (right now implementation is wrong)
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def compute_rotational_matrix_parallel(agent_state:np.ndarray):
     """
     Computes the rotational matrix of the agent.
@@ -19,7 +19,7 @@ def compute_rotational_matrix_parallel(agent_state:np.ndarray):
     """
     return np.array([[math.cos(agent_state[2]), -math.sin(agent_state[2])],[math.sin(agent_state[2]), math.cos(agent_state[2])]], np.float64)
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def compute_desired_force_parallel(agent_state:np.ndarray, agent_params:np.ndarray):
     """
     Computes the attractive force of the agent's goal by means of the Social Force Model.
@@ -39,7 +39,7 @@ def compute_desired_force_parallel(agent_state:np.ndarray, agent_params:np.ndarr
         desired_force = agent_state[9] * ((desired_direction * agent_state[12]) - agent_state[3:5]) / agent_params[0]
     return desired_force
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, agent_params:np.ndarray, safety_space:np.ndarray):
     """
     Computes the repulsive force exherted by other pedestrians to agent idx by means of the Social Force Model.
@@ -83,7 +83,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
             social_force[j] = -(agent_params[9] * math.exp(-distance/Fij) * (math.exp(-(agent_params[15]*Fij*theta_ij)**2) * iij + kij * math.exp(-(agent_params[14]*Fij*theta_ij)**2)*hij) + agent_params[10] * max(0.0,real_distance) * iij + agent_params[11] * max(0.0,real_distance) * delta_vij * hij)
     return np.sum(social_force, axis=0)
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_params:np.ndarray, safety_space:np.ndarray):
     """
     Computes the repulsive force exherted by other pedestrians to each other agent by means of the Social Force Model.
@@ -132,7 +132,7 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
             social_force[j,i] = -pairwise_social_force
     return np.sum(social_force, axis=1)    
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:np.ndarray, agent_params:np.ndarray, safety_space:float):
     """
     Computes the repulsive force exherted by obstacles by means of the Social Force Model.
@@ -161,7 +161,7 @@ def compute_obstacle_force_parallel(type:int, agent_state:np.ndarray, obstacles:
     obstacle_force /= n_obstacles
     return obstacle_force
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def compute_torque_force_parallel(agent_state:np.ndarray, inertia:np.float64, driving_force:np.ndarray, agent_params:np.ndarray):
     """
     Computes the torque force by means of the Headed Social Force Model.
@@ -181,7 +181,7 @@ def compute_torque_force_parallel(agent_state:np.ndarray, inertia:np.float64, dr
     torque_force = - k_theta * jitted_bound_angle(agent_state[2] - math.atan2(driving_force[1],driving_force[0])) - k_omega * agent_state[7]
     return torque_force
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, obstacles:np.ndarray, agents_params:np.ndarray, dt:float, safety_space:np.ndarray, all_params_equal=False, last_is_robot=False): 
     """
     Makes a step (for humans) of dt length by means of the Headed / Social Force Model (depends on which type is passed).

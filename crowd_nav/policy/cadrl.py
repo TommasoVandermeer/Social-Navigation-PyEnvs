@@ -10,7 +10,7 @@ from numba import njit, prange
 from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_dist
 import math
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def transform_state_to_agent_centric(state:np.ndarray):
     # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1] (14)
     # Output state is in the form: [dg,v_pref,theta,radius,vx,vy,px1,py1,vx1,vy1,radius1,da,radius_sum] (13)
@@ -31,7 +31,7 @@ def transform_state_to_agent_centric(state:np.ndarray):
     transformed_state[12] = state[4] + state[13] # radius_sum
     return transformed_state
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_and_vel:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64):
     ### Humans states are in the form: [px,py,vx,vy,r]
     ### Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
@@ -70,7 +70,7 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_
             rotated_states[ii,j] = transform_state_to_agent_centric(state)
     return rotated_states, rewards
 
-@njit(nogil=True, parallel=True)
+@njit(nogil=True, parallel=True, cache=True)
 def compute_action_value(rewards:np.ndarray, value_network_min_outputs:np.ndarray, dt:np.float64, gamma:np.float64, vpref:np.float64):
     n_actions = len(rewards)
     action_values = np.empty((n_actions,), np.float64)
