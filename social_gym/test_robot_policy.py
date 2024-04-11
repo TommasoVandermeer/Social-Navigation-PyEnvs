@@ -41,6 +41,8 @@ ROBOT_POLICIES = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm
                  "sarl","lstm_rl"]
 HUMAN_POLICIES = ["sfm_roboticsupo","sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca","socialforce"]
+SFMS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
+        "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid"]
 LOGGING_BASE_DIR = "tests"
 RESULTS_BASE_DIR = "results"
 if ROBOT_POLICY in TRAINABLE_POLICIES: LOGGING_FILE_NAME = ROBOT_MODEL_DIR[13:] + "_on_" + HUMAN_POLICY + ".log"
@@ -66,7 +68,7 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
         for trial in range(TRIALS):
             if trial % 20 == 0: logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
             np.random.seed(SEED_OFFSET + trial)
-            parallelize_humans = True if n_agents >= 10 else False
+            parallelize_humans = True if (n_agents >= 10) and (human_policy in SFMS) else False
             if SCENARIO == "parallel_traffic": 
                 simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
                                           "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,

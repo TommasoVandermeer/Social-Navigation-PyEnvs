@@ -619,7 +619,7 @@ class SocialNavSim:
 
     def run_single_test(self, n_updates):
         start_time = round_time((pygame.time.get_ticks() / 1000))
-        human_states = np.append([self.motion_model_manager.get_human_states()], self.run_k_steps(n_updates, quit=False), axis=0)
+        human_states = self.run_k_steps(n_updates, quit=False, save_states_time_step=SAMPLING_TIME)
         test_time = round_time((pygame.time.get_ticks() / 1000) - start_time - self.paused_time)
         return human_states, test_time
 

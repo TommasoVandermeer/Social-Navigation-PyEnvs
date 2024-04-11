@@ -21,8 +21,13 @@ SARL_ONLY_HEATMAPS = False # If true, heatmaps are plotted considering only sarl
 SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
 CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
+SPACE_COMPLIANCE_OVER_SPL = False # If true, space compliance over SPL is plotted
+SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = False # If true, metrics over n° humans tests are plotted considering only sarl policies
 T_TEST_P_VALUE_THRESHOLD = 0.05
+SAVE_FIGURES = False # If true, figures are saved
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
+FIGURES_SAVING_PATH = os.path.join(os.path.dirname(__file__),"tests","plots")
+if not os.path.exists(FIGURES_SAVING_PATH): os.makedirs(FIGURES_SAVING_PATH)
 TESTS = ["5_humans","15_humans","25_humans","35_humans"] # ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
 TESTED_ON_ORCA = ["bp_on_orca.pkl",
                   "ssp_on_orca.pkl",
@@ -70,6 +75,8 @@ TRAINED_ON_HSFM_NEW_GUO = ["cadrl_on_hsfm_new_guo_on_orca.pkl","cadrl_on_hsfm_ne
                            "sarl_on_hsfm_new_guo_on_orca.pkl","sarl_on_hsfm_new_guo_on_sfm_guo.pkl","sarl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
                            "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 TRAINED_POLICIES_TESTS = TRAINED_ON_ORCA + TRAINED_ON_SFM_GUO + TRAINED_ON_HSFM_NEW_GUO
+TRAINED_POLICIES = ["cadrl_on_orca","cadrl_on_sfm_guo","cadrl_on_hsfm_new_guo","sarl_on_orca","sarl_on_sfm_guo","sarl_on_hsfm_new_guo","lstm_rl_on_orca","lstm_rl_on_sfm_guo","lstm_rl_on_hsfm_new_guo"]
+SARL_POLICIES = ["sarl_on_orca","sarl_on_sfm_guo","sarl_on_hsfm_new_guo"]
 SARL_POLICIES_RESULTS = ["sarl_on_orca_on_orca.pkl","sarl_on_orca_on_sfm_guo.pkl","sarl_on_orca_on_hsfm_new_guo.pkl",
                  "sarl_on_sfm_guo_on_orca.pkl","sarl_on_sfm_guo_on_sfm_guo.pkl","sarl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "sarl_on_hsfm_new_guo_on_orca.pkl","sarl_on_hsfm_new_guo_on_sfm_guo.pkl","sarl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
@@ -91,6 +98,13 @@ COLORS = list(mcolors.TABLEAU_COLORS.values())
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
+PLOT_COUNTER = 1
+
+def save_figure(figure:plt.Figure):
+    global PLOT_COUNTER
+    figure.savefig(os.path.join(FIGURES_SAVING_PATH,f"{PLOT_COUNTER}.png"))
+    PLOT_COUNTER = PLOT_COUNTER + 1
+    plt.close(figure)
 
 def extract_data_from_human_times_file(results_file_list:list[str], test:str, human_times_data:dict):
     # Lengths are variable with respect to results files
@@ -142,7 +156,7 @@ def plot_single_ttest_map(matrix:np.array, ax):
 
 def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, more_plots:bool):
     if not more_plots:
-        figure, ax = plt.subplots(2,2)
+        figure, ax = plt.subplots(2,2, figsize=(20,10))
         figure.subplots_adjust(right=0.80)
         figure.suptitle(f"Metrics for {environment} environment - {test}")
         # Success rate
@@ -164,7 +178,7 @@ def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, 
         handles, labels = ax[0,0].get_legend_handles_labels()
         figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
     else:
-        figure, ax = plt.subplots(3,3)
+        figure, ax = plt.subplots(3,3, figsize=(20,10))
         figure.subplots_adjust(right=0.80)
         figure.suptitle(f"Metrics for {environment} environment - {test}")
         # Success rate
@@ -196,9 +210,11 @@ def plot_single_test_metrics(test:str, environment:str, dataframe:pd.DataFrame, 
         ax[2,2].set(xlabel='Policy', ylabel='Average jerk', xticklabels=[])
         handles, labels = ax[0,0].get_legend_handles_labels()
         figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center')
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
 
 def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
-    figure, ax = plt.subplots(2,2)
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
     figure.subplots_adjust(right=0.80)
     figure.suptitle(f"Metrics for {environment} environment - {test}")
     # Filter Nan values
@@ -223,6 +239,8 @@ def plot_single_test_complete_metrics(test:str, environment:str, data:np.array):
             patch.set_facecolor(color)
     # Legend
     figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
     
 def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, anova_results:np.array, metrics:list[str], only_sarl=False):
     # Data shape (test & train env combination, n_metrics, samples)
@@ -234,7 +252,7 @@ def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, anova_resu
     for i in range(len(data)):
         for j in range(n_metrics): average_metrics[j,i//len(ENVIRONMENTS),i%len(ENVIRONMENTS)] = round(np.sum(data[i][j]) / len(data[i][j]), 2)
     ## Plot heatmaps with T-test pvalues
-    figure = plt.figure()
+    figure = plt.figure(figsize=(20,10))
     if only_sarl: figure.suptitle("Average metrics for SARL robot policies - " + test)
     else: figure.suptitle("Average metrics over all trained robot policies - " + test)
     outer = GridSpec(int(n_metrics/2), int(n_metrics/2), figure=figure, wspace=0.2, hspace=0.2)
@@ -244,6 +262,8 @@ def plot_heatmaps(data:list[np.array], test:str, ttest_data:np.array, anova_resu
         ax2 = figure.add_subplot(inner[1])
         plot_single_heatmap(average_metrics[i], ax1, metrics[i], anova_results[i]) # Heatmap with average values
         plot_single_ttest_map(ttest_data[i,:,:,1], ax2) # P-value of T-tests
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
         
 def plot_curves(data:list[pd.DataFrame], test_env:str):
     # Extract data
@@ -253,7 +273,7 @@ def plot_curves(data:list[pd.DataFrame], test_env:str):
         tests.append(test)
         for j, df in enumerate(data): time_to_goal_data[i,j] = df.loc[test]["time_to_goal"]
     # Plot curves
-    figure, ax = plt.subplots(1,1)
+    figure, ax = plt.subplots(1,1, figsize=(20,10))
     figure.subplots_adjust(right=0.80)
     figure.suptitle("Average time to goal over tests with increasing crowd density - Environment: " + test_env)
     ax.set(xlabel="N° humans", ylabel="Average time to Goal", xticks=np.arange(len(TESTS)), xticklabels=TESTS)
@@ -261,12 +281,14 @@ def plot_curves(data:list[pd.DataFrame], test_env:str):
     ax.grid()
     handles, _ = ax.get_legend_handles_labels()
     figure.legend(handles, POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
 
 def plot_human_times_boxplots(test:str, environment:str, ep_times:list, hu_times:list, n_humans:list):
     # ep_times(list(np.array)) - (11,successful_trials) - first dimension is list
     # hu_times(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
     # n_humans(list(np.array)) - (11,2,successful_trials,n_humans) - first dimension is list
-    figure = plt.figure()
+    figure = plt.figure(figsize=(20,10))
     figure.suptitle(f"Test environment: {environment} - {test}")
     gs = GridSpec(2, 3, figure=figure)
     ax1 = figure.add_subplot(gs[0,0])
@@ -321,9 +343,11 @@ def plot_human_times_boxplots(test:str, environment:str, ep_times:list, hu_times
             patch.set_facecolor(color)
     # Legend
     figure.legend(bplot1["boxes"], POLICY_NAMES, bbox_to_anchor=(0.90, 0.5), loc='center')
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
 
 def plot_boxplots_for_enviroments(test:str, data:list[np.array], metrics:list[str], train=True, only_sarl=False):
-    figure, ax = plt.subplots(2,2)
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
     # figure.tight_layout()
     figure.subplots_adjust(right=0.80)
     if only_sarl: figure.suptitle("Metrics for SARL robot policies - " + test)
@@ -359,6 +383,59 @@ def plot_boxplots_for_enviroments(test:str, data:list[np.array], metrics:list[st
             patch.set_facecolor(color)
     # Legend
     figure.legend(bplot1["boxes"], ENVIRONMENTS, bbox_to_anchor=(0.90, 0.5), loc='center', title=legend_title)
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
+
+def plot_space_compliance_over_spl_boxplots(test:str, data:list[list[np.ndarray]]):
+    # Data is in the form: (trained_policy, metrics, samples) - (9, 2, ~300) - list[list[np.ndarray]]
+    figure, ax = plt.subplots(1,1, figsize=(20,10))
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle("Space compliance over SPL (averaged over all test environments) - " + test)
+    # Prepare data
+    space_compliance = [data[e][0][:] for e in range(len(TRAINED_POLICIES))]
+    spl = [np.mean(data[e][1][:]) for e in range(len(TRAINED_POLICIES))]
+    # Plot boxplots
+    bplot = ax.boxplot(space_compliance, showmeans=True, labels=TRAINED_POLICIES, patch_artist=True, positions=spl, widths=[0.02 for _ in range(len(data))])
+    ax.set(xlabel='Success weighted by path length (SPL)', ylabel='Space compliance', ylim = [0,1], xlim = [0,1], xticks=[(i+1)/10 for i in range(10)], xticklabels=[(i+1)/10 for i in range(10)])
+    ax.grid()
+    # Set color of boxplots
+    for patch, color in zip(bplot['boxes'], COLORS): patch.set_facecolor(color)
+    # Legend
+    figure.legend(bplot["boxes"], TRAINED_POLICIES, bbox_to_anchor=(0.90, 0.5), loc='center', title="Train environment")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
+
+def plot_curves_over_n_humans_tests(data:list[list[list[np.ndarray]]]):
+    # Data is in the form: (n_humans_test, trained_policy, metrics, samples) - (4, 3, 4, ~300) - list[list[list[np.ndarray]]]
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle("Metrics of SARL policies over tests with increasing number of humans (averaged over all test environments)")
+    for a in ax: a[0].set_xticks([i for i in range(4)]); a[0].set_xticklabels(TESTS); a[1].set_xticks([i for i in range(4)]); a[1].set_xticklabels(TESTS)
+    ax[0,0].set(ylabel="Time to goal")
+    ax[1,0].set(ylabel="Space compliance", ylim=[0,1])
+    ax[0,1].set(ylabel="SPL", ylim=[0,1])
+    ax[1,1].set(ylabel="Collisions", ylim=[0,100])
+    # Prepare data
+    mean_time_to_goal = np.zeros((len(data),len(data[0]))) # (n_humans_test, trained_policy)
+    mean_space_compliance = np.zeros((len(data),len(data[0]))) # (n_humans_test, trained_policy)
+    mean_spl = np.zeros((len(data),len(data[0]))) # (n_humans_test, trained_policy)
+    mean_collisions = np.zeros((len(data),len(data[0]))) # (n_humans_test, trained_policy)
+    for i in range(len(TESTS)):
+        for j in range(len(SARL_POLICIES)):
+            mean_time_to_goal[i,j] = np.mean(data[i][j][0][:])
+            mean_space_compliance[i,j] = np.mean(data[i][j][1][:])
+            mean_spl[i,j] = np.mean(data[i][j][2][:])
+            mean_collisions[i,j] = np.mean(data[i][j][3][:])
+    # Plot 
+    for i in range(len(SARL_POLICIES)):
+        ax[0,0].plot(mean_time_to_goal[:,i], label=SARL_POLICIES[i], color=COLORS[(i+6) % 10], linewidth=2.5)
+        ax[0,1].plot(mean_spl[:,i], label=SARL_POLICIES[i], color=COLORS[(i+6) % 10], linewidth=2.5)
+        ax[1,0].plot(mean_space_compliance[:,i], label=SARL_POLICIES[i], color=COLORS[(i+6) % 10], linewidth=2.5)
+        ax[1,1].plot(mean_collisions[:,i], label=SARL_POLICIES[i], color=COLORS[(i+6) % 10], linewidth=2.5)
+    handles, _ = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, SARL_POLICIES, bbox_to_anchor=(0.90, 0.5), loc='center')
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
 
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
@@ -559,4 +636,65 @@ for k, test in enumerate(TESTS):
             else: episode_times, times, humans = extract_data_from_human_times_file(TESTED_ON_HSFM_NEW_GUO, test, human_times)
             # Plotting
             plot_human_times_boxplots(test, environment, episode_times, times, humans)
+    if SPACE_COMPLIANCE_OVER_SPL:
+        ## Extracting data
+        # Find numerical indexes of testing environments in the dataframe
+        indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
+        metrics_names = ["space_compliance","SPL"]
+        metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+        data = [] # (train_env & test_env, metrics, non-nan realizations)
+        for i, file in enumerate(TRAINED_POLICIES_TESTS):
+            env_indexes = indexes[file]
+            # Extracting data
+            one_data = complete_data[env_indexes,k]
+            ij_data = []
+            for m, metric in enumerate(metrics_idxs): 
+                not_filtered_data = np.reshape(np.array(one_data[:,metric], dtype=np.float64),(100,))
+                ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
+            data.append(ij_data)
+        # We want to stack tests with same policy but different test environment
+        stacked_data = [] # (train_env, metrics, non-nan realizations)
+        for ii, trained_policy in enumerate(TRAINED_POLICIES):
+            first_stacking = False
+            for jj, file in enumerate(TRAINED_POLICIES_TESTS):
+                if trained_policy in file:
+                    data_to_stack = data[jj]
+                    if not first_stacking: 
+                        stacked_data.append(data_to_stack)
+                        first_stacking = True
+                    else:
+                        for mm, metric in enumerate(metrics_names): stacked_data[ii][mm] = np.concatenate([stacked_data[ii][mm],data_to_stack[mm]])
+        ## Boxplot
+        plot_space_compliance_over_spl_boxplots(test, stacked_data)
+    if SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS:
+        ## Extracting data
+        # Find numerical indexes of testing environments in the dataframe
+        indexes = {i: dataframe.index.get_loc(i) for i, row in dataframe.iterrows()}
+        metrics_names = ["time_to_goal","space_compliance","SPL","collisions"]
+        metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+        data = [] # (train_env & test_env, metrics, non-nan realizations)
+        for i, file in enumerate(SARL_POLICIES_RESULTS):
+            env_indexes = indexes[file]
+            # Extracting data
+            one_data = complete_data[env_indexes,k]
+            ij_data = []
+            for m, metric in enumerate(metrics_idxs): 
+                not_filtered_data = np.reshape(np.array(one_data[:,metric], dtype=np.float64),(100,))
+                ij_data.append(not_filtered_data[~np.isnan(not_filtered_data)])
+            data.append(ij_data)
+        # We want to stack tests with same policy but different test environment
+        stacked_data = [] # (train_env, metrics, non-nan realizations)
+        for ii, trained_policy in enumerate(SARL_POLICIES):
+            first_stacking = False
+            for jj, file in enumerate(SARL_POLICIES_RESULTS):
+                if trained_policy in file:
+                    data_to_stack = data[jj]
+                    if not first_stacking: 
+                        stacked_data.append(data_to_stack)
+                        first_stacking = True
+                    else:
+                        for mm, metric in enumerate(metrics_names): stacked_data[ii][mm] = np.concatenate([stacked_data[ii][mm],data_to_stack[mm]])
+        if k == 0: all_data = [stacked_data.copy()]
+        else: all_data.append(stacked_data)
+        if k == len(TESTS) - 1: plot_curves_over_n_humans_tests(all_data)
 plt.show()
