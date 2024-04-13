@@ -99,7 +99,9 @@ class RobotAgent(Agent):
     def set(self, px, py, gx, gy, vx, vy, theta, radius=None, v_pref=None, w=None):
         self.position[0] = px
         self.position[1] = py
-        self.goals.append([gx,gy])
+        self.goals.insert(0, [gx,gy])
+        if len(self.goals) > 1: self.goals.pop()
+        self.goals[0] = [gx,gy]
         self.linear_velocity[0] = vx
         self.linear_velocity[1] = vy
         self.yaw = theta

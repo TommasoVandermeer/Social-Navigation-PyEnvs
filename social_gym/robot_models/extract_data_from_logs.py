@@ -8,7 +8,7 @@ MODEL_DIRS = ["cadrl_on_orca","cadrl_on_sfm_guo","cadrl_on_hsfm_new_guo",
               "sarl_on_orca","sarl_on_sfm_guo","sarl_on_hsfm_new_guo",
               "lstm_rl_on_orca","lstm_rl_on_sfm_guo","lstm_rl_on_hsfm_new_guo"]
 ### Implementation variables (do not change)
-BASE_DIR = base_dir = os.path.join(os.path.dirname(__file__))
+BASE_DIR = base_dir = os.path.join(os.path.dirname(__file__),"trained_on_circular_crossing")
 COLORS = list(mcolors.TABLEAU_COLORS.values())
 
 figure, ax = plt.subplots(1, 1)

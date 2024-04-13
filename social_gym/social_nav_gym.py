@@ -5,7 +5,7 @@ from social_gym.social_nav_sim import SocialNavSim
 from social_gym.src.info import *
 from social_gym.src.utils import is_multiple
 
-HEADLESS = False
+HEADLESS = True
 PARALLELIZE_ROBOT = True
 PARALLELIZE_HUMANS = False # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
@@ -143,6 +143,19 @@ class SocialNavGym(gym.Env, SocialNavSim):
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
                                                                 traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
                                                                 randomize_human_attributes = self.randomize_attributes)
+                    elif self.train_val_sim == 'hybrid_scenario':
+                        scenario = np.random.choice(['circle_crossing', 'parallel_traffic'])
+                        np.random.seed(counter_offset[phase] + self.case_counter[phase])
+                        if scenario == 'circle_crossing':
+                            self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = human_num, randomize_human_positions = True, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                        elif scenario == 'parallel_traffic':
+                            self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
+                                                                randomize_human_attributes = self.randomize_attributes)
                 else:
                     if self.test_sim == 'circle_crossing':
                         self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
@@ -151,6 +164,19 @@ class SocialNavGym(gym.Env, SocialNavSim):
                                                                 randomize_human_attributes = self.randomize_attributes)
                     elif self.test_sim == 'parallel_traffic':
                         self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = self.human_num, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                    elif self.test_sim == 'hybrid_scenario':
+                        scenario = np.random.choice(['circle_crossing', 'parallel_traffic'])
+                        np.random.seed(counter_offset[phase] + self.case_counter[phase])
+                        if scenario == 'circle_crossing':
+                            self.generate_circular_crossing_setting(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = self.human_num, randomize_human_positions = True, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                        elif scenario == 'parallel_traffic':
+                            self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
                                                                 traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = self.human_num, 
                                                                 randomize_human_attributes = self.randomize_attributes)

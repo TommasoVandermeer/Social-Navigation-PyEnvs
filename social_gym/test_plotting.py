@@ -13,18 +13,18 @@ import numpy as np
 METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
 COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
 HUMAN_TIMES_FILE = "human_times.pkl"
-BAR_PLOTS = False # If true, barplots are shown
-MORE_BAR_PLOTS = False # If true, more barplots are plotted
-BOX_PLOTS = False # If true, boxplot are printed
-HEAT_MAP = False # If true, heatmaps are plotted
-SARL_ONLY_HEATMAPS = False # If true, heatmaps are plotted considering only sarl policies
-SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
-CURVE_PLOTS = False # If true, curves are plotted
+BAR_PLOTS = True # If true, barplots are shown
+MORE_BAR_PLOTS = True # If true, more barplots are plotted
+BOX_PLOTS = True # If true, boxplot are printed
+HEAT_MAP = True # If true, heatmaps are plotted
+SARL_ONLY_HEATMAPS = True # If true, heatmaps are plotted considering only sarl policies
+SARL_ONLY_BOXPLOTS = True # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
+CURVE_PLOTS = True # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
-SPACE_COMPLIANCE_OVER_SPL = False # If true, space compliance over SPL is plotted
-SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = False # If true, metrics over n° humans tests are plotted considering only sarl policies
+SPACE_COMPLIANCE_OVER_SPL = True # If true, space compliance over SPL is plotted
+SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = True # If true, metrics over n° humans tests are plotted considering only sarl policies
 T_TEST_P_VALUE_THRESHOLD = 0.05
-SAVE_FIGURES = False # If true, figures are saved
+SAVE_FIGURES = True # If true, figures are saved, else, they are showed.
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
 FIGURES_SAVING_PATH = os.path.join(os.path.dirname(__file__),"tests","plots")
 if not os.path.exists(FIGURES_SAVING_PATH): os.makedirs(FIGURES_SAVING_PATH)

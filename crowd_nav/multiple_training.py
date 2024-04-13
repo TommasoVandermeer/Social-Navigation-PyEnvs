@@ -10,7 +10,7 @@ ROBOT_RADIUS = 0.3
 HUMANS_RADIUS = 0.3
 ROBOT_PREF_SPEED = 1.0
 HUMANS_PREF_SPEED = 1.0
-SCENARIO = "parallel_traffic" # "parallel_traffic" or "circle_crossing"
+SCENARIO = "hybrid_scenario" # "parallel_traffic", "circle_crossing", or "hybrid_scenario"
 ### IMPLEMENTATION VARIABLES, DO NOT CHANGE
 ENV_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/env.config')
 POLICY_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/policy.config')
