@@ -5,7 +5,7 @@ import matplotlib.colors as mcolors
 from matplotlib.axis import Axis
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.colors import ListedColormap
-from itertools import zip_longest
+from itertools import zip_longest, product
 from scipy.stats import ttest_ind, f_oneway
 import pickle
 import numpy as np
@@ -13,16 +13,18 @@ import numpy as np
 METRICS_FILE = "Metrics_multiple_robot_policies.xlsx"
 COMPLETE_METRICS_FILE = "Metrics_multiple_robot_policies.pkl"
 HUMAN_TIMES_FILE = "human_times.pkl"
-BAR_PLOTS = True # If true, barplots are shown
-MORE_BAR_PLOTS = True # If true, more barplots are plotted
-BOX_PLOTS = True # If true, boxplot are printed
-HEAT_MAP = True # If true, heatmaps are plotted
-SARL_ONLY_HEATMAPS = True # If true, heatmaps are plotted considering only sarl policies
-SARL_ONLY_BOXPLOTS = True # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
-CURVE_PLOTS = True # If true, curves are plotted
+BAR_PLOTS = False # If true, barplots are shown
+MORE_BAR_PLOTS = False # If true, more barplots are plotted
+BOX_PLOTS = False # If true, boxplot are printed
+HEAT_MAP = False # If true, heatmaps are plotted
+SARL_ONLY_HEATMAPS = False # If true, heatmaps are plotted considering only sarl policies
+SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on training and testing env are plotted considering only sarl policies
+CURVE_PLOTS = False # If true, curves are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
-SPACE_COMPLIANCE_OVER_SPL = True # If true, space compliance over SPL is plotted
-SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = True # If true, metrics over n° humans tests are plotted considering only sarl policies
+SPACE_COMPLIANCE_OVER_SPL = False # If true, space compliance over SPL is plotted
+SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = False # If true, metrics over n° humans tests are plotted considering only sarl policies
+METRICS_OVER_DIFFERENT_SCENARIOS = True # If true, metrics over different scenarios are plotted
+COMPLETE_METRICS_FILE_NAMES = ["CC_on_CC.pkl","CC_on_PT.pkl","PT_on_CC.pkl","PT_on_PT.pkl"]
 T_TEST_P_VALUE_THRESHOLD = 0.05
 SAVE_FIGURES = True # If true, figures are saved, else, they are showed.
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
@@ -92,6 +94,7 @@ POLICY_NAMES = ["bp",
                 "lstm_rl_on_orca",
                 "lstm_rl_on_sfm_guo",
                 "lstm_rl_on_hsfm_new_guo"]
+TRAINABLE_POLICIES =  ["cadrl","sarl","lstm_rl"]
 ENVIRONMENTS = ["ORCA","SFM_GUO","HSFM_NEW_GUO"]
 ENVIRONMENTS_DISPLAY_NAME = ["ORCA","SFM","HSFM"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
@@ -99,7 +102,116 @@ METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
 PLOT_COUNTER = 1
+TEST_DIMENSIONS = {0: "robot_policy", 1: "train_env", 2: "train_scenario", 
+                   3: "test_env", 4: "test_scenario", 5: "n_humans"}
+RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","ssp_on_orca.pkl","ssp_on_sfm_guo.pkl","ssp_on_hsfm_new_guo.pkl",
+                 "orca_on_orca.pkl","orca_on_sfm_guo.pkl","orca_on_hsfm_new_guo.pkl",
+                 "cadrl_on_orca_on_orca.pkl","cadrl_on_orca_on_sfm_guo.pkl","cadrl_on_orca_on_hsfm_new_guo.pkl",
+                 "cadrl_on_sfm_guo_on_orca.pkl","cadrl_on_sfm_guo_on_sfm_guo.pkl","cadrl_on_sfm_guo_on_hsfm_new_guo.pkl",
+                 "cadrl_on_hsfm_new_guo_on_orca.pkl","cadrl_on_hsfm_new_guo_on_sfm_guo.pkl","cadrl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
+                 "sarl_on_orca_on_orca.pkl","sarl_on_orca_on_sfm_guo.pkl","sarl_on_orca_on_hsfm_new_guo.pkl",
+                 "sarl_on_sfm_guo_on_orca.pkl","sarl_on_sfm_guo_on_sfm_guo.pkl","sarl_on_sfm_guo_on_hsfm_new_guo.pkl",
+                 "sarl_on_hsfm_new_guo_on_orca.pkl","sarl_on_hsfm_new_guo_on_sfm_guo.pkl","sarl_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
+                 "lstm_rl_on_orca_on_orca.pkl","lstm_rl_on_orca_on_sfm_guo.pkl","lstm_rl_on_orca_on_hsfm_new_guo.pkl",
+                 "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
+                 "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
+ROBOT_POLICIES_RESULTS_FILES_INDEXES = {"bp": [0,1,2], "ssp": [3,4,5], "orca": [6,7,8], "cadrl": [9,10,11,12,13,14,15,16,17],
+                                        "sarl": [18,19,20,21,22,23,24,25,26], "lstm_rl": [27,28,29,30,31,32,33,34,35]}
+TRAIN_ENV_RESULTS_FILES_INDEXES = {"ORCA": [9,10,11,18,19,20,27,28,29], "SFM_GUO": [12,13,14,21,22,23,30,31,32], "HSFM_NEW_GUO": [15,16,17,24,25,26,33,34,35]}
+TEST_ENV_RESULTS_FILES_INDEXES = {"ORCA": [0,3,6,9,12,15,18,21,24,27,30,33], "SFM_GUO": [1,4,7,10,13,16,19,22,25,28,31,34], "HSFM_NEW_GUO": [2,5,8,11,14,17,20,23,26,29,32,35]}
+SCENARIOS = ["CC","PT"]#,"HS"]
+NON_TRAINABLE_POLICIES = POLICY_NAMES[0:3]
 
+def find_key_containing_a_certain_value_in_dict(dictionary:dict, value:str):
+    for key, values in dictionary.items(): 
+        if value in values: return key
+    return None
+
+def aggregate_data(complete_metrics_files:list[str], metrics_dir:str, aggregation_dimensions:list[int], include_non_trainable_policies=False):
+    ### First we create a dictionary containing all the test organized by the aggregation dimensions
+    n_tests = len(complete_metrics_files) * len(RESULTS_FILES) * len(TESTS)
+    tests_data = {}
+    n_tests_non_trainable_policies = 0
+    for i, compl_metrics_file in enumerate(complete_metrics_files):
+        with open(os.path.join(metrics_dir,compl_metrics_file), "rb") as f: complete_data_i = pickle.load(f)
+        ## complete_data_i shape: [n_tests, n_humans, n_trials (i.e., 100), n_metrics]
+        assert len(complete_data_i) == len(RESULTS_FILES), f"Error: {compl_metrics_file} does not contain the standard number of tests"
+        train_scenario = compl_metrics_file[0:2]
+        assert train_scenario in SCENARIOS, f"Error: {train_scenario} is not a valid train scenario"
+        test_scenario = compl_metrics_file[6:8]
+        assert test_scenario in SCENARIOS[0:2], f"Error: {test_scenario} is not a valid test scenario"
+        ## loop through tests of each file
+        for t, test in enumerate(complete_data_i):
+            ## now we need to find out the robot policy, train env, and test env
+            results_files_index = RESULTS_FILES.index(RESULTS_FILES[t])
+            # robot policy
+            robot_policy = find_key_containing_a_certain_value_in_dict(ROBOT_POLICIES_RESULTS_FILES_INDEXES, results_files_index)
+            # train env
+            train_env = find_key_containing_a_certain_value_in_dict(TRAIN_ENV_RESULTS_FILES_INDEXES, results_files_index)
+            # test env
+            test_env = find_key_containing_a_certain_value_in_dict(TEST_ENV_RESULTS_FILES_INDEXES, results_files_index)
+            ## now we further split by n_humans
+            for h, true_test in enumerate(test):
+                n_humans = TESTS[h]
+                if robot_policy in NON_TRAINABLE_POLICIES: n_tests_non_trainable_policies += 1
+                ## now we save the data in our dict - remember that true_test is in the shape: [n_trials, n_metrics]
+                if (include_non_trainable_policies) or ((not include_non_trainable_policies) and (robot_policy not in NON_TRAINABLE_POLICIES)): 
+                    tests_data[len(tests_data)] = {"robot_policy": robot_policy, "train_env": train_env, "train_scenario": train_scenario, "test_env": test_env, "test_scenario": test_scenario, "n_humans": n_humans, "data": true_test}
+    if not include_non_trainable_policies: n_tests -= n_tests_non_trainable_policies
+    assert len(tests_data) == n_tests, f"Error: the number of tests is not correct. Expected {n_tests}, got {len(tests_data)}"
+    ### Now we aggregate the data
+    if len(aggregation_dimensions) == 0: 
+        return tests_data
+    else:
+        print(f"Aggregating test data by {[v for k,v in TEST_DIMENSIONS.items() if k in aggregation_dimensions]}...")
+        ## Let's find the final number of different tests
+        aggregation_tp_divisors = {0: len(ROBOT_POLICIES_RESULTS_FILES_INDEXES) - len(NON_TRAINABLE_POLICIES), 1: len(ENVIRONMENTS), 2: len(SCENARIOS), 3: len(ENVIRONMENTS), 4: len(SCENARIOS[0:2]), 5: len(TESTS)}
+        aggregation_ntp_divisors = {0: len(ROBOT_POLICIES_RESULTS_FILES_INDEXES) - len(TRAINABLE_POLICIES), 1: 1, 2: 1, 3: len(ENVIRONMENTS), 4: len(SCENARIOS[0:2]), 5: len(TESTS)}
+        trainable_policies_divisor = np.prod([aggregation_tp_divisors[dimension] for dimension in aggregation_dimensions])
+        non_trainable_policies_divisor = np.prod([aggregation_ntp_divisors[dimension] for dimension in aggregation_dimensions])
+        if include_non_trainable_policies: n_aggregated_tests = n_tests_non_trainable_policies / non_trainable_policies_divisor + (n_tests - n_tests_non_trainable_policies) / trainable_policies_divisor
+        else: n_aggregated_tests = n_tests / trainable_policies_divisor
+        n_aggregated_tests = int(n_aggregated_tests)
+        print(f"Total number of different tests: {n_tests} - Number of aggregated tests: {n_aggregated_tests}")
+        ## Now we aggregate the data
+        non_aggregation_dimensions = [i for i in range(len(TEST_DIMENSIONS)) if i not in aggregation_dimensions]
+        # create the set of all possible test settings
+        tp_dims = []
+        ntp_dims = []
+        if 0 not in aggregation_dimensions: 
+            tp_dims.append(TRAINABLE_POLICIES)
+            ntp_dims.append(NON_TRAINABLE_POLICIES)
+        if 1 not in aggregation_dimensions: 
+            tp_dims.append(ENVIRONMENTS)
+        if 2 not in aggregation_dimensions: 
+            tp_dims.append(SCENARIOS)
+        if 3 not in aggregation_dimensions: 
+            tp_dims.append(ENVIRONMENTS)
+            ntp_dims.append(ENVIRONMENTS)
+        if 4 not in aggregation_dimensions: 
+            tp_dims.append(SCENARIOS[0:2])
+            ntp_dims.append(SCENARIOS[0:2])
+        if 5 not in aggregation_dimensions: 
+            tp_dims.append(TESTS)
+            ntp_dims.append(TESTS)
+        sets = list(product(*tp_dims))
+        if include_non_trainable_policies: sets += list(product(*ntp_dims))
+        aggregated_tests_data = {}
+        if include_non_trainable_policies: raise NotImplementedError("Non trainable policies aggregation is not supported yet")
+        for i in range(n_aggregated_tests):
+            cset = sets[i]
+            aggr_test = {}
+            for d, dim in enumerate(non_aggregation_dimensions): aggr_test[TEST_DIMENSIONS[dim]] = cset[d]
+            # print(cset, aggr_test)
+            for t in range(len(tests_data)):
+                test = tests_data[t]
+                if all([bool(test[TEST_DIMENSIONS[dim]] == aggr_test[TEST_DIMENSIONS[dim]]) for dim in non_aggregation_dimensions]):
+                    if "data" not in aggr_test: aggr_test["data"] = test["data"]
+                    else: aggr_test["data"] = np.concatenate((aggr_test["data"], test["data"]), axis=0)
+            aggregated_tests_data[i] = aggr_test
+        print(f"Aggregation ended. N° trials for each test: {len(aggregated_tests_data[0]['data'])}")
+        return aggregated_tests_data
+                    
 def save_figure(figure:plt.Figure):
     global PLOT_COUNTER
     figure.savefig(os.path.join(FIGURES_SAVING_PATH,f"{PLOT_COUNTER}.png"))
@@ -440,7 +552,10 @@ def plot_curves_over_n_humans_tests(data:list[list[list[np.ndarray]]]):
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
 # Complete data is in the following shape (test, n_humans_test, trials, metrics)
-with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
+if os.path.exists(os.path.join(metrics_dir,COMPLETE_METRICS_FILE)):
+    with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
+else:
+    print("Complete metrics file not found. Proceding without it...")
 for k, test in enumerate(TESTS):
     ## Load average metrics dataframe
     dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
@@ -697,4 +812,53 @@ for k, test in enumerate(TESTS):
         if k == 0: all_data = [stacked_data.copy()]
         else: all_data.append(stacked_data)
         if k == len(TESTS) - 1: plot_curves_over_n_humans_tests(all_data)
+if METRICS_OVER_DIFFERENT_SCENARIOS:
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4], include_non_trainable_policies=False)
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Figure
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle("Metrics over tests with increasing number of humans (averaged over all test and train environments and scenarios)")
+    # Compute final data to plot
+    data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## Plot
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(4)])
+    ax[0,0].set_xticklabels(TESTS)
+    ax[0,0].set_yticks([i/10 for i in range(11)])
+    ax[0,0].set(ylabel="Success rate", ylim=[0,1])
+    ax[0,0].grid()
+    for i in range(len(TRAINABLE_POLICIES)): ax[0,0].plot(data_to_plot[i,:,0], label=TRAINABLE_POLICIES[i], color=COLORS[i%10], linewidth=2.5)
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(4)])
+    ax[0,1].set_xticklabels(TESTS)
+    ax[0,1].set(ylabel="Time to goal")
+    ax[0,1].grid()
+    for i in range(len(TRAINABLE_POLICIES)): ax[0,1].plot(data_to_plot[i,:,1], label=TRAINABLE_POLICIES[i], color=COLORS[i%10], linewidth=2.5)
+    # space_compliance
+    ax[1,0].set_xticks([i for i in range(4)])
+    ax[1,0].set_xticklabels(TESTS)
+    ax[1,0].set_yticks([i/10 for i in range(11)])
+    ax[1,0].set(ylabel="Space compliance", ylim=[0,1])
+    ax[1,0].grid()
+    for i in range(len(TRAINABLE_POLICIES)): ax[1,0].plot(data_to_plot[i,:,2], label=TRAINABLE_POLICIES[i], color=COLORS[i%10], linewidth=2.5)
+    # SPL
+    ax[1,1].set_xticks([i for i in range(4)])
+    ax[1,1].set_xticklabels(TESTS)
+    ax[1,1].set_yticks([i/10 for i in range(11)])
+    ax[1,1].set(ylabel="SPL", ylim=[0,1])
+    ax[1,1].grid()
+    for i in range(len(TRAINABLE_POLICIES)): ax[1,1].plot(data_to_plot[i,:,3], label=TRAINABLE_POLICIES[i], color=COLORS[i%10], linewidth=2.5)
+    # legend
+    handles, _ = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, TRAINABLE_POLICIES, bbox_to_anchor=(0.90, 0.5), loc='center')
+    ## Save figure
+    if SAVE_FIGURES: save_figure(figure)
 plt.show()

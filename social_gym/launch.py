@@ -13,7 +13,6 @@ from custom_config.config_example import data
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-np.random.seed(1006)
 social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "orca", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 35, "randomize_human_positions": True, "randomize_human_attributes": False},
