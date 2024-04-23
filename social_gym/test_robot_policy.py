@@ -5,8 +5,8 @@ import logging
 import pickle
 from social_gym.social_nav_sim import SocialNavSim
 
-### GLOBAL VARIABLES TO BE SET TO RUN THE TEST # [5,7,14,21,28,35]
-N_HUMANS = np.array([5,15,25,35], dtype=int)
+### GLOBAL VARIABLES TO BE SET TO RUN THE TEST # [5,15,25,35]
+N_HUMANS = np.array([10,20], dtype=int)
 CIRCLE_RADIUS = 7
 TRAFFIC_LENGTH = 14
 TRAFFIC_HEIGHT = 3
@@ -28,10 +28,22 @@ HUMAN_POLICY = "orca"
 ROBOT_POLICY = "bp"
 ROBOT_MODEL_DIR = "robot_models/cadrl_on_orca" # Used only if testing a trainable policy
 ## MULTIPLE TESTS VARIABLES
-ROBOT_POLICIES_TO_BE_TESTED = ["bp", "ssp", "orca", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
-ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "-", "robot_models/cadrl_on_orca", "robot_models/cadrl_on_sfm_guo", "robot_models/cadrl_on_hsfm_new_guo",
-                                 "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
-                                 "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
+# ROBOT_POLICIES_TO_BE_TESTED = ["bp", "ssp", "orca", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
+# ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "-", "robot_models/cadrl_on_orca", "robot_models/cadrl_on_sfm_guo", "robot_models/cadrl_on_hsfm_new_guo",
+#                                  "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
+#                                  "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
+ROBOT_POLICIES_TO_BE_TESTED = ["bp", "ssp", "orca", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl",
+                               "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl", 
+                               "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
+ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "-", "robot_models/trained_on_circular_crossing/cadrl_on_orca", "robot_models/trained_on_circular_crossing/cadrl_on_sfm_guo", "robot_models/trained_on_circular_crossing/cadrl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_circular_crossing/sarl_on_orca", "robot_models/trained_on_circular_crossing/sarl_on_sfm_guo", "robot_models/trained_on_circular_crossing/sarl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_circular_crossing/lstm_rl_on_orca", "robot_models/trained_on_circular_crossing/lstm_rl_on_sfm_guo", "robot_models/trained_on_circular_crossing/lstm_rl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_parallel_traffic/cadrl_on_orca", "robot_models/trained_on_parallel_traffic/cadrl_on_sfm_guo", "robot_models/trained_on_parallel_traffic/cadrl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_parallel_traffic/sarl_on_orca", "robot_models/trained_on_parallel_traffic/sarl_on_sfm_guo", "robot_models/trained_on_parallel_traffic/sarl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_parallel_traffic/lstm_rl_on_orca", "robot_models/trained_on_parallel_traffic/lstm_rl_on_sfm_guo", "robot_models/trained_on_parallel_traffic/lstm_rl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_hybrid_scenario/cadrl_on_orca", "robot_models/trained_on_hybrid_scenario/cadrl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/cadrl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_hybrid_scenario/sarl_on_orca", "robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo",
+                                 "robot_models/trained_on_hybrid_scenario/lstm_rl_on_orca", "robot_models/trained_on_hybrid_scenario/lstm_rl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/lstm_rl_on_hsfm_new_guo"]
 HUMAN_POLICIES_TO_BE_TESTED = ["orca", "sfm_guo", "hsfm_new_guo"]
 OUTPUT_FILE_NAME = "multiple_tests.log"
 ### VARIABLES USED FOR IMPLEMENTATION PURPOSES, DO NOT CHANGE THESE
@@ -144,7 +156,11 @@ else:
     stdout_handler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(level=logging.INFO, handlers=[stdout_handler, file_handler],format='%(asctime)s, %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
     for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED):
-        if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k][13:]
+        if len(ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[1][11:]
+        else: training_scenario = None
+        if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
+        else: logging.info("Non trainable policy")
+        if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[-1]
         else: robot_policy_title = robot_policy
         for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
             if human_policy == "orca": rk45 = False
@@ -154,4 +170,7 @@ else:
             # Save test results in output file
             all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_TO_BE_TESTED[k])
             if SAVE_STATES:
-                with open(os.path.join(results_dir,f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+                if training_scenario is not None:
+                    with open(os.path.join(results_dir,f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+                else:
+                    with open(os.path.join(results_dir,f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()

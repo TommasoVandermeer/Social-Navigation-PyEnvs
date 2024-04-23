@@ -26,7 +26,8 @@ COMPLETE_METRICS_FILE_NAMES = ["CC_on_CC.pkl","CC_on_PT.pkl","PT_on_CC.pkl","PT_
 METRICS_OVER_DIFFERENT_POLICIES = False # If true, metrics over different scenarios are plotted
 METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = False # If true, metrics over different training environments are plotted
 METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = False # If true, metrics over different training scenarios are plotted
-METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = True # If true, boxplots showing performances based on training env are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = True # If true, metrics over different training env and scenarios are plotted
+METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = False # If true, boxplots showing performances based on training env are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 T_TEST_P_VALUE_THRESHOLD = 0.05
 SAVE_FIGURES = True # If true, figures are saved, else, they are showed.
@@ -125,6 +126,7 @@ TEST_ENV_RESULTS_FILES_INDEXES = {"ORCA": [0,3,6,9,12,15,18,21,24,27,30,33], "SF
 SCENARIOS = ["CC","PT","HS"]
 SCENARIOS_DISPLAY_NAME = ["Circular crossing","Parallel traffic","Hybrid scenario"]
 NON_TRAINABLE_POLICIES = POLICY_NAMES[0:3]
+LINE_STYLES = ["solid","dashed","dotted"]
 
 def find_key_containing_a_certain_value_in_dict(dictionary:dict, value:str):
     for key, values in dictionary.items(): 
@@ -805,7 +807,7 @@ for k, test in enumerate(TESTS):
 if METRICS_OVER_DIFFERENT_POLICIES:
     # Extract and aggregate data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4])
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","avg_dist"]
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
     metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
     # Compute final data to plot
     data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
@@ -876,7 +878,7 @@ if METRICS_OVER_DIFFERENT_POLICIES:
     # SPL
     ax[1,1].set_xticks([i for i in range(4)])
     ax[1,1].set_xticklabels(TESTS)
-    ax[1,1].set(ylabel="Average distance to humans")
+    ax[1,1].set(ylabel="Average minimum distance to humans")
     ax[1,1].grid()
     for i in range(len(TRAINABLE_POLICIES)): ax[1,1].plot(data_to_plot[i,:,7], label=TRAINABLE_POLICIES[i], color=COLORS[i%10], linewidth=2.5)
     # legend
@@ -887,7 +889,7 @@ if METRICS_OVER_DIFFERENT_POLICIES:
 if METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT:
     # Extract and aggregate data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,2,3,4], only_sarl=True)
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","avg_dist"]
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
     metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
     # Compute final data to plot
     data_to_plot = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
@@ -958,7 +960,7 @@ if METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT:
     # SPL
     ax[1,1].set_xticks([i for i in range(4)])
     ax[1,1].set_xticklabels(TESTS)
-    ax[1,1].set(ylabel="Average distance to humans")
+    ax[1,1].set(ylabel="Average minimum distance to humans")
     ax[1,1].grid()
     for i in range(len(ENVIRONMENTS)): ax[1,1].plot(data_to_plot[i,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10], linewidth=2.5)
     # legend
@@ -969,7 +971,7 @@ if METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT:
 if METRICS_OVER_DIFFERENT_TRAINING_SCENARIO:
     # Extract and aggregate data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,3,4], only_sarl=True)
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","avg_dist"]
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
     metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
     # Compute final data to plot
     data_to_plot = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
@@ -1040,7 +1042,7 @@ if METRICS_OVER_DIFFERENT_TRAINING_SCENARIO:
     # SPL
     ax[1,1].set_xticks([i for i in range(4)])
     ax[1,1].set_xticklabels(TESTS)
-    ax[1,1].set(ylabel="Average distance to humans")
+    ax[1,1].set(ylabel="Average minimum distance to humans")
     ax[1,1].grid()
     for i in range(len(SCENARIOS)): ax[1,1].plot(data_to_plot[i,:,7], label=SCENARIOS_DISPLAY_NAME[i], color=COLORS[i%10], linewidth=2.5)
     # legend
@@ -1051,7 +1053,7 @@ if METRICS_OVER_DIFFERENT_TRAINING_SCENARIO:
 if METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS:
     # Extract and aggregate data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,2,3,4,5], only_sarl=True)
-    metrics_names = ["path_length","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","avg_dist"]
+    metrics_names = ["path_length","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
     metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
     # Compute final data to plot
     data_to_plot = []
@@ -1106,12 +1108,97 @@ if METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS:
     ax[1,0].grid()
     # SPL
     bplot4 = ax[1,1].boxplot(data_to_plot[7], showmeans=True, patch_artist=True)
-    ax[1,1].set(xlabel="Training environment", ylabel='Average distance to humans', xticklabels=ENVIRONMENTS_DISPLAY_NAME)
+    ax[1,1].set(xlabel="Training environment", ylabel='Average minimum distance to humans', xticklabels=ENVIRONMENTS_DISPLAY_NAME)
     ax[1,1].grid()
     # Set color of boxplots
     for bplot in (bplot1, bplot2, bplot3, bplot4):
         for patch, color in zip(bplot['boxes'], COLORS):
             patch.set_facecolor(color)
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
+if METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO:
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4], only_sarl=True)
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Compute final data to plot
+    data_to_plot = np.zeros((len(ENVIRONMENTS)*len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    successful_episodes = np.zeros((len(ENVIRONMENTS)*len(SCENARIOS),len(TESTS)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for train_scenario in SCENARIOS:
+            for n_humans in TESTS:
+                for k, d in dataa.items():
+                    if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == train_scenario):
+                        for m, metric in enumerate(metrics_idxs): data_to_plot[ENVIRONMENTS.index(train_env) * len(SCENARIOS) + SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+                        successful_episodes[ENVIRONMENTS.index(train_env) * len(SCENARIOS) + SCENARIOS.index(train_scenario),TESTS.index(n_humans)] = np.sum(d["data"][:,0] == 1)
+    ## Plot
+    # Figure ONE
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.75)
+    figure.suptitle("Metrics over SARL tests with increasing number of humans (averaged over all test environments and scenarios, and robot policies)")
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(4)])
+    ax[0,0].set_xticklabels(TESTS)
+    ax[0,0].set_yticks([i/10 for i in range(11)])
+    ax[0,0].set(ylabel="Success rate", ylim=[0,1])
+    ax[0,0].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[0,0].plot(data_to_plot[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(4)])
+    ax[0,1].set_xticklabels(TESTS)
+    ax[0,1].set(ylabel="Time to goal")
+    ax[0,1].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[0,1].plot(data_to_plot[i,:,1], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # space_compliance
+    ax[1,0].set_xticks([i for i in range(4)])
+    ax[1,0].set_xticklabels(TESTS)
+    ax[1,0].set_yticks([i/10 for i in range(11)])
+    ax[1,0].set(ylabel="Space compliance", ylim=[0,1])
+    ax[1,0].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[1,0].plot(data_to_plot[i,:,2], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # SPL
+    ax[1,1].set_xticks([i for i in range(4)])
+    ax[1,1].set_xticklabels(TESTS)
+    ax[1,1].set_yticks([i/10 for i in range(11)])
+    ax[1,1].set(ylabel="SPL", ylim=[0,1])
+    ax[1,1].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[1,1].plot(data_to_plot[i,:,3], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Training setting [successful eps. for each test]")
+    ## Save figure
+    if SAVE_FIGURES: save_figure(figure)
+    ## Figure TWO
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.75)
+    figure.suptitle("Metrics over SARL tests with increasing number of humans (averaged over all test environments and scenarios, and robot policies)")
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(4)])
+    ax[0,0].set_xticklabels(TESTS)
+    ax[0,0].set(ylabel="Average speed")
+    ax[0,0].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[0,0].plot(data_to_plot[i,:,4], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(4)])
+    ax[0,1].set_xticklabels(TESTS)
+    ax[0,1].set(ylabel="Average acceleration")
+    ax[0,1].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[0,1].plot(data_to_plot[i,:,5], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # space_compliance
+    ax[1,0].set_xticks([i for i in range(4)])
+    ax[1,0].set_xticklabels(TESTS)
+    ax[1,0].set(ylabel="Average jerk")
+    ax[1,0].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[1,0].plot(data_to_plot[i,:,6], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # SPL
+    ax[1,1].set_xticks([i for i in range(4)])
+    ax[1,1].set_xticklabels(TESTS)
+    ax[1,1].set(ylabel="Average minimum distance to humans")
+    ax[1,1].grid()
+    for i in range(len(ENVIRONMENTS)*len(SCENARIOS)): ax[1,1].plot(data_to_plot[i,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i//3] + "_" + SCENARIOS_DISPLAY_NAME[i%3] + " " + str(successful_episodes[i]), color=COLORS[i//3], linewidth=2.5, linestyle=LINE_STYLES[i%3])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Training setting [successful eps. for each test]")
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
 plt.show()

@@ -30,7 +30,7 @@ social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
 social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo'), il=False)
+social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo'), il=False)
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
