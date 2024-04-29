@@ -5,8 +5,8 @@ import logging
 import pickle
 from social_gym.social_nav_sim import SocialNavSim
 
-### GLOBAL VARIABLES TO BE SET TO RUN THE TEST # [5,15,25,35]
-N_HUMANS = np.array([10,20], dtype=int)
+### GLOBAL VARIABLES TO BE SET TO RUN THE TEST # [5,10,15,20,25]
+N_HUMANS = np.array([5,10,15,20,25], dtype=int)
 CIRCLE_RADIUS = 7
 TRAFFIC_LENGTH = 14
 TRAFFIC_HEIGHT = 3
@@ -28,10 +28,6 @@ HUMAN_POLICY = "orca"
 ROBOT_POLICY = "bp"
 ROBOT_MODEL_DIR = "robot_models/cadrl_on_orca" # Used only if testing a trainable policy
 ## MULTIPLE TESTS VARIABLES
-# ROBOT_POLICIES_TO_BE_TESTED = ["bp", "ssp", "orca", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]
-# ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "-", "robot_models/cadrl_on_orca", "robot_models/cadrl_on_sfm_guo", "robot_models/cadrl_on_hsfm_new_guo",
-#                                  "robot_models/sarl_on_orca", "robot_models/sarl_on_sfm_guo", "robot_models/sarl_on_hsfm_new_guo",
-#                                  "robot_models/lstm_rl_on_orca", "robot_models/lstm_rl_on_sfm_guo", "robot_models/lstm_rl_on_hsfm_new_guo"]
 ROBOT_POLICIES_TO_BE_TESTED = ["bp", "ssp", "orca", "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl",
                                "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl", 
                                "cadrl", "cadrl", "cadrl", "sarl", "sarl", "sarl", "lstm_rl", "lstm_rl", "lstm_rl"]

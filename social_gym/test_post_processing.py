@@ -7,7 +7,7 @@ import pandas as pd
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
 EXPORT_DATA = True # If true, resulting metrics are exported
-MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "Metrics_multiple_robot_policies"
+MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "PT_on_PT"
 ## SINGLE POSTPROCESSING
 RESULTS_FILE = "bp_on_orca.pkl"
 ## MULTIPLE POSTPROCESSING
@@ -23,7 +23,7 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
                  "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
-TESTS = ["5_humans","15_humans","25_humans","35_humans"] # ["5_humans","7_humans","14_humans","21_humans","28_humans","35_humans"]
+TESTS = ["5_humans","10_humans","15_humans","20_humans","25_humans","35_humans"]
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
@@ -234,7 +234,7 @@ else:
         print(test_dataframes[i].head())
     # Export data
     if EXPORT_DATA:
-        excel_file_name = os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.xlsx")
+        excel_file_name = os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}_average_metrics.xlsx")
         with pd.ExcelWriter(excel_file_name) as writer:
             for i, test in enumerate(TESTS): test_dataframes[i].to_excel(writer, sheet_name=f'{test}') 
         with open(os.path.join(metrics_dir,f"{MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME}.pkl"), "wb") as f: pickle.dump(complete_metrics_data, f); f.close()
