@@ -169,6 +169,7 @@ class SocialNavSim:
         self.show_stats = True
 
         # Human motion model
+        if self.motion_model == "orca": self.parallelize_humans = False
         if hasattr(self, "motion_model_manager") and self.motion_model_manager.robot_motion_model_title is not None:
             robot_motion_model_title = self.motion_model_manager.robot_motion_model_title
             robot_runge_kutta = self.motion_model_manager.robot_runge_kutta
@@ -333,6 +334,7 @@ class SocialNavSim:
                 a = -(traffic_length/2 ) + humans_radius[i]
                 b = traffic_length/2 - humans_radius[i]
                 pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=np.float64)
+                # pos = np.array([b - ((b - a) * np.random.random()) / 10, (np.random.random() - 0.5) * traffic_height], dtype=np.float64) # Agents much closer to b boundary
                 collide = False
                 for j in range(len(humans_pos)):
                     other_human_pos = humans_pos[j]
@@ -632,11 +634,12 @@ class SocialNavSim:
                 self.reset_sim()
                 self.motion_model_manager.set_human_motion_model(models[i])
                 self.human_states[i], test_times[i] = self.run_single_test(n_updates)
-                figure, ax = plt.subplots()
-                figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
+                figure, ax = plt.subplots(figsize=(7,7))
+                figure.tight_layout()
+                # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {models[i]}')
                 if self.motion_model_manager.runge_kutta == False: integration_title = "Euler"
                 else: integration_title = "Runge-Kutta-45"
-                ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+                # ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
                 self.plot_agents_position_with_sample(ax,self.human_states[i],plot_sample_time,models[i])
         else:
             self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
@@ -710,7 +713,7 @@ class SocialNavSim:
                     ax.add_patch(head)
                 circle = plt.Circle((human_states[k,j,0],human_states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
                 ax.add_patch(circle)
-                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="xx-small", zorder=1)
+                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="xx-small", zorder=1, weight='bold')
             goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
             for k in range(len(goals)):
                 if goals[k,0] == human_states[0,j,0] and goals[k,1] == human_states[0,j,1]: 
