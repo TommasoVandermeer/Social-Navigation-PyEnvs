@@ -697,29 +697,60 @@ class SocialNavSim:
         if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 
+    def run_and_plot_trajectories_humans_and_robot(self, final_time=40, plot_sample_time=3):
+        n_updates = int(final_time / SAMPLING_TIME)
+        human_states, robot_states = self.run_k_steps(n_updates, quit=False, additional_info=False, save_states_time_step=SAMPLING_TIME)
+        figure, ax = plt.subplots()
+        figure.tight_layout()
+        if self.mode == "circular_crossing": figure.set_size_inches(10,10)
+        elif self.mode == "parallel_traffic": figure.set_size_inches(10,5)
+        # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {self.motion_model}')
+        self.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=plot_sample_time)
+
+    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3):
+        ax.set(xlabel='X',ylabel='Y',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
+        self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model)
+        if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True)
+        if not self.headless: pygame.quit(); self.pygame_init = False
+        plt.show()
+
     def print_walls_on_plot(self, ax):
         for i in range(len(self.walls)):
                 ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
 
-    def plot_agents_position_with_sample(self, ax, human_states, plot_sample_time:float, model:str):
+    def plot_agents_position_with_sample(self, ax, states, plot_sample_time:float, model:str, is_robot=False):
         ax.axis('equal')
         self.print_walls_on_plot(ax)
-        for j in range(len(self.humans)):
-            color_idx = j % len(COLORS)
-            ax.plot(human_states[:,j,0],human_states[:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
-            for k in range(0,len(human_states),int(plot_sample_time / SAMPLING_TIME)):
-                if "hsfm" in model:
-                    head = plt.Circle((human_states[k,j,0] + math.cos(human_states[k,j,2]) * self.humans[j].radius, human_states[k,j,1] + math.sin(human_states[k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
-                    ax.add_patch(head)
-                circle = plt.Circle((human_states[k,j,0],human_states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
+        if is_robot:
+            color = "red"
+            ax.plot(states[:,0],states[:,1], color=color, linewidth=0.5, zorder=0)
+            for k in range(0,len(states),int(plot_sample_time / SAMPLING_TIME)):
+                circle = plt.Circle((states[k,0],states[k,1]),self.robot.radius, edgecolor="black", facecolor=color, fill=True, zorder=1)
                 ax.add_patch(circle)
-                ax.text(human_states[k,j,0],human_states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="xx-small", zorder=1, weight='bold')
-            goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
-            for k in range(len(goals)):
-                if goals[k,0] == human_states[0,j,0] and goals[k,1] == human_states[0,j,1]: 
-                    goals = np.delete(goals, k, 0)
-                    break
-            ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
+                ax.text(states[k,0],states[k,1], f"{k*SAMPLING_TIME}", color="black", va="center", ha="center", fontsize="small", zorder=1, weight='bold')
+                goals = np.array(self.robot.goals, dtype=np.float64).copy()
+                for k in range(len(goals)):
+                    if goals[k,0] == states[0,0] and goals[k,1] == states[0,1]: 
+                        goals = np.delete(goals, k, 0)
+                        break
+                ax.scatter(goals[:,0], goals[:,1], marker="*", color=color, zorder=2)
+        else:
+            for j in range(len(self.humans)):
+                color_idx = j % len(COLORS)
+                ax.plot(states[:,j,0],states[:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
+                for k in range(0,len(states),int(plot_sample_time / SAMPLING_TIME)):
+                    if "hsfm" in model:
+                        head = plt.Circle((states[k,j,0] + math.cos(states[k,j,2]) * self.humans[j].radius, states[k,j,1] + math.sin(states[k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
+                        ax.add_patch(head)
+                    circle = plt.Circle((states[k,j,0],states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
+                    ax.add_patch(circle)
+                    ax.text(states[k,j,0],states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="small", zorder=1, weight='bold')
+                goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
+                for k in range(len(goals)):
+                    if goals[k,0] == states[0,j,0] and goals[k,1] == states[0,j,1]: 
+                        goals = np.delete(goals, k, 0)
+                        break
+                ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
 
     def plot_agents_trajectory(self, ax, human_states):
         ax.axis('equal')

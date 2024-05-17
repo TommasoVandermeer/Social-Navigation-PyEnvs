@@ -24,15 +24,17 @@ CURVE_PLOTS = False # If true, curves are plotted
 SPACE_COMPLIANCE_OVER_SPL = False # If true, space compliance over SPL is plotted
 SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = False # If true, metrics over n° humans tests are plotted considering only sarl policies
 COMPLETE_METRICS_FILE_NAMES = ["CC_on_CC.pkl","CC_on_PT.pkl","PT_on_CC.pkl","PT_on_PT.pkl","HS_on_CC.pkl","HS_on_PT.pkl"]
-METRICS_OVER_DIFFERENT_POLICIES = True # If true, metrics over different scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = True # If true, metrics over different training environments are plotted
-METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = True # If true, metrics over different training scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = True # If true, metrics over different training env and scenarios are plotted
-METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = True # If true, boxplots showing performances based on training env are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = True # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
+METRICS_OVER_DIFFERENT_POLICIES = False # If true, metrics over different scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = False # If true, metrics over different training environments are plotted
+METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = False # If true, metrics over different training scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = False # If true, metrics over different training env and scenarios are plotted
+METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = False # If true, boxplots showing performances based on training env are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
+METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different testing environments are plotted
+METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = True # If true, metrics over different training and testing environments are plotted
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
 T_TEST_P_VALUE_THRESHOLD = 0.05
-NO_TITLES = True # If true, titles are omitted from plots.
+NO_TITLES = False # If true, titles are omitted from plots.
 PRINT_SUCCESSFUL_EPSIODES = False # If true, the number of successful episodes is printed on some plots
 SAVE_FIGURES = True # If true, figures are saved, else, they are showed.
 FONTSIZE = 15
@@ -107,6 +109,7 @@ TRAINABLE_POLICIES =  ["cadrl","sarl","lstm_rl"]
 ENVIRONMENTS = ["ORCA","SFM_GUO","HSFM_NEW_GUO"]
 ENVIRONMENTS_DISPLAY_NAME = ["ORCA","SFM","HSFM"]
 COLORS = list(mcolors.TABLEAU_COLORS.values())
+OTHER_COLORS = ['peachpuff', 'orange', 'tomato']
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL']
@@ -1441,6 +1444,161 @@ if METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS:
     handles, labels = ax[0,0].get_legend_handles_labels()
     if PRINT_SUCCESSFUL_EPSIODES: figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Robot policy [successful eps. for each test]")
     else: figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Robot policy")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
+if METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS:
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,4], only_sarl=True)
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Compute final data to plot
+    data_to_plot = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for test_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["test_env"] == test_env) and (d["n_humans"] == n_humans)  and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[ENVIRONMENTS.index(test_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## Plot
+    # Figure ONE
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle("Metrics over SARL_HS tests with increasing number of humans (averaged over all train environments and scenarios, test scenario and robot policies)")
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(len(TESTS))])
+    ax[0,0].set_xticklabels(TESTS)
+    ax[0,0].set_yticks([i/10 for i in range(11)])
+    ax[0,0].set(ylabel="Success rate", ylim=[0,1])
+    ax[0,0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0,0].plot(data_to_plot[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(len(TESTS))])
+    ax[0,1].set_xticklabels(TESTS)
+    ax[0,1].set(ylabel="Time to goal ($s$)")
+    ax[0,1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0,1].plot(data_to_plot[i,:,1], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # space_compliance
+    ax[1,0].set_xticks([i for i in range(len(TESTS))])
+    ax[1,0].set_xticklabels(TESTS)
+    ax[1,0].set_yticks([i/10 for i in range(11)])
+    ax[1,0].set(ylabel="Space compliance", ylim=[0,1])
+    ax[1,0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1,0].plot(data_to_plot[i,:,2], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # SPL
+    ax[1,1].set_xticks([i for i in range(len(TESTS))])
+    ax[1,1].set_xticklabels(TESTS)
+    ax[1,1].set_yticks([i/10 for i in range(11)])
+    ax[1,1].set(ylabel="SPL", ylim=[0,1])
+    ax[1,1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1,1].plot(data_to_plot[i,:,3], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # legend
+    handles, _ = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, ENVIRONMENTS_DISPLAY_NAME, bbox_to_anchor=(0.90, 0.5), loc='center', title="Testing environment")
+    ## Save figure
+    if SAVE_FIGURES: save_figure(figure)
+    ## Figure TWO
+    figure, ax = plt.subplots(2,2, figsize=(20,10))
+    figure.subplots_adjust(right=0.80)
+    figure.suptitle("Metrics over SARL_HS tests with increasing number of humans (averaged over all train environments and scenarios, test scenario and robot policies)")
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(len(TESTS))])
+    ax[0,0].set_xticklabels(TESTS)
+    ax[0,0].set(ylabel="Average speed ($m/s$)")
+    ax[0,0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0,0].plot(data_to_plot[i,:,4], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(len(TESTS))])
+    ax[0,1].set_xticklabels(TESTS)
+    ax[0,1].set(ylabel="Average acceleration ($m/s^2$)")
+    ax[0,1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0,1].plot(data_to_plot[i,:,5], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # space_compliance
+    ax[1,0].set_xticks([i for i in range(len(TESTS))])
+    ax[1,0].set_xticklabels(TESTS)
+    ax[1,0].set(ylabel="Average jerk ($m/s^3$)")
+    ax[1,0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1,0].plot(data_to_plot[i,:,6], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # SPL
+    ax[1,1].set_xticks([i for i in range(len(TESTS))])
+    ax[1,1].set_xticklabels(TESTS)
+    ax[1,1].set(ylabel="Average minimum distance to humans ($m$)")
+    ax[1,1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1,1].plot(data_to_plot[i,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i%10+3], linewidth=2.5)
+    # legend
+    handles, _ = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, ENVIRONMENTS_DISPLAY_NAME, bbox_to_anchor=(0.90, 0.5), loc='center', title="Testing environment")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure)
+if METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS:
+    # Extract and aggregate data
+    metrics_names = ["path_length","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,4,5], only_sarl=True)
+    # Pre-processing data
+    data_to_box_plot_cross_test = []
+    for m, metric in enumerate(metrics_idxs):
+        env_data = []
+        for test_env in ENVIRONMENTS:
+            for k, d in dataa.items():
+                if (d["test_env"] == test_env) and (d["train_scenario"] == SCENARIOS[2]): env_data.append(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+        data_to_box_plot_cross_test.append(env_data)
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4,5], only_sarl=True)
+    # Pre-processing data
+    data_to_box_plot_cross_train = []
+    for m, metric in enumerate(metrics_idxs):
+        env_data = []
+        for train_env in ENVIRONMENTS:
+            for k, d in dataa.items():
+                if (d["train_env"] == train_env) and (d["train_scenario"] == SCENARIOS[2]): env_data.append(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+        data_to_box_plot_cross_train.append(env_data)
+    # Plot
+    figure, ax = plt.subplots(2,4, figsize=(20,10))
+    figure.suptitle("Metrics over SARL_HS tests (averaged over all train environments and scenarios, test scenario, human density, and robot policies)")
+    figure.tight_layout()
+    figure.subplots_adjust(wspace=0.3, hspace=0.3)
+    # Cross test environments
+    # path_length
+    bplot1 = ax[0,0].boxplot(data_to_box_plot_cross_test[0], showmeans=True, patch_artist=True)
+    ax[0,0].set(xlabel="Test environment", ylabel='Path length ($m$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[12,30])
+    ax[0,0].grid()
+    # time to goal
+    bplot2 = ax[0,1].boxplot(data_to_box_plot_cross_test[1], showmeans=True, patch_artist=True)
+    ax[0,1].set(xlabel="Test environment", ylabel='Time to goal ($s$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[12,35])
+    ax[0,1].grid()
+    # space compliance
+    bplot3 = ax[0,2].boxplot(data_to_box_plot_cross_test[2], showmeans=True, patch_artist=True)
+    ax[0,2].set(xlabel="Test environment", ylabel='Space compliance', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[0,1])
+    ax[0,2].set_yticks([i/10 for i in range(11)])
+    ax[0,2].grid()
+    # SPL
+    bplot4 = ax[0,3].boxplot(data_to_box_plot_cross_test[7], showmeans=True, patch_artist=True)
+    ax[0,3].set(xlabel="Test environment", ylabel='Minimum distance to humans ($m$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME)
+    ax[0,3].grid()
+    # Cross train environments
+    # path_length
+    bplot5 = ax[1,0].boxplot(data_to_box_plot_cross_train[0], showmeans=True, patch_artist=True)
+    ax[1,0].set(xlabel="Train environment", ylabel='Path length ($m$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[12,30])
+    ax[1,0].grid()
+    # time to goal
+    bplot6 = ax[1,1].boxplot(data_to_box_plot_cross_train[1], showmeans=True, patch_artist=True)
+    ax[1,1].set(xlabel="Train environment", ylabel='Time to goal ($s$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[12,35])
+    ax[1,1].grid()
+    # space compliance
+    bplot7 = ax[1,2].boxplot(data_to_box_plot_cross_train[2], showmeans=True, patch_artist=True)
+    ax[1,2].set(xlabel="Train environment", ylabel='Space compliance', xticklabels=ENVIRONMENTS_DISPLAY_NAME, ylim=[0,1])
+    ax[1,2].set_yticks([i/10 for i in range(11)])
+    ax[1,2].grid()
+    # SPL
+    bplot8 = ax[1,3].boxplot(data_to_box_plot_cross_train[7], showmeans=True, patch_artist=True)
+    ax[1,3].set(xlabel="Train environment", ylabel='Minimum distance to humans ($m$)', xticklabels=ENVIRONMENTS_DISPLAY_NAME)
+    ax[1,3].grid()
+    # Set color of boxplots
+    for bplot in (bplot1, bplot2, bplot3, bplot4):
+        for patch, color in zip(bplot['boxes'], OTHER_COLORS):
+            patch.set_facecolor(color)
+    for bplot in (bplot5, bplot6, bplot7, bplot8):
+        for patch, color in zip(bplot['boxes'], COLORS[3:]):
+            patch.set_facecolor(color)
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
 plt.show()
