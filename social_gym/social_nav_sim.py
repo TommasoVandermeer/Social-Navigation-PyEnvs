@@ -697,22 +697,23 @@ class SocialNavSim:
         if not self.headless: pygame.quit(); self.pygame_init = False
         plt.show()
 
-    def run_and_plot_trajectories_humans_and_robot(self, final_time=40, plot_sample_time=3):
+    def run_and_plot_trajectories_humans_and_robot(self, final_time=40, plot_sample_time=3, ax=None, show=True):
         n_updates = int(final_time / SAMPLING_TIME)
         human_states, robot_states = self.run_k_steps(n_updates, quit=False, additional_info=False, save_states_time_step=SAMPLING_TIME)
-        figure, ax = plt.subplots()
-        figure.tight_layout()
-        if self.mode == "circular_crossing": figure.set_size_inches(10,10)
-        elif self.mode == "parallel_traffic": figure.set_size_inches(10,5)
-        # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {self.motion_model}')
-        self.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=plot_sample_time)
+        if ax is None: 
+            figure, ax = plt.subplots()
+            figure.tight_layout()
+            if self.mode == "circular_crossing": figure.set_size_inches(10,10)
+            elif self.mode == "parallel_traffic": figure.set_size_inches(10,5)
+            # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {self.motion_model}')
+        self.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=plot_sample_time, show=show)
 
-    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3):
+    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3, show=True):
         ax.set(xlabel='X',ylabel='Y',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
         self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model)
         if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True)
         if not self.headless: pygame.quit(); self.pygame_init = False
-        plt.show()
+        if show: plt.show()
 
     def print_walls_on_plot(self, ax):
         for i in range(len(self.walls)):
@@ -727,7 +728,9 @@ class SocialNavSim:
             for k in range(0,len(states),int(plot_sample_time / SAMPLING_TIME)):
                 circle = plt.Circle((states[k,0],states[k,1]),self.robot.radius, edgecolor="black", facecolor=color, fill=True, zorder=1)
                 ax.add_patch(circle)
-                ax.text(states[k,0],states[k,1], f"{k*SAMPLING_TIME}", color="black", va="center", ha="center", fontsize="small", zorder=1, weight='bold')
+                size = 15 if (k*SAMPLING_TIME).is_integer() else 10
+                num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
+                ax.text(states[k,0],states[k,1], f"{num}", color="black", va="center", ha="center", size=size, zorder=1, weight='bold')
                 goals = np.array(self.robot.goals, dtype=np.float64).copy()
                 for k in range(len(goals)):
                     if goals[k,0] == states[0,0] and goals[k,1] == states[0,1]: 
@@ -744,7 +747,9 @@ class SocialNavSim:
                         ax.add_patch(head)
                     circle = plt.Circle((states[k,j,0],states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
                     ax.add_patch(circle)
-                    ax.text(states[k,j,0],states[k,j,1], f"{k*SAMPLING_TIME}", color=COLORS[color_idx], va="center", ha="center", fontsize="small", zorder=1, weight='bold')
+                    size = 15 if (k*SAMPLING_TIME).is_integer() else 10
+                    num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
+                    ax.text(states[k,j,0],states[k,j,1], f"{num}", color=COLORS[color_idx], va="center", ha="center", size=size, zorder=1, weight='bold')
                 goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
                 for k in range(len(goals)):
                     if goals[k,0] == states[0,j,0] and goals[k,1] == states[0,j,1]: 

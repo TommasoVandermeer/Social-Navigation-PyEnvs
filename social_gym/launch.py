@@ -14,8 +14,7 @@ import matplotlib.pyplot as plt
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-np.random.seed(4)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": True,
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "orca", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
                           scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
@@ -75,3 +74,30 @@ social_nav.run_and_plot_trajectories_humans_and_robot(final_time=15, plot_sample
 # robot_states = np.load(os.path.join(os.path.dirname(__file__),'robot_states.npy'))
 ## Plot human and robot trajectories
 # social_nav.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=3)
+
+### PLOT MULTIPLE TRAJECTORIES IN ONE FIGURE
+## Robot and humans
+# plt.rcParams['font.size'] = 25
+# ROBOT_POLICIES = ["sarl","sarl"]
+# ROBOT_MODEL_DIRS = ["robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo"]
+# HUMAN_MODELS = ["hsfm_new_guo","sfm_guo","orca"]
+# for human_model in HUMAN_MODELS:
+#     figureee, axs = plt.subplots(1, len(ROBOT_POLICIES), figsize=(20,10))
+#     figureee.tight_layout()
+#     figureee.subplots_adjust(hspace=0.1, wspace=0.15, bottom=0.08, top=0.90, left=0.07, right=0.98)
+#     figureee.suptitle(human_model.split("_")[0].upper() + "-driven humans", fontsize=30, weight='bold')
+#     for j, robot_policy in enumerate(ROBOT_POLICIES):
+#         np.random.seed(2)
+#         social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": human_model, "headless": True,
+#                                                 "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
+#                                                 "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
+#                                 scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
+#         social_nav.set_time_step(1/100)
+#         social_nav.set_robot_time_step(1/4)
+#         social_nav.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),ROBOT_MODEL_DIRS[j]), il=False)
+#         ax = axs[j]
+#         social_nav.run_and_plot_trajectories_humans_and_robot(final_time=15, plot_sample_time=3, ax=ax, show=False)
+#         ax.set_aspect('equal', adjustable='box')
+#         title = robot_policy.upper() + "-" + "".join([n[0].upper() for n in ROBOT_MODEL_DIRS[j].split("/")[1].split("_")[-2:]]) + "-" + ROBOT_MODEL_DIRS[j].split("/")[-1].split("_")[2].upper() + "-driven robot"
+#         ax.set_title(title, fontsize=25)
+# plt.show()
