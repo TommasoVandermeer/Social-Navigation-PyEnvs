@@ -10,10 +10,14 @@ from itertools import zip_longest, product
 from scipy.stats import ttest_ind, f_oneway
 import pickle
 import numpy as np
+from social_gym.social_nav_sim import SocialNavSim
 
+## Input files
 METRICS_FILE = "PT_on_PT_average_metrics.xlsx"
 COMPLETE_METRICS_FILE = "PT_on_PT.pkl"
 HUMAN_TIMES_FILE = "human_times.pkl"
+COMPLETE_METRICS_FILE_NAMES = ["CC_on_CC.pkl","CC_on_PT.pkl","PT_on_CC.pkl","PT_on_PT.pkl","HS_on_CC.pkl","HS_on_PT.pkl"]
+## Plots booleans - set true to plot
 BAR_PLOTS = False # If true, barplots are shown
 MORE_BAR_PLOTS = False # If true, more barplots are plotted
 BOX_PLOTS = False # If true, boxplot are printed
@@ -23,18 +27,20 @@ SARL_ONLY_BOXPLOTS = False # If true, boxplots showing performances based on tra
 CURVE_PLOTS = False # If true, curves are plotted
 SPACE_COMPLIANCE_OVER_SPL = False # If true, space compliance over SPL is plotted
 SARL_ONLY_METRICS_OVER_N_HUMANS_TESTS  = False # If true, metrics over n° humans tests are plotted considering only sarl policies
-COMPLETE_METRICS_FILE_NAMES = ["CC_on_CC.pkl","CC_on_PT.pkl","PT_on_CC.pkl","PT_on_PT.pkl","HS_on_CC.pkl","HS_on_PT.pkl"]
-METRICS_OVER_DIFFERENT_POLICIES = True # If true, metrics over different scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = True # If true, metrics over different training environments are plotted
-METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = True # If true, metrics over different training scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = True # If true, metrics over different training env and scenarios are plotted
-METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = True # If true, boxplots showing performances based on training env are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = True # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
-METRICS_OVER_BASELINE_POLICIES_AND_SARL = True # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
-METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS = True # If true, metrics over different testing environments are plotted
-METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = True # If true, metrics over different training and testing environments are plotted
-METRICS_CROSS_SCENARIO_SARL = True # If true, metrics over different scenarios are plotted considering only sarl policies
+METRICS_OVER_DIFFERENT_POLICIES = False # If true, metrics over different scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = False # If true, metrics over different training environments are plotted
+METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = False # If true, metrics over different training scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = False # If true, metrics over different training env and scenarios are plotted
+METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = False # If true, boxplots showing performances based on training env are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
+METRICS_OVER_BASELINE_POLICIES_AND_SARL = False # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
+METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different testing environments are plotted
+METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = False # If true, metrics over different training and testing environments are plotted
+METRICS_CROSS_SCENARIO_SARL = False # If true, metrics over different scenarios are plotted considering only sarl policies
 HUMAN_TIMES_BOX_PLOTS = False # If true, humans' time to goal with and without robot are plotted
+PLOT_SARL_HS_TRAJECTORIES = False # If true, SARL on HSFM trajectories are plotted
+PLOT_HSFM_HUMANS_TRAJECTORIES = True # If true, HSFM humans' trajectories are plotted
+## Specifics
 T_TEST_P_VALUE_THRESHOLD = 0.05
 NO_TITLES = True # If true, titles are omitted from plots.
 PRINT_SUCCESSFUL_EPSIODES = False # If true, the number of successful episodes is printed on some plots
@@ -1730,4 +1736,55 @@ if METRICS_CROSS_SCENARIO_SARL:
     figure.legend(handles, labels, bbox_to_anchor=(0.92, 0.5), loc='center', title="Training \nand \ntesting \nscenarios \nfor SARL")
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
+if PLOT_SARL_HS_TRAJECTORIES:
+    plt.rcParams['font.size'] = 25
+    r_policies = ["sarl","sarl"]
+    r_model_dirs = ["robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo"]
+    h_models = ["hsfm_new_guo","sfm_guo","orca"]
+    for human_model in h_models:
+        figureee, axs = plt.subplots(1, len(r_policies), figsize=(20,10))
+        figureee.tight_layout()
+        figureee.subplots_adjust(hspace=0.1, wspace=0.15, bottom=0.08, top=0.90, left=0.07, right=0.98)
+        figureee.suptitle(human_model.split("_")[0].upper() + "-driven humans", fontsize=30, weight='bold')
+        for j, robot_policy in enumerate(r_policies):
+            np.random.seed(2)
+            social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": human_model, "headless": True,
+                                                    "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
+                                                    "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
+                                    scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
+            social_nav.set_time_step(1/100)
+            social_nav.set_robot_time_step(1/4)
+            social_nav.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),r_model_dirs[j]), il=False)
+            ax = axs[j]
+            social_nav.run_and_plot_trajectories_humans_and_robot(final_time=15, plot_sample_time=3, ax=ax, show=False)
+            ax.set_aspect('equal', adjustable='box')
+            title = robot_policy.upper() + "-" + "".join([n[0].upper() for n in r_model_dirs[j].split("/")[1].split("_")[-2:]]) + "-" + r_model_dirs[j].split("/")[-1].split("_")[2].upper() + "-driven robot"
+            ax.set_title(title, fontsize=25)
+if PLOT_HSFM_HUMANS_TRAJECTORIES:
+    plt.rcParams['font.size'] = 25
+    h_models = ["hsfm_farina","hsfm_guo","hsfm_new_guo"]
+    figureee, axs = plt.subplots(1, 2, figsize=(20,10))
+    figureee.tight_layout()
+    figureee.subplots_adjust(hspace=0.1, wspace=0.15, bottom=0.08, top=0.90, left=0.07, right=0.98)
+    figureee2, axs2 = plt.subplots(1, 1, figsize=(10,10))
+    figureee2.tight_layout()
+    for i, human_model in enumerate(h_models):
+        if i == 0: 
+            ax = axs[i]
+            title = "Standard HSFM"
+        elif i == 1: 
+            ax = axs[i]
+            title = "Modified HSFM"
+        elif i == 2: 
+            ax = axs2
+            title = "Enhanced HSFM"
+        ax.set_title(title, fontsize=25)
+        social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": human_model, "headless": True,
+                                                "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
+                                                "circle_radius": 7, "n_actors": 5, "randomize_human_positions": False, "randomize_human_attributes": False},
+                                scenario="circular_crossing", parallelize_robot = False, parallelize_humans = True)
+        social_nav.set_time_step(1/100)
+        human_states = social_nav.run_k_steps(int(15/(1/100)), save_states_time_step=1/100)
+        social_nav.plot_humans_and_robot_trajectories(ax, human_states, plot_sample_time=3, show=False)
+        ax.set_aspect('equal', adjustable='box')
 plt.show()
