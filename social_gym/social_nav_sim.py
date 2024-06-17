@@ -334,7 +334,7 @@ class SocialNavSim:
                 a = -(traffic_length/2 ) + humans_radius[i]
                 b = traffic_length/2 - humans_radius[i]
                 pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=np.float64)
-                # pos = np.array([b - ((b - a) * np.random.random()) / 10, (np.random.random() - 0.5) * traffic_height], dtype=np.float64) # Agents much closer to b boundary
+                # pos = np.array([b - ((b - a) * np.random.random()) / 8, (np.random.random() - 0.5) * traffic_height], dtype=np.float64) # Agents much closer to b boundary
                 collide = False
                 for j in range(len(humans_pos)):
                     other_human_pos = humans_pos[j]
