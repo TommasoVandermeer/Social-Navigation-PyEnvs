@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "sfm_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 2, "randomize_human_positions": False, "randomize_human_attributes": False},
-                          scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
+                          scenario="circular_crossing", parallelize_robot = True, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
 # social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
 #                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
