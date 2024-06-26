@@ -39,7 +39,9 @@ METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = False # If true, metrics o
 METRICS_OVER_BASELINE_POLICIES_AND_SARL = False # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
 METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = False # If true, metrics over different training and testing environments are plotted
 METRICS_CROSS_SCENARIO_SARL = False # If true, metrics over different scenarios are plotted considering only sarl policies
-METRICS_CROSS_TRAIN_ENV_CC = True # If true, metrics over different training environments on CC are plotted
+METRICS_CROSS_TRAIN_ENV_CC = False # If true, metrics over different training environments on CC are plotted
+RATES_CROSS_TRAIN_ENV_CC = False # If true, rates over different training environments on CC are plotted
+RETURN_SARL_HS_OVER_TRAIN_ENV = True # If true, SARL on HSFM reward over training environments is plotted
 PLOT_SARL_HS_TRAJECTORIES = False # If true, SARL on HSFM trajectories are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_CC = False # If true, HSFM humans' trajectories in CC scenario are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_PT = False # If true, HSFM humans' trajectories in PT scenario are plotted
@@ -126,7 +128,7 @@ OTHER_COLORS = ['peachpuff', 'orange', 'tomato']
 OTHER_COLORS_2 = ['deeppink','mediumorchid','dodgerblue']
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
-           'min_dist','avg_dist','space_compliance','path_length','SPL']
+           'min_dist','avg_dist','space_compliance','path_length','SPL','return']
 PLOT_COUNTER = 1
 TEST_DIMENSIONS = {0: "robot_policy", 1: "train_env", 2: "train_scenario", 
                    3: "test_env", 4: "test_scenario", 5: "n_humans"}
@@ -1858,6 +1860,182 @@ if METRICS_CROSS_TRAIN_ENV_CC:
     figure.legend(handles, labels, bbox_to_anchor=(0.89, 0.5), loc='center', title="Training and \ntesting environments \nfor SARL-HS \n(tested on CC)")
     # Save figure
     if SAVE_FIGURES: save_figure(figure, name="sarl_hs_cross_env_cc")
+if RATES_CROSS_TRAIN_ENV_CC:
+    # Plots the metrics of SARL-HS trained in one env and tested in the other two divided by the performance of the SARL-HS trained and tested in the same env
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0], only_sarl=True)
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Compute final data to plot
+    data_to_plot = np.zeros((len(ENVIRONMENTS),len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for test_env in ENVIRONMENTS:
+            for n_humans in TESTS:
+                for k, d in dataa.items():
+                    if (d["train_env"] == train_env) and (d["train_scenario"] == SCENARIOS[2]) and (d["test_env"] == test_env) and (d["test_scenario"] == SCENARIOS[0])  and (d["n_humans"] == n_humans):
+                        for m, metric in enumerate(metrics_idxs): data_to_plot[ENVIRONMENTS.index(train_env),ENVIRONMENTS.index(test_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Divide data by the performance of the SARL-HS trained and tested in the same env
+    rate_data_to_plot = np.zeros((len(ENVIRONMENTS),len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            for k in range(len(TESTS)):
+                for m in range(len(metrics_idxs)):
+                    rate_data_to_plot[i,j,k,m] = data_to_plot[i,j,k,m] / data_to_plot[i,i,k,m]
+    ## Plot
+    colorsss = ["gold","lime","dodgerblue","purple","red","cyan"]
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.78, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    figure.suptitle("Metrics of SARL-HS policies cross env")
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(len(TESTS))])
+    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0,0].set(ylabel="Success rate", ylim=[0,np.max(rate_data_to_plot[:,:,:,0])], xlabel="Number of humans")
+    ax[0,0].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j: 
+                ax[0,0].plot(rate_data_to_plot[i,j,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                count += 1
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(len(TESTS))])
+    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0,1].set(ylabel="Time to goal", ylim=[0,np.max(rate_data_to_plot[:,:,:,1])], xlabel="Number of humans")
+    ax[0,1].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[0,1].plot(rate_data_to_plot[i,j,:,1], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # space_compliance
+    ax[2,0].set_xticks([i for i in range(len(TESTS))])
+    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[2,0].set(ylabel="Space compliance", ylim=[0,np.max(rate_data_to_plot[:,:,:,2])], xlabel="Number of humans")
+    ax[2,0].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[2,0].plot(rate_data_to_plot[i,j,:,2], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # SPL
+    ax[1,1].set_xticks([i for i in range(len(TESTS))])
+    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1,1].set(ylabel="SPL", ylim=[0,np.max(rate_data_to_plot[:,:,:,3])], xlabel="Number of humans")
+    ax[1,1].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[1,1].plot(rate_data_to_plot[i,j,:,3], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # speed
+    ax[1,0].set_xticks([i for i in range(len(TESTS))])
+    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1,0].set(ylabel="Speed", ylim=[0,np.max(rate_data_to_plot[:,:,:,4])], xlabel="Number of humans")
+    ax[1,0].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[1,0].plot(rate_data_to_plot[i,j,:,4], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # acceleration
+    ax[2,1].set_xticks([i for i in range(len(TESTS))])
+    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[2,1].set(ylabel="Acceleration", ylim=[0,np.max(rate_data_to_plot[:,:,:,5])], xlabel="Number of humans")
+    ax[2,1].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[2,1].plot(rate_data_to_plot[i,j,:,5], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # jerk
+    ax[3,0].set_xticks([i for i in range(len(TESTS))])
+    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[3,0].set(ylabel="Jerk", ylim=[0,np.max(rate_data_to_plot[:,:,:,6])], xlabel="Number of humans")
+    ax[3,0].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[3,0].plot(rate_data_to_plot[i,j,:,6], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # min dist to humans
+    ax[3,1].set_xticks([i for i in range(len(TESTS))])
+    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[3,1].set(ylabel="Min. dist. to humans", ylim=[0,np.max(rate_data_to_plot[:,:,:,7])], xlabel="Number of humans")
+    ax[3,1].grid()
+    count = 0
+    for i in range(len(ENVIRONMENTS)): 
+        for j in range(len(ENVIRONMENTS)):
+            if i != j:
+                  ax[3,1].plot(rate_data_to_plot[i,j,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.89, 0.5), loc='center', title="Training and \ntesting environments \nfor SARL-HS \n(tested on CC)")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="sarl_hs_cross_env_cc_rates")
+if RETURN_SARL_HS_OVER_TRAIN_ENV:
+    metrics_names = ["return"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Extract policy data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4])
+    data_to_plot_policies = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_policies[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Extract scenario data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,3,4], only_sarl=True)
+    data_to_plot_scenarios = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_scenario in SCENARIOS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_scenarios[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Extract env data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4], only_sarl=True)
+    data_to_plot_envs = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_envs[ENVIRONMENTS.index(train_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## Plot
+    figure, ax = plt.subplots(3,1, figsize=(18,18))
+    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.3)
+    figure.suptitle("Return over SARL trained on Hybrid Scenario tests with increasing number of humans (averaged over all test environments and scenarios)")
+    # return over policies
+    ax[0].set_xticks([i for i in range(len(TESTS))])
+    ax[0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax[0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0].plot(data_to_plot_policies[i,:,0], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i], linewidth=2.5)
+    handles, labels = ax[0].get_legend_handles_labels()
+    ax[0].legend(handles, [p.upper() for p in TRAINABLE_POLICIES_DISPLAY], bbox_to_anchor=(1.09, 0.5), loc='center', title="Robot \npolicy")
+    # return over scenarios
+    ax[1].set_xticks([i for i in range(len(TESTS))])
+    ax[1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax[1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1].plot(data_to_plot_scenarios[i,:,0], label=SCENARIOS[i], color=COLORS[i+6], linewidth=2.5)
+    handles, labels = ax[1].get_legend_handles_labels()
+    ax[1].legend(handles, labels, bbox_to_anchor=(1.07, 0.5), loc='center', title="Training \nscenario \nfor SARL")
+    # return over envs
+    ax[2].set_xticks([i for i in range(len(TESTS))])
+    ax[2].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[2].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax[2].grid()
+    for i in range(len(ENVIRONMENTS)): ax[2].plot(data_to_plot_envs[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i+3], linewidth=2.5)
+    handles, labels = ax[2].get_legend_handles_labels()
+    ax[2].legend(handles, labels, bbox_to_anchor=(1.08, 0.5), loc='center', title="Training \nenviron. \nfor \nSARL-HS")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="return")
 if PLOT_SARL_HS_TRAJECTORIES:
     plt.rcParams['font.size'] = 25
     r_policies = ["sarl","sarl"]
@@ -1892,7 +2070,7 @@ if PLOT_HSFM_HUMANS_TRAJECTORIES_PT:
     social_nav = SocialNavSim(data)
     social_nav.set_time_step(1/100)
     human_states = social_nav.run_k_steps(int(15/(1/100)), save_states_time_step=1/100)
-    social_nav.plot_humans_and_robot_trajectories(axs, human_states, plot_sample_time=3, show=False)
+    social_nav.plot_humans_and_robot_trajectories(axs, human_states, plot_sample_time=3, show=False, plot_goals=False)
     axs.set_aspect('equal', adjustable='box')
     axs.set(ylim=[-4.5,4.5])
     save_figure(figureee, name="parallel_traffic")
@@ -1932,7 +2110,7 @@ if PLOT_HSFM_HUMANS_TRAJECTORIES_CC:
     figureee.subplots_adjust(hspace=0.1, wspace=0.15, bottom=0.08, top=0.90, left=0.07, right=0.98)
     for i, human_model in enumerate(h_models):
         ax = axs[i]
-        if i == 0: title = "Standard HSFM"
+        if i == 0: title = "HSFM"
         elif i == 1: title = "Enhanced HSFM"
         ax.set_title(title, fontsize=25)
         social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": human_model, "headless": True,

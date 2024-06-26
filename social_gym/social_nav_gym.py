@@ -7,7 +7,7 @@ from social_gym.src.utils import is_multiple
 
 HEADLESS = True
 PARALLELIZE_ROBOT = True
-PARALLELIZE_HUMANS = False # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
+PARALLELIZE_HUMANS = True # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -97,7 +97,9 @@ class SocialNavGym(gym.Env, SocialNavSim):
         self.robot = robot
 
     def compute_humans_observable_state(self):
-        if self.robot.sensor == 'coordinates': ob = [human.get_observable_state() for human in self.humans]
+        if self.robot.sensor == 'coordinates': 
+            if self.robot.policy.with_theta_and_omega_visible: ob = [human.get_observable_state(visible_theta_and_omega=True) for human in self.humans]
+            else: ob = [human.get_observable_state() for human in self.humans]
         elif self.robot.sensor == 'RGB': raise NotImplementedError
         return ob
 

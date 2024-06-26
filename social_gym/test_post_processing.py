@@ -6,6 +6,12 @@ import pandas as pd
 ## GLOBAL VARIABLES TO SET
 SINGLE_PROCESSING = False # If true, a single results file is post-processed. Otherwise a list provided is post-processed
 SPACE_COMPLIANCE_THRESHOLD = 0.5
+# Reward parameters
+SUCCESS_REWARD = 1
+COLLISION_PENALTY = -0.25
+DISCOMFORT_DIST = 0.2
+DISCOMFORT_PENALTY_FACTOR = 0.5
+DISCOUNT_FACTOR = 0.9
 EXPORT_DATA = True # If true, resulting metrics are exported
 MULTIPLE_TESTS_EXCEL_OUTPUT_FILE_NAME = "PT_on_PT"
 ## SINGLE POSTPROCESSING
@@ -26,7 +32,7 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
 TESTS = ["5_humans","10_humans","15_humans","20_humans","25_humans","35_humans"]
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
-           'min_dist','avg_dist','space_compliance','path_length','SPL']
+           'min_dist','avg_dist','space_compliance','path_length','SPL',"return"]
 BIG_FLOAT = 100000.0
 
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
@@ -77,6 +83,7 @@ def single_results_file_post_processing(test_data:dict):
             space_compliance = 0
             path_length = 0
             shortest_path_length = 0
+            discounted_return = 0
             # Compute "time-wise metrics"
             for i, robot_state in enumerate(episode["robot_states"]):
                 instant_position = robot_state[0:2]
@@ -86,14 +93,21 @@ def single_results_file_post_processing(test_data:dict):
                     path_length += np.linalg.norm(instant_position - previous_position)
                 average_instant_distance = 0
                 instant_space_compliance = True
+                minimum_instant_distance = BIG_FLOAT
                 for p, human_state in enumerate(episode["human_states"][i]):
                     human_position = human_state[0:2]
                     instant_distance = np.linalg.norm(human_position - instant_position) - (test_data[test]["specifics"]["robot_radius"] + test_data[test]["specifics"]["humans_radiuses"][p])
                     average_instant_distance += instant_distance
                     if instant_distance < minimum_distance and not episode["collision"]: minimum_distance = instant_distance
                     if instant_distance < SPACE_COMPLIANCE_THRESHOLD: instant_space_compliance = False
+                    if instant_distance < minimum_instant_distance: minimum_instant_distance = instant_distance
                 space_compliance += int(instant_space_compliance)
                 average_distance += average_instant_distance / len(episode["human_states"][i])
+                # Reward
+                reward = 0
+                reward += int(np.linalg.norm(robot_state[6:8] - instant_position) < test_data[test]["specifics"]["robot_radius"]) # Goal reward
+                reward += int((minimum_instant_distance > 0) and (minimum_instant_distance < DISCOMFORT_DIST)) * DISCOMFORT_PENALTY_FACTOR * (minimum_instant_distance - DISCOMFORT_DIST) * test_data[test]["specifics"]["robot_time_step"]
+                reward += int(minimum_instant_distance <= 0) * COLLISION_PENALTY
                 # Velocity
                 instant_velocity = robot_state[3:5]
                 instant_velocity_norm = np.linalg.norm(instant_velocity)
@@ -115,6 +129,8 @@ def single_results_file_post_processing(test_data:dict):
                     average_jerk += instant_jerk_norm
                     if instant_jerk_norm < minimum_jerk: minimum_jerk = instant_jerk_norm
                     if instant_jerk_norm > maximum_jerk: maximum_jerk = instant_jerk_norm
+                # Discounted return
+                discounted_return += (pow(DISCOUNT_FACTOR,i*test_data[test]["specifics"]["robot_time_step"]) * reward) # Desired speed is assumed to be 1
             # Averaged metrics over time
             average_velocity /= len(episode["robot_states"])
             if len(episode["robot_states"]) > 1: average_acceleration /= (len(episode["robot_states"]) - 1)
@@ -128,6 +144,7 @@ def single_results_file_post_processing(test_data:dict):
             complete_data[k][t][1] = int(episode["collision"])
             complete_data[k][t][2] = int(episode["truncated"])
             complete_data[k][t][17] = int(episode["success"]) * (shortest_path_length / max(shortest_path_length, path_length))
+            complete_data[k][t][18] = discounted_return
             if episode["success"]:
                 complete_data[k][t][3] = episode["time_to_goal"]
                 complete_data[k][t][4] = minimum_velocity
@@ -177,6 +194,7 @@ def single_results_file_post_processing(test_data:dict):
         average_data[k][15] = round(np.nansum(complete_data[k,:,15])/successes,2)
         average_data[k][16] = round(np.nansum(complete_data[k,:,16])/successes,2)
         average_data[k][17] = round(np.nansum(complete_data[k,:,17])/test_data[test]['specifics']['trials'],2)
+        average_data[k][18] = round(np.sum(complete_data[k,:,18])/test_data[test]['specifics']['trials'],2)
         # Print computed metrics
         print(f"SUCCESS RATE: {average_data[k][0]}")
         print(f"COLLISIONS OVER {test_data[test]['specifics']['trials']} TRIALS: {average_data[k][1]}")
@@ -196,6 +214,7 @@ def single_results_file_post_processing(test_data:dict):
         print(f"AVERAGE SPACE COMPLIANCE (with threshold {SPACE_COMPLIANCE_THRESHOLD}): {average_data[k][15]}")
         print(f"AVERAGE PATH LENGTH (counted only if the robot reaches the goal): {average_data[k][16]}")
         print(f"SUCCESS WEIGHTED BY PATH LENGTH: {average_data[k][17]}")
+        print(f"AVERAGE RETURN: {average_data[k][18]}")
         print("")
     return average_data, complete_data
 

@@ -162,7 +162,7 @@ class MotionModelManager:
         if self.robot_motion_model_title is not None:
             if "sfm" in self.robot_motion_model_title:
                 self.robot.safety_space = 0.01 + safety_space
-                if self.parallel: self.safety_space[len(self.humans)] = 0.01 + safety_space
+                if self.parallel and self.consider_robot: self.safety_space[len(self.humans)] = 0.01 + safety_space
             elif self.robot_motion_model_title == "orca":
                 if self.robot_sim is not None: # Add safety space to Robot ORCA simulation
                     for i, agent in enumerate(self.robot_sim_agents):
@@ -261,8 +261,7 @@ class MotionModelManager:
             for human in self.humans: human.set_parameters(motion_model_title)
             if self.parallel:
                 self.sfm_type = SFMS.index(motion_model_title)
-                if self.consider_robot: self.safety_space = np.zeros(len(self.humans)+1, np.float64)
-                else: self.safety_space = np.zeros(len(self.humans), np.float64)
+                self.safety_space = np.zeros(len(self.humans)+int(self.consider_robot), np.float64)
                 self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
                 if self.consider_robot: self.states = np.append(self.states, [self.robot.get_safe_state()], axis = 0)
                 self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], np.float64)
@@ -707,9 +706,10 @@ class MotionModelManager:
 
     ### METHODS FOR ROBOT CROWDNAV POLICIES
 
-    def get_next_human_observable_states(self, dt:float):
+    def get_next_human_observable_states(self, dt:float, theta_and_omega_visible=False):
         """
-        This function returns next humans states (in the form [px, py, vx, vy]) without actually updating it.
+        This function returns next humans states (in the form [px, py, vx, vy] if theta_and_omega_visible=False or 
+        in the form [x, y, yaw, Vx, Vy, Omega, Gx, Gy], otherwise) without actually updating it.
         Initially, it saves the human states, then makes an update and saves the next state.
         Finally, humans' state is set as the previous one.
 
@@ -721,10 +721,11 @@ class MotionModelManager:
         """
         current_human_states = self.get_human_states(include_goal=True, headed=self.headed)
         self.update_humans(0, dt, post_update=False)
-        next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
+        if theta_and_omega_visible: next_human_observable_states = self.get_human_states(include_goal=True, headed=False)
+        else: next_human_observable_states = self.get_human_states(include_goal=False, headed=False)
         self.set_human_states(current_human_states)
         return next_human_observable_states
-    
+
     def get_next_robot_full_state(self, dt:float):
         """
         This function computes the next robot full state without actually modifying its state.

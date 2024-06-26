@@ -11,14 +11,18 @@ from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_dist
 import math
 
 @njit(nogil=True, cache=True)
-def transform_state_to_agent_centric(state:np.ndarray):
+def transform_state_to_agent_centric(state:np.ndarray, theta_and_omega_visible=False):
+    ## Theta and omega of human NOT VISIBLE:
     # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1] (14)
     # Output state is in the form: [dg,v_pref,theta,radius,vx,vy,px1,py1,vx1,vy1,radius1,da,radius_sum] (13)
-    transformed_state = np.empty((13,), np.float64)
+    ## Theta and omega of human VISIBLE
+    # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1,theta1,omega1] (16)
+    # Output state is in the form: [dg,v_pref,theta,radius,vx,vy,px1,py1,vx1,vy1,radius1,da,radius_sum,theta1,omega1] (15)
+    transformed_state = np.empty((13+2*int(theta_and_omega_visible),), np.float64)
     rot = math.atan2(state[6] - state[1], state[5] - state[0]) 
     transformed_state[0] = two_dim_norm(state[5:7] - state[0:2]) # dg
     transformed_state[1] = state[7] # vpref
-    transformed_state[2] = 0.0 # theta
+    transformed_state[2] = 0.0 # theta -- WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
     transformed_state[3] = state[4] # radius
     transformed_state[4] = state[2] * math.cos(rot) + state[3] * math.sin(rot) # vx
     transformed_state[5] = state[3] * math.cos(rot) - state[2] * math.sin(rot) # vy
@@ -29,16 +33,19 @@ def transform_state_to_agent_centric(state:np.ndarray):
     transformed_state[10] = state[13] # radius1
     transformed_state[11] = two_dim_norm(state[9:11] - state[0:2]) # da
     transformed_state[12] = state[4] + state[13] # radius_sum
+    if theta_and_omega_visible:
+        transformed_state[13] = state[14] - transformed_state[2] # theta1
+        transformed_state[14] = state[15] # omega1
     return transformed_state
 
 @njit(nogil=True, parallel=True, cache=True)
-def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_and_vel:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64):
+def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_and_vel:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64, theta_and_omega_visible=False):
     ### Humans states are in the form: [px,py,vx,vy,r]
     ### Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
     n_actions = len(action_space)
     n_humans = len(current_humans_state)
     rewards = np.empty((n_actions,), np.float64)
-    rotated_states = np.empty((n_actions, n_humans, 13), np.float64)
+    rotated_states = np.empty((n_actions, n_humans, 13+2*int(theta_and_omega_visible)), np.float64)
     for ii in prange(n_actions):
         ## Compute next robot position
         next_robot_position = current_robot_state[0:2] + action_space[ii] * dt
@@ -65,7 +72,8 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_pose_
         next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8], 0.0], np.float64) # WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
         for j in prange(n_humans):
             # Transform state to be compatible with the Value Network input
-            next_human_state = np.append(next_humans_pose_and_vel[j], current_humans_state[j][4])
+            if theta_and_omega_visible: next_human_state = np.concatenate((next_humans_pose_and_vel[j], np.array([current_humans_state[j][4], current_humans_state[j][5]+dt*current_humans_state[j][6], current_humans_state[j][6]], dtype=np.float64)))
+            else: next_human_state = np.append(next_humans_pose_and_vel[j], current_humans_state[j][4])  
             state = np.concatenate((next_robot_state, next_human_state))
             rotated_states[ii,j] = transform_state_to_agent_centric(state)
     return rotated_states, rewards
@@ -120,6 +128,7 @@ class CADRL(Policy):
         self.self_state_dim = 6
         self.human_state_dim = 7
         self.joint_state_dim = self.self_state_dim + self.human_state_dim
+        self.with_theta_and_omega_visible = False
 
     def configure(self, config):
         self.set_common_parameters(config)
@@ -138,6 +147,10 @@ class CADRL(Policy):
         self.cell_num = config.getint('om', 'cell_num')
         self.cell_size = config.getfloat('om', 'cell_size')
         self.om_channel_size = config.getint('om', 'om_channel_size')
+        self.with_theta_and_omega_visible = config.getboolean('sarl', 'with_theta_and_omega_visible', fallback=False)
+        if self.with_theta_and_omega_visible: 
+            self.joint_state_dim += 2
+            self.human_state_dim += 2
 
     def set_device(self, device):
         self.device = device
@@ -219,16 +232,16 @@ class CADRL(Policy):
                 r = state.self_state
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], np.float64))
+                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
                 ## Compute next human state querying env (not assuming constant velocity)
                 next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)  
                 ## Compute Value Network input and rewards
-                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step)
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network output - BOTTLENECK
                 value_network_min_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
-                    batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13))
-                    # batch_next_states = torch.cat([torch.Tensor([rotated_state]).to(self.device) for rotated_state in rotated_states[ii]], dim=0)
+                    batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13+2*int(self.with_theta_and_omega_visible)))
                     outputs = self.model(batch_next_states)  
                     min_output, _ = torch.min(outputs, 0)
                     value_network_min_outputs[ii] = min_output.data.item()
@@ -244,7 +257,7 @@ class CADRL(Policy):
                     ob, reward = self.env.onestep_lookahead(action, self.time_step)
                     batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device) for next_human_state in ob], dim=0)
                     # VALUE UPDATE
-                    outputs = self.model(self.rotate(batch_next_states))
+                    outputs = self.model(self.rotate(batch_next_states, theta_and_omega_visible=self.with_theta_and_omega_visible))
                     min_output, min_index = torch.min(outputs, 0)
                     min_value = reward + pow(self.gamma, self.time_step * state.self_state.v_pref) * min_output.data.item()
                     self.action_values.append(min_value)
@@ -263,10 +276,10 @@ class CADRL(Policy):
         """
         assert len(state.human_states) == 1
         state = torch.Tensor(state.self_state + state.human_states[0]).to(self.device)
-        state = self.rotate(state.unsqueeze(0)).squeeze(dim=0)
+        state = self.rotate(state.unsqueeze(0), theta_and_omega_visible=self.with_theta_and_omega_visible).squeeze(dim=0)
         return state
 
-    def rotate(self, state):
+    def rotate(self, state, theta_and_omega_visible=False):
         """
         Transform the coordinate to agent-centric.
         Input state tensor is of size (batch_size, state_length)
@@ -300,5 +313,10 @@ class CADRL(Policy):
         radius_sum = radius + radius1
         da = torch.norm(torch.cat([(state[:, 0] - state[:, 9]).reshape((batch, -1)), (state[:, 1] - state[:, 10]).
                                   reshape((batch, -1))], dim=1), 2, dim=1, keepdim=True)
-        new_state = torch.cat([dg, v_pref, theta, radius, vx, vy, px1, py1, vx1, vy1, radius1, da, radius_sum], dim=1)
+        if theta_and_omega_visible:
+            theta1 = state[:, 14].reshape((batch, -1)) - theta
+            omega1 = state[:, 15].reshape((batch, -1)) 
+            new_state = torch.cat([dg, v_pref, theta, radius, vx, vy, px1, py1, vx1, vy1, radius1, da, radius_sum, theta1, omega1], dim=1)
+        else:
+            new_state = torch.cat([dg, v_pref, theta, radius, vx, vy, px1, py1, vx1, vy1, radius1, da, radius_sum], dim=1)
         return new_state

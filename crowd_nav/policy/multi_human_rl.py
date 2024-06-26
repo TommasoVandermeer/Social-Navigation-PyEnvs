@@ -33,17 +33,18 @@ class MultiHumanRL(CADRL):
                 r = state.self_state
                 h = state.human_states
                 current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], np.float64))
+                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
                 ## Compute next human state querying env (not assuming constant velocity)
                 if self.query_env: next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
                 ## Compute next human state assuming constant velocity
-                else: raise NotImplementedError("Humans state propagation using constant velocity in the parallelized version has not been implemented yet.")
+                else: raise NotImplementedError("Humans state propagation using constant velocity model in the parallelized version has not been implemented yet.")
                 ## Compute Value Network input and rewards
-                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step)
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network output - BOTTLENECK
                 value_network_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
-                    batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13)).unsqueeze(0)
+                    batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13+2*int(self.with_theta_and_omega_visible))).unsqueeze(0)
                     # batch_next_states = torch.cat([torch.Tensor([rotated_state]).to(self.device) for rotated_state in rotated_states[ii]], dim=0)
                     ## Compute occupancy map
                     if self.with_om:
@@ -67,7 +68,7 @@ class MultiHumanRL(CADRL):
                         reward = self.compute_reward(next_self_state, next_human_states)
                     batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
                                                 for next_human_state in next_human_states], dim=0)
-                    rotated_batch_input = self.rotate(batch_next_states).unsqueeze(0)
+                    rotated_batch_input = self.rotate(batch_next_states, theta_and_omega_visible=self.with_theta_and_omega_visible).unsqueeze(0)
                     if self.with_om:
                         if occupancy_maps is None:
                             occupancy_maps = self.build_occupancy_maps(next_human_states).unsqueeze(0)
@@ -115,13 +116,12 @@ class MultiHumanRL(CADRL):
         :param state:
         :return: tensor of shape (# of humans, len(state))
         """
-        state_tensor = torch.cat([torch.Tensor([state.self_state + human_state]).to(self.device)
-                                  for human_state in state.human_states], dim=0)
+        state_tensor = torch.cat([torch.Tensor([state.self_state + human_state]).to(self.device) for human_state in state.human_states], dim=0)
         if self.with_om:
             occupancy_maps = self.build_occupancy_maps(state.human_states)
-            state_tensor = torch.cat([self.rotate(state_tensor), occupancy_maps.to(self.device)], dim=1)
+            state_tensor = torch.cat([self.rotate(state_tensor, theta_and_omega_visible=self.with_theta_and_omega_visible), occupancy_maps.to(self.device)], dim=1)
         else:
-            state_tensor = self.rotate(state_tensor)
+            state_tensor = self.rotate(state_tensor, theta_and_omega_visible=self.with_theta_and_omega_visible)
         return state_tensor
 
     def input_dim(self):

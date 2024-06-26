@@ -1,7 +1,7 @@
 import pygame
 import math
 import numpy as np
-from crowd_nav.utils.state import ObservableState, FullState
+from crowd_nav.utils.state import ObservableState, FullState, ObservableStateHeaded
 
 class Agent():
     def __init__(self, position:list[float], yaw:float, color:tuple, radius:float, real_size:float, display_ratio:float, mass=80, desired_speed=1):
@@ -243,8 +243,9 @@ class Agent():
 
     ### METHODS FOR CROWDNAV POLICIES
 
-    def get_observable_state(self):
-        return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
+    def get_observable_state(self, visible_theta_and_omega=False):
+        if visible_theta_and_omega: return ObservableStateHeaded(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius, self.yaw, self.angular_velocity)
+        else: return ObservableState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius)
 
     def get_full_state(self):
         return FullState(self.position[0], self.position[1], self.linear_velocity[0], self.linear_velocity[1], self.radius, self.goals[0][0], self.goals[0][1], self.desired_speed, self.yaw)

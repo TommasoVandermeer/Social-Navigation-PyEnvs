@@ -1,5 +1,5 @@
 import pygame
-from crowd_nav.utils.state import ObservableState
+from crowd_nav.utils.state import ObservableState, ObservableStateHeaded
 from social_gym.src.info import *
 from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_STATES
 from social_gym.src.human_agent import HumanAgent
@@ -708,10 +708,10 @@ class SocialNavSim:
             # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {self.motion_model}')
         self.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=plot_sample_time, show=show)
 
-    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3, show=True):
+    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3, show=True, plot_goals=True):
         ax.set(xlabel='X',ylabel='Y',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-        self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model)
-        if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True)
+        self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model, plot_goals=plot_goals)
+        if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True, plot_goals=plot_goals)
         if not self.headless: pygame.quit(); self.pygame_init = False
         if show: plt.show()
 
@@ -719,7 +719,7 @@ class SocialNavSim:
         for i in range(len(self.walls)):
                 ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
 
-    def plot_agents_position_with_sample(self, ax, states, plot_sample_time:float, model:str, is_robot=False):
+    def plot_agents_position_with_sample(self, ax, states, plot_sample_time:float, model:str, is_robot=False, plot_goals=True):
         ax.axis('equal')
         self.print_walls_on_plot(ax)
         if is_robot:
@@ -731,12 +731,13 @@ class SocialNavSim:
                 size = 15 if (k*SAMPLING_TIME).is_integer() else 10
                 num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
                 ax.text(states[k,0],states[k,1], f"{num}", color="black", va="center", ha="center", size=size, zorder=1, weight='bold')
-                goals = np.array(self.robot.goals, dtype=np.float64).copy()
-                for k in range(len(goals)):
-                    if goals[k,0] == states[0,0] and goals[k,1] == states[0,1]: 
-                        goals = np.delete(goals, k, 0)
-                        break
-                ax.scatter(goals[:,0], goals[:,1], marker="*", color=color, zorder=2)
+                if plot_goals:
+                    goals = np.array(self.robot.goals, dtype=np.float64).copy()
+                    for k in range(len(goals)):
+                        if goals[k,0] == states[0,0] and goals[k,1] == states[0,1]: 
+                            goals = np.delete(goals, k, 0)
+                            break
+                    ax.scatter(goals[:,0], goals[:,1], marker="*", color=color, zorder=2)
         else:
             for j in range(len(self.humans)):
                 color_idx = j % len(COLORS)
@@ -750,12 +751,13 @@ class SocialNavSim:
                     size = 15 if (k*SAMPLING_TIME).is_integer() else 10
                     num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
                     ax.text(states[k,j,0],states[k,j,1], f"{num}", color=COLORS[color_idx], va="center", ha="center", size=size, zorder=1, weight='bold')
-                goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
-                for k in range(len(goals)):
-                    if goals[k,0] == states[0,j,0] and goals[k,1] == states[0,j,1]: 
-                        goals = np.delete(goals, k, 0)
-                        break
-                ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
+                if plot_goals:
+                    goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
+                    for k in range(len(goals)):
+                        if goals[k,0] == states[0,j,0] and goals[k,1] == states[0,j,1]: 
+                            goals = np.delete(goals, k, 0)
+                            break
+                    ax.scatter(goals[:,0], goals[:,1], marker="*", color=COLORS[color_idx], zorder=2)
 
     def plot_agents_trajectory(self, ax, human_states):
         ax.axis('equal')
@@ -829,19 +831,23 @@ class SocialNavSim:
             if crowdnav_policy and hasattr(self.robot, "policy"): self.robot.policy.parallelize = True
             self.robot.parallelize = True
 
-    def transform_human_states(self, state:np.array):
+    def transform_human_states(self, state:np.array, theta_and_omega_visible=False):
         """
         Transforms the states from the configuration of MotionModelManager to the
         configuration used in CrowdNav.
 
         params:
         - state: np.array((n_humans,4))
+        - theta_and_omega_visible: bool indicating if the theta and omega of the humans are visible in the state
         
         output:
-        - output_state: list(ObservableState)
+        - output_state: list(ObservableState) or list(ObservableStateHeaded) [x, y, yaw, Vx, Vy, Omega, Gx, Gy]
         """
         output_state = []
-        for i, human_state in enumerate(state): output_state.append(ObservableState(human_state[0],human_state[1],human_state[2],human_state[3],self.humans[i].radius))
+        if theta_and_omega_visible: 
+            for i, human_state in enumerate(state): output_state.append(ObservableStateHeaded(human_state[0],human_state[1],human_state[3],human_state[4],self.humans[i].radius, human_state[2], human_state[5]))
+        else: 
+            for i, human_state in enumerate(state): output_state.append(ObservableState(human_state[0],human_state[1],human_state[2],human_state[3],self.humans[i].radius))
         return output_state
 
     def collision_detection_and_reaching_goal(self, action, time_step):
@@ -937,7 +943,8 @@ class SocialNavSim:
         # Next humans' state computation
         if not self.updated: ob = self.last_observation.copy()
         else:
-            ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
+            if self.robot.policy.with_theta_and_omega_visible: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step, theta_and_omega_visible=True), theta_and_omega_visible=True)
+            else: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
             self.last_observation = ob.copy()
         self.updated = False
         return ob, reward
