@@ -41,7 +41,7 @@ METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = False # If true, metrics over differen
 METRICS_CROSS_SCENARIO_SARL = False # If true, metrics over different scenarios are plotted considering only sarl policies
 METRICS_CROSS_TRAIN_ENV_CC = False # If true, metrics over different training environments on CC are plotted
 RATES_CROSS_TRAIN_ENV_CC = False # If true, rates over different training environments on CC are plotted
-RETURN_SARL_HS_OVER_TRAIN_ENV = True # If true, SARL on HSFM reward over training environments is plotted
+RETURN_SARL_HS_OVER_TESTS = True # If true, SARL on HSFM reward over training environments is plotted
 PLOT_SARL_HS_TRAJECTORIES = False # If true, SARL on HSFM trajectories are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_CC = False # If true, HSFM humans' trajectories in CC scenario are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_PT = False # If true, HSFM humans' trajectories in PT scenario are plotted
@@ -1979,9 +1979,10 @@ if RATES_CROSS_TRAIN_ENV_CC:
     figure.legend(handles, labels, bbox_to_anchor=(0.89, 0.5), loc='center', title="Training and \ntesting environments \nfor SARL-HS \n(tested on CC)")
     # Save figure
     if SAVE_FIGURES: save_figure(figure, name="sarl_hs_cross_env_cc_rates")
-if RETURN_SARL_HS_OVER_TRAIN_ENV:
+if RETURN_SARL_HS_OVER_TESTS:
     metrics_names = ["return"]
     metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    ### Return over policies
     # Extract policy data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4])
     data_to_plot_policies = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
@@ -1990,6 +1991,21 @@ if RETURN_SARL_HS_OVER_TRAIN_ENV:
             for k, d in dataa.items():
                 if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
                     for m, metric in enumerate(metrics_idxs): data_to_plot_policies[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## Plot
+    figure, ax = plt.subplots(1,1, figsize=(18,9))
+    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.3)
+    figure.suptitle("Return over SARL trained on Hybrid Scenario tests with increasing number of humans (averaged over all test environments and scenarios)")
+    ax.set_xticks([i for i in range(len(TESTS))])
+    ax.set_xticklabels(TESTS_DISPLAY_NAME)
+    ax.set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax.grid()
+    for i in range(len(ENVIRONMENTS)): ax.plot(data_to_plot_policies[i,:,0], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i], linewidth=2.5)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, [p.upper() for p in TRAINABLE_POLICIES_DISPLAY], bbox_to_anchor=(1.09, 0.5), loc='center', title="Robot \npolicy")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="return_policy")
+
+    ### Return over scenarios
     # Extract scenario data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,3,4], only_sarl=True)
     data_to_plot_scenarios = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
@@ -1998,7 +2014,62 @@ if RETURN_SARL_HS_OVER_TRAIN_ENV:
             for k, d in dataa.items():
                 if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
                     for m, metric in enumerate(metrics_idxs): data_to_plot_scenarios[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
-    # Extract env data
+    ## Plot
+    figure, ax = plt.subplots(1,1, figsize=(18,9))
+    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.3)
+    figure.suptitle("Return over SARL trained on Hybrid Scenario tests with increasing number of humans (averaged over all test environments and scenarios)")
+    ax.set_xticks([i for i in range(len(TESTS))])
+    ax.set_xticklabels(TESTS_DISPLAY_NAME)
+    ax.set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax.grid()
+    for i in range(len(ENVIRONMENTS)): ax.plot(data_to_plot_scenarios[i,:,0], label=SCENARIOS[i], color=COLORS[i+6], linewidth=2.5)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, bbox_to_anchor=(1.07, 0.5), loc='center', title="Training \nscenario \nfor SARL")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="return_scenario")
+
+    ### Return over train and test envs
+    # Extract train env data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4], only_sarl=True)
+    data_to_plot_envs = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_envs[ENVIRONMENTS.index(train_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Extract test env data
+    dataa2 = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,4], only_sarl=True)
+    data_to_plot_envs2 = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for test_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa2.items():
+                if (d["test_env"] == test_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_envs2[ENVIRONMENTS.index(test_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])                
+    ## Plot
+    figure, ax = plt.subplots(2,1, figsize=(18,18))
+    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.2)
+    figure.suptitle("Return over SARL trained on Hybrid Scenario tests with increasing number of humans (averaged over all test environments and scenarios)")
+    # test env
+    ax[0].set_xticks([i for i in range(len(TESTS))])
+    ax[0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0].set(ylabel="Discounted return", ylim=[np.min(np.concatenate((data_to_plot_envs[:,:,0],data_to_plot_envs2[:,:,0])))-0.01,np.max(np.concatenate((data_to_plot_envs[:,:,0],data_to_plot_envs2[:,:,0])))+0.01], xlabel="Number of humans")
+    ax[0].grid()
+    for i in range(len(ENVIRONMENTS)): ax[0].plot(data_to_plot_envs2[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=OTHER_COLORS[i], linewidth=2.5)
+    handles, labels = ax[0].get_legend_handles_labels()
+    ax[0].legend(handles, labels, bbox_to_anchor=(1.08, 0.5), loc='center', title="Testing \nenviron. \nfor \nSARL-HS")
+    # train env
+    ax[1].set_xticks([i for i in range(len(TESTS))])
+    ax[1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1].set(ylabel="Discounted return", ylim=[np.min(np.concatenate((data_to_plot_envs[:,:,0],data_to_plot_envs2[:,:,0])))-0.01,np.max(np.concatenate((data_to_plot_envs[:,:,0],data_to_plot_envs2[:,:,0])))+0.01], xlabel="Number of humans")
+    ax[1].grid()
+    for i in range(len(ENVIRONMENTS)): ax[1].plot(data_to_plot_envs[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i+3], linewidth=2.5)
+    handles, labels = ax[1].get_legend_handles_labels()
+    ax[1].legend(handles, labels, bbox_to_anchor=(1.08, 0.5), loc='center', title="Training \nenviron. \nfor \nSARL-HS")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="return_env")   
+
+    ### Return over train envs
+    # Extract train env data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4], only_sarl=True)
     data_to_plot_envs = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
     for train_env in ENVIRONMENTS:
@@ -2007,35 +2078,19 @@ if RETURN_SARL_HS_OVER_TRAIN_ENV:
                 if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
                     for m, metric in enumerate(metrics_idxs): data_to_plot_envs[ENVIRONMENTS.index(train_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
     ## Plot
-    figure, ax = plt.subplots(3,1, figsize=(18,18))
-    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.3)
+    figure, ax = plt.subplots(1,1, figsize=(18,9))
+    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.1, hspace=0.2)
     figure.suptitle("Return over SARL trained on Hybrid Scenario tests with increasing number of humans (averaged over all test environments and scenarios)")
-    # return over policies
-    ax[0].set_xticks([i for i in range(len(TESTS))])
-    ax[0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
-    ax[0].grid()
-    for i in range(len(ENVIRONMENTS)): ax[0].plot(data_to_plot_policies[i,:,0], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i], linewidth=2.5)
-    handles, labels = ax[0].get_legend_handles_labels()
-    ax[0].legend(handles, [p.upper() for p in TRAINABLE_POLICIES_DISPLAY], bbox_to_anchor=(1.09, 0.5), loc='center', title="Robot \npolicy")
-    # return over scenarios
-    ax[1].set_xticks([i for i in range(len(TESTS))])
-    ax[1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
-    ax[1].grid()
-    for i in range(len(ENVIRONMENTS)): ax[1].plot(data_to_plot_scenarios[i,:,0], label=SCENARIOS[i], color=COLORS[i+6], linewidth=2.5)
-    handles, labels = ax[1].get_legend_handles_labels()
-    ax[1].legend(handles, labels, bbox_to_anchor=(1.07, 0.5), loc='center', title="Training \nscenario \nfor SARL")
-    # return over envs
-    ax[2].set_xticks([i for i in range(len(TESTS))])
-    ax[2].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2].set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
-    ax[2].grid()
-    for i in range(len(ENVIRONMENTS)): ax[2].plot(data_to_plot_envs[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i+3], linewidth=2.5)
-    handles, labels = ax[2].get_legend_handles_labels()
-    ax[2].legend(handles, labels, bbox_to_anchor=(1.08, 0.5), loc='center', title="Training \nenviron. \nfor \nSARL-HS")
+    # train env
+    ax.set_xticks([i for i in range(len(TESTS))])
+    ax.set_xticklabels(TESTS_DISPLAY_NAME)
+    ax.set(ylabel="Discounted return", ylim=[-0.05,0.15], xlabel="Number of humans")
+    ax.grid()
+    for i in range(len(ENVIRONMENTS)): ax.plot(data_to_plot_envs[i,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i], color=COLORS[i+3], linewidth=2.5)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, bbox_to_anchor=(1.08, 0.5), loc='center', title="Training \nenviron. \nfor \nSARL-HS")
     # Save figure
-    if SAVE_FIGURES: save_figure(figure, name="return")
+    if SAVE_FIGURES: save_figure(figure, name="return_train_env")   
 if PLOT_SARL_HS_TRAJECTORIES:
     plt.rcParams['font.size'] = 25
     r_policies = ["sarl","sarl"]

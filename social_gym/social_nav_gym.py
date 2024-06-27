@@ -7,7 +7,7 @@ from social_gym.src.utils import is_multiple
 
 HEADLESS = True
 PARALLELIZE_ROBOT = True
-PARALLELIZE_HUMANS = True # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
+PARALLELIZE_HUMANS = False # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
