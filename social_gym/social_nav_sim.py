@@ -416,7 +416,8 @@ class SocialNavSim:
                 self.robot.check_collisions(self.humans, self.walls)
             else:
                 if self.robot_crowdnav_policy:
-                    ob = [human.get_observable_state() for human in self.humans]
+                    if hasattr(self.robot.policy, "with_theta_and_omega_visible") and self.robot.policy.with_theta_and_omega_visible: ob = [human.get_observable_state(visible_theta_and_omega=True) for human in self.humans]
+                    else: ob = [human.get_observable_state() for human in self.humans]
                     action = self.robot.act(ob)
                     self.robot.step(action, SAMPLING_TIME)
                     if (np.linalg.norm(self.robot.position - self.robot.get_goal_position()) < self.robot.radius) and (len(self.robot.goals)>1):
@@ -943,8 +944,28 @@ class SocialNavSim:
         # Next humans' state computation
         if not self.updated: ob = self.last_observation.copy()
         else:
-            if self.robot.policy.with_theta_and_omega_visible: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step, theta_and_omega_visible=True), theta_and_omega_visible=True)
-            else: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
+            if self.robot.policy.query_env:
+                if self.robot.policy.with_theta_and_omega_visible: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step, theta_and_omega_visible=True), theta_and_omega_visible=True)
+                else: ob = self.transform_human_states(self.motion_model_manager.get_next_human_observable_states(time_step))
+            else:
+                ob = self.propagate_humans_state_with_constant_velocity_model(time_step)
             self.last_observation = ob.copy()
         self.updated = False
         return ob, reward
+
+    def propagate_humans_state_with_constant_velocity_model(self, time_step):
+        """
+        This method propagates the humans' states with the constant velocity model.
+        """
+        propagated_obs = []
+        if self.robot.policy.with_theta_and_omega_visible:
+            for human in self.humans:
+                next_position = human.position + human.linear_velocity * time_step
+                next_angle = human.yaw + human.angular_velocity * time_step
+                propagated_obs.append(ObservableStateHeaded(*next_position,*human.linear_velocity,human.radius, next_angle, human.angular_velocity))
+        else:
+            for human in self.humans:
+                next_position = human.position + human.linear_velocity * time_step
+                propagated_obs.append(ObservableState(*next_position,*human.linear_velocity,human.radius))
+        return propagated_obs
+    

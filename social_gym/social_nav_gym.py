@@ -7,7 +7,7 @@ from social_gym.src.utils import is_multiple
 
 HEADLESS = True
 PARALLELIZE_ROBOT = True
-PARALLELIZE_HUMANS = False # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
+PARALLELIZE_HUMANS = True # WARNING: Parallelizing humans is not convenient if episodes have less than 10 humans
 HUMAN_MODELS = ["sfm_helbing","sfm_guo","sfm_moussaid","hsfm_farina","hsfm_guo",
                  "hsfm_moussaid","hsfm_new","hsfm_new_guo","hsfm_new_moussaid","orca"]
 
@@ -95,6 +95,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
 
     def set_robot(self, robot):
         self.robot = robot
+        if PARALLELIZE_ROBOT: self.robot.parallelize = True
 
     def compute_humans_observable_state(self):
         if self.robot.sensor == 'coordinates': 
@@ -124,6 +125,7 @@ class SocialNavGym(gym.Env, SocialNavSim):
         if self.robot is None: raise AttributeError('robot has to be set!')
         assert phase in ['train', 'val', 'test']
         if test_case is not None: self.case_counter[phase] = test_case
+        if self.robot.parallelize: self.robot.policy.parallelize = True
         self.global_time = 0
         if phase == 'test': self.human_times = [0] * self.human_num
         else: self.human_times = [0] * (self.human_num if self.robot.policy.multiagent_training else 1)

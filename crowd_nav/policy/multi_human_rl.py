@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from crowd_nav.utils.action import ActionRot, ActionXY
-from crowd_nav.policy.cadrl import CADRL, compute_rotated_states_and_reward, compute_action_value
+from crowd_nav.policy.cadrl import CADRL, compute_rotated_states_and_reward, compute_action_value, propagate_humans_state_with_constant_velocity_model
 
 
 class MultiHumanRL(CADRL):
@@ -36,11 +36,13 @@ class MultiHumanRL(CADRL):
                 if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], np.float64))
                 else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
                 ## Compute next human state querying env (not assuming constant velocity)
-                if self.query_env: next_humans_pos_and_vel = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
+                if self.query_env: 
+                    if self.with_theta_and_omega_visible: next_humans_state = self.env.motion_model_manager.get_next_human_observable_states(self.time_step, theta_and_omega_visible=True)[:,:6]
+                    else: next_humans_state = self.env.motion_model_manager.get_next_human_observable_states(self.time_step)
                 ## Compute next human state assuming constant velocity
-                else: raise NotImplementedError("Humans state propagation using constant velocity model in the parallelized version has not been implemented yet.")
+                else: next_humans_state = propagate_humans_state_with_constant_velocity_model(current_humans_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network input and rewards
-                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_pos_and_vel, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
+                rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network output - BOTTLENECK
                 value_network_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
@@ -60,12 +62,7 @@ class MultiHumanRL(CADRL):
                 max_action = None
                 for action in self.action_space:
                     next_self_state = self.propagate(state.self_state, action)
-                    if self.query_env:
-                        next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
-                    else:
-                        next_human_states = [self.propagate(human_state, ActionXY(human_state.vx, human_state.vy))
-                                        for human_state in state.human_states]
-                        reward = self.compute_reward(next_self_state, next_human_states)
+                    next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
                     batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
                                                 for next_human_state in next_human_states], dim=0)
                     rotated_batch_input = self.rotate(batch_next_states, theta_and_omega_visible=self.with_theta_and_omega_visible).unsqueeze(0)

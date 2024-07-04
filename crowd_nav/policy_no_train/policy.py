@@ -29,7 +29,7 @@ class Policy(object):
 
     def set_env(self, env):
         self.env = env
-        if self.with_theta_and_omega_visible and "hsfm" not in env.motion_model: warnings.warn(f"Theta and omega are only visible for hsfm motion model, you are using: {env.motion_model}")
+        if hasattr(self, "with_theta_and_omega_visible") and self.with_theta_and_omega_visible and "hsfm" not in env.motion_model: warnings.warn(f"Theta and omega are only visible for hsfm motion model, you are using: {env.motion_model}")
 
     def get_model(self):
         return self.model

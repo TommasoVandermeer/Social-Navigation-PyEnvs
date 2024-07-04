@@ -10,7 +10,9 @@ N_HUMANS = np.array([5,10,15,20,25], dtype=int)
 CIRCLE_RADIUS = 7
 TRAFFIC_LENGTH = 14
 TRAFFIC_HEIGHT = 3
-SCENARIO = "parallel_traffic" # "circular_crossing" or "parallel_traffic"
+POLICIES_WITH_THETA_AND_OMEGA_ON_VN_INPUT = True
+TESTING_SCENARIO = "circular_crossing" # "circular_crossing" or "parallel_traffic"
+TESTING_SCENARIOS = ["circular_crossing", "parallel_traffic"]
 PARALLELIZE_ROBOT = True
 TRIALS = 100
 TIME_PER_EPISODE = 50
@@ -41,6 +43,15 @@ ROBOT_MODEL_DIRS_TO_BE_TESTED = ["-", "-", "-", "robot_models/trained_on_circula
                                  "robot_models/trained_on_hybrid_scenario/sarl_on_orca", "robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo",
                                  "robot_models/trained_on_hybrid_scenario/lstm_rl_on_orca", "robot_models/trained_on_hybrid_scenario/lstm_rl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/lstm_rl_on_hsfm_new_guo"]
 HUMAN_POLICIES_TO_BE_TESTED = ["orca", "sfm_guo", "hsfm_new_guo"]
+ROBOT_MODEL_DIRS_WITH_THETA_AND_OMEGA_ON_VN_INPUT_TO_BE_TESTED = ["-", "-", "-", "robot_models/policies_with_theta_and_omega_in_vn_input/trained_on_circular_crossing/cadrl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_parallel_traffic/cadrl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_hybrid_scenario/cadrl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_circular_crossing/sarl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_parallel_traffic/sarl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_hybrid_scenario/sarl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_circular_crossing/lstm_rl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_parallel_traffic/lstm_rl_h_on_hsfm_new_guo",
+                                                                  "robot_models/policies_with_theta_and_omega_on_vn_input/trained_on_hybrid_scenario/lstm_rl_h_on_hsfm_new_guo"]
 OUTPUT_FILE_NAME = "multiple_tests.log"
 ### VARIABLES USED FOR IMPLEMENTATION PURPOSES, DO NOT CHANGE THESE
 TRAINABLE_POLICIES = ["cadrl", "sarl", "lstm_rl"]
@@ -68,7 +79,7 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
         if SAVE_STATES:
             # TODO: Save human radiuses (also on multiple tests)
             test_specifics = {"humans": n_agents, "circle_radius": CIRCLE_RADIUS, "traffic_length": TRAFFIC_LENGTH, "traffic_height": TRAFFIC_HEIGHT,
-                              "trials": TRIALS, "scenario": SCENARIO, "max_episode_time": TIME_PER_EPISODE, "fully_cooperative": FULLY_COOPERATIVE,
+                              "trials": TRIALS, "scenario": TESTING_SCENARIO, "max_episode_time": TIME_PER_EPISODE, "fully_cooperative": FULLY_COOPERATIVE,
                               "time_step": TIME_STEP, "robot_time_step": ROBOT_TIME_STEP, "seed_offset": SEED_OFFSET, "robot_radius": ROBOT_RADIUS,
                               "runge_kutta": RUNGE_KUTTA, "human_policy": human_policy, "robot_policy": robot_policy,
                               "robot_model_dir": robot_model_dir}
@@ -77,12 +88,12 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
             if trial % 20 == 0: logging.info(f"Start trial {trial+1} w/ {N_HUMANS[i]} humans")
             np.random.seed(SEED_OFFSET + trial)
             parallelize_humans = True if (n_agents >= 10) and (human_policy in SFMS) else False
-            if SCENARIO == "parallel_traffic": 
+            if TESTING_SCENARIO == "parallel_traffic": 
                 simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
                                           "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
                                           "traffic_length": TRAFFIC_LENGTH, "traffic_height": TRAFFIC_HEIGHT, "n_actors": n_agents, "randomize_human_attributes": False},
                                          scenario = "parallel_traffic", parallelize_robot=PARALLELIZE_ROBOT, parallelize_humans=parallelize_humans)
-            elif SCENARIO == "circular_crossing":
+            elif TESTING_SCENARIO == "circular_crossing":
                 simulator = SocialNavSim({"insert_robot": True, "human_policy": human_policy, "headless": HEADLESS,
                                          "runge_kutta": RUNGE_KUTTA, "robot_visible": FULLY_COOPERATIVE, "robot_radius": ROBOT_RADIUS,
                                          "circle_radius": CIRCLE_RADIUS, "n_actors": n_agents, "randomize_human_positions": True, "randomize_human_attributes": False}, 
@@ -151,22 +162,49 @@ else:
     file_handler = logging.FileHandler(os.path.join(base_dir,OUTPUT_FILE_NAME), mode='w')
     stdout_handler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(level=logging.INFO, handlers=[stdout_handler, file_handler],format='%(asctime)s, %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
-    for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED):
-        if len(ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[1][11:]
-        else: training_scenario = None
-        if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
-        else: logging.info("Non trainable policy")
-        if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[-1]
-        else: robot_policy_title = robot_policy
-        for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
-            if human_policy == "orca": rk45 = False
-            else: rk45 = RUNGE_KUTTA
-            # Initialize metrics
-            if human_policy not in HUMAN_POLICIES: raise(NotImplementedError)
-            # Save test results in output file
-            all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_TO_BE_TESTED[k])
-            if SAVE_STATES:
-                if training_scenario is not None:
-                    with open(os.path.join(results_dir,f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
-                else:
-                    with open(os.path.join(results_dir,f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+    if POLICIES_WITH_THETA_AND_OMEGA_ON_VN_INPUT:
+        for s, testing_scenario in enumerate(TESTING_SCENARIOS):
+            TESTING_SCENARIO = testing_scenario
+            for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED[:12]):
+                if len(ROBOT_MODEL_DIRS_WITH_THETA_AND_OMEGA_ON_VN_INPUT_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_WITH_THETA_AND_OMEGA_ON_VN_INPUT_TO_BE_TESTED[k].split("/")[2][11:]
+                else: training_scenario = None
+                if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
+                else: logging.info("Non trainable policy")
+                if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_WITH_THETA_AND_OMEGA_ON_VN_INPUT_TO_BE_TESTED[k].split("/")[-1]
+                else: robot_policy_title = robot_policy
+                for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
+                    if human_policy == "orca": rk45 = False
+                    else: rk45 = RUNGE_KUTTA
+                    # Initialize metrics
+                    if human_policy not in HUMAN_POLICIES: raise(NotImplementedError)
+                    ## DEBUG
+                    if training_scenario is not None: print(f'tested_on_{testing_scenario}/{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl')
+                    else: print(f'tested_on_{testing_scenario}/{robot_policy_title}_on_{human_policy}.pkl')
+                    # Save test results in output file
+                    all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_WITH_THETA_AND_OMEGA_ON_VN_INPUT_TO_BE_TESTED[k])
+                    if SAVE_STATES:
+                        if not os.path.exists(os.path.join(results_dir,f'tested_on_{testing_scenario}')): os.makedirs(os.path.join(results_dir,f'tested_on_{testing_scenario}'))
+                        if training_scenario is not None:
+                            with open(os.path.join(results_dir,f'tested_on_{testing_scenario}',f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+                        else:
+                            with open(os.path.join(results_dir,f'tested_on_{testing_scenario}',f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+    else:
+        for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED):
+            if len(ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[1][11:]
+            else: training_scenario = None
+            if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
+            else: logging.info("Non trainable policy")
+            if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[-1]
+            else: robot_policy_title = robot_policy
+            for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
+                if human_policy == "orca": rk45 = False
+                else: rk45 = RUNGE_KUTTA
+                # Initialize metrics
+                if human_policy not in HUMAN_POLICIES: raise(NotImplementedError)
+                # Save test results in output file
+                all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_TO_BE_TESTED[k])
+                if SAVE_STATES:
+                    if training_scenario is not None:
+                        with open(os.path.join(results_dir,f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+                    else:
+                        with open(os.path.join(results_dir,f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
