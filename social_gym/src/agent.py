@@ -15,7 +15,7 @@ class Agent():
         self.obstacles = []
         self.mass = mass
         self.desired_speed = desired_speed
-        self.linear_velocity = np.array([0.0,0.0])
+        self.linear_velocity = np.array([0.0,0.0],dtype=np.float64)
         self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
         self.angular_velocity = 0.0
         self.headed = False

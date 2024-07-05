@@ -108,7 +108,7 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
             elif robot_policy_index >= 11 and robot_policy_index < 13: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True)
             elif robot_policy_index >= 13 and robot_policy_index < 16: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),robot_model_dir), il=False)
             else: raise ValueError(f"Robot policy {robot_policy} not available for tests, available policies are: {ROBOT_POLICIES}")
-            if hasattr(simulator.robot, "policy"): simulator.robot.policy.query_env(QUERY_ENV)
+            if hasattr(simulator.robot, "policy") and hasattr(simulator.robot.policy, "query_env"): simulator.robot.policy.query_env = QUERY_ENV
             simulator.robot.set_radius_and_update_graphics(ROBOT_RADIUS)
             ## RUN FOR MAX TIME PER EPISODE
             human_states, robot_states, trial_collisions, trial_time_to_goal, trial_success, trial_truncated = simulator.run_k_steps(int(TIME_PER_EPISODE/TIME_STEP), additional_info=True, stop_when_collision_or_goal=True, save_states_time_step=ROBOT_TIME_STEP)

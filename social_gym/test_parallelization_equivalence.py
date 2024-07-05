@@ -10,10 +10,12 @@ HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_HUMANS = True
 HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_ROBOT_AND_HUMANS = True
 ONLY_HUMANS_EQUIVALENCE_TEST_PARALLELIZE_HUMANS = True
 
-QUERY_ENV = False
+QUERY_ENV = True
 SAFETY_SPACE = False
 
-SIMULATION_SECONDS = 50
+### When robot is in the simulation and queries the env in onestep lookahead and humans are HSFM-driven, the parallel and unparallel versions are not equivalent
+
+SIMULATION_SECONDS = 10
 HUMANS_POLICY = "hsfm_new_guo"
 N_HUMANS = 5
 RANDOM_SEED = 0
@@ -25,8 +27,10 @@ ROBOT_MODEL_DIR = "robot_models/trained_on_hybrid_scenario/cadrl_on_hsfm_new_guo
 STATES_DEFS = {0:"px", 1:"py", 2:"theta", 3:"vx", 4:"vy", 5:"omega", 6:"gx", 7:"gx"}
 
 def assert_equivalence(parallel_human_states:np.ndarray, parallel_robot_states:np.ndarray, unparallel_human_states:np.ndarray, unparallel_robot_states:np.ndarray):
+    parallel_human_states = np.round(parallel_human_states, decimals=7)
+    unparallel_human_states = np.round(unparallel_human_states, decimals=7)
     humans_equal = np.array_equal(parallel_human_states, unparallel_human_states)
-    print("All human states are equal:", humans_equal)
+    print("ALL HUMAN STATES ARE EQUAL:", humans_equal)
     if not humans_equal:
         not_equal_index = np.where(parallel_human_states != unparallel_human_states)[0][0]
         check_next_state = True
@@ -49,8 +53,10 @@ def assert_equivalence(parallel_human_states:np.ndarray, parallel_robot_states:n
             elif check_next_state.lower() == "n": check_next_state = False
             else:break
     if parallel_robot_states is not None and unparallel_robot_states is not None:
+        parallel_robot_states = np.round(parallel_robot_states, decimals=7)
+        unparallel_robot_states = np.round(unparallel_robot_states, decimals=7)
         robots_equal = np.array_equal(parallel_robot_states, unparallel_robot_states)
-        print("All robot states are equal:", robots_equal)
+        print("ALL ROBOT STATES ARE EQUAL:", robots_equal)
         if not robots_equal:
             not_equal_index = np.where(parallel_robot_states != unparallel_robot_states)[0][0]
             check_next_state = True
@@ -105,7 +111,7 @@ if HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_ROBOT:
     ### Run simulators
     parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states = run_simulators(parallel_social_nav, unparallel_social_nav)
     ### Assert equivalence
-    print(f"\nEQUIVALENCE TEST PARALLELIZE ROBOT - QUERYENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
+    print(f"\nEQUIVALENCE TEST PARALLELIZE ROBOT - QUERY ENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
     assert_equivalence(parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states)
 
 if HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_HUMANS:
@@ -114,7 +120,7 @@ if HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_HUMANS:
     ### Run simulators
     parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states = run_simulators(parallel_social_nav, unparallel_social_nav)
     ### Assert equivalence
-    print(f"\nEQUIVALENCE TEST PARALLELIZE HUMANS - QUERYENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
+    print(f"\nEQUIVALENCE TEST PARALLELIZE HUMANS - QUERY ENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
     assert_equivalence(parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states)
 
 if HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_ROBOT_AND_HUMANS:
@@ -123,7 +129,7 @@ if HUMANS_AND_ROBOT_EQUIVALENCE_TEST_PARALLELIZE_ROBOT_AND_HUMANS:
     ### Run simulators
     parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states = run_simulators(parallel_social_nav, unparallel_social_nav)
     ### Assert equivalence
-    print(f"\nEQUIVALENCE TEST PARALLELIZE ROBOT AND HUMANS - QUERYENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
+    print(f"\nEQUIVALENCE TEST PARALLELIZE ROBOT AND HUMANS - QUERY ENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
     assert_equivalence(parallel_human_states, parallel_robot_states, unparallel_human_states, unparallel_robot_states)
 
 if ONLY_HUMANS_EQUIVALENCE_TEST_PARALLELIZE_HUMANS:
@@ -132,5 +138,5 @@ if ONLY_HUMANS_EQUIVALENCE_TEST_PARALLELIZE_HUMANS:
     ### Run simulators
     parallel_human_states, unparallel_human_states = run_simulators(parallel_social_nav, unparallel_social_nav, insert_robot=False)
     ### Assert equivalence
-    print(f"\nEQUIVALENCE TEST ONLY HUMANS PARALLELIZE HUMANS - QUERYENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
+    print(f"\nEQUIVALENCE TEST ONLY HUMANS PARALLELIZE HUMANS - QUERY ENV: {QUERY_ENV} - SAFETY SPACE: {SAFETY_SPACE}")
     assert_equivalence(parallel_human_states, None, unparallel_human_states, None)

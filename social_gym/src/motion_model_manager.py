@@ -83,7 +83,7 @@ class MotionModelManager:
         agent.body_velocity += (agent.global_force / agent.mass) * dt
         agent.angular_velocity += (agent.torque_force / agent.inertia) * dt
         agent.body_velocity = self.bound_velocity(agent.body_velocity, agent.desired_speed)
-        self.headed_agent_update_linear_velocity(agent) # We update the linear velocity here becaue CrowdNav uses linear velocity for Observable and Full states      
+        self.headed_agent_update_linear_velocity(agent) # We update the linear velocity here becaue CrowdNav uses linear velocity for Observable and Full states  
 
     def set_new_not_headed_state_from_rk45_solution(self, agent:Agent, y:np.array):
         if len(y) != N_NOT_HEADED_STATES: raise ValueError(f'The passed solution size is not correct, it should be {N_NOT_HEADED_STATES}')
