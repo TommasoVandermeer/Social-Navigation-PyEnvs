@@ -10,9 +10,10 @@ N_HUMANS = np.array([5,10,15,20,25], dtype=int)
 CIRCLE_RADIUS = 7
 TRAFFIC_LENGTH = 14
 TRAFFIC_HEIGHT = 3
-POLICIES_WITH_THETA_AND_OMEGA_ON_VN_INPUT = True
+POLICIES_WITH_THETA_AND_OMEGA_ON_VN_INPUT = False
 TESTING_SCENARIO = "circular_crossing" # "circular_crossing" or "parallel_traffic"
 TESTING_SCENARIOS = ["circular_crossing", "parallel_traffic"]
+QUERY_ENV = False
 PARALLELIZE_ROBOT = True
 TRIALS = 100
 TIME_PER_EPISODE = 50
@@ -107,6 +108,7 @@ def single_human_robot_policy_test(human_policy:str, robot_policy:str, robot_mod
             elif robot_policy_index >= 11 and robot_policy_index < 13: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True)
             elif robot_policy_index >= 13 and robot_policy_index < 16: simulator.set_robot_policy(policy_name=robot_policy, crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),robot_model_dir), il=False)
             else: raise ValueError(f"Robot policy {robot_policy} not available for tests, available policies are: {ROBOT_POLICIES}")
+            if hasattr(simulator.robot, "policy"): simulator.robot.policy.query_env(QUERY_ENV)
             simulator.robot.set_radius_and_update_graphics(ROBOT_RADIUS)
             ## RUN FOR MAX TIME PER EPISODE
             human_states, robot_states, trial_collisions, trial_time_to_goal, trial_success, trial_truncated = simulator.run_k_steps(int(TIME_PER_EPISODE/TIME_STEP), additional_info=True, stop_when_collision_or_goal=True, save_states_time_step=ROBOT_TIME_STEP)
@@ -189,22 +191,25 @@ else:
                         else:
                             with open(os.path.join(results_dir,f'tested_on_{testing_scenario}',f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
     else:
-        for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED):
-            if len(ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[1][11:]
-            else: training_scenario = None
-            if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
-            else: logging.info("Non trainable policy")
-            if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[-1]
-            else: robot_policy_title = robot_policy
-            for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
-                if human_policy == "orca": rk45 = False
-                else: rk45 = RUNGE_KUTTA
-                # Initialize metrics
-                if human_policy not in HUMAN_POLICIES: raise(NotImplementedError)
-                # Save test results in output file
-                all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_TO_BE_TESTED[k])
-                if SAVE_STATES:
-                    if training_scenario is not None:
-                        with open(os.path.join(results_dir,f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
-                    else:
-                        with open(os.path.join(results_dir,f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+        for s, testing_scenario in enumerate(TESTING_SCENARIOS):
+            TESTING_SCENARIO = testing_scenario
+            for k, robot_policy in enumerate(ROBOT_POLICIES_TO_BE_TESTED):
+                if len(ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")) > 2: training_scenario = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[1][11:]
+                else: training_scenario = None
+                if training_scenario is not None: logging.info(f"Training scenario: {training_scenario}")
+                else: logging.info("Non trainable policy")
+                if robot_policy in TRAINABLE_POLICIES: robot_policy_title = ROBOT_MODEL_DIRS_TO_BE_TESTED[k].split("/")[-1]
+                else: robot_policy_title = robot_policy
+                for human_policy in HUMAN_POLICIES_TO_BE_TESTED:
+                    if human_policy == "orca": rk45 = False
+                    else: rk45 = RUNGE_KUTTA
+                    # Initialize metrics
+                    if human_policy not in HUMAN_POLICIES: raise(NotImplementedError)
+                    # Save test results in output file
+                    all_tests = single_human_robot_policy_test(human_policy, robot_policy, ROBOT_MODEL_DIRS_TO_BE_TESTED[k])
+                    if SAVE_STATES:
+                        if not os.path.exists(os.path.join(results_dir,f'tested_on_{testing_scenario}')): os.makedirs(os.path.join(results_dir,f'tested_on_{testing_scenario}'))
+                        if training_scenario is not None:
+                            with open(os.path.join(results_dir,f'tested_on_{testing_scenario}',f'{robot_policy_title}_on_{training_scenario}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()
+                        else:
+                            with open(os.path.join(results_dir,f'tested_on_{testing_scenario}',f'{robot_policy_title}_on_{human_policy}.pkl'), "wb") as f: pickle.dump(all_tests, f); f.close()

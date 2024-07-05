@@ -28,8 +28,15 @@ RESULTS_FILES = ["bp_on_orca.pkl","bp_on_sfm_guo.pkl","bp_on_hsfm_new_guo.pkl","
                  "lstm_rl_on_orca_on_orca.pkl","lstm_rl_on_orca_on_sfm_guo.pkl","lstm_rl_on_orca_on_hsfm_new_guo.pkl",
                  "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
                  "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
+# results files of policies+ tests
+# RESULTS_FILES = ["bp_on_hsfm_new_guo.pkl",
+#                  "ssp_on_hsfm_new_guo.pkl",
+#                  "orca_on_hsfm_new_guo.pkl",
+#                  "cadrl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
+#                  "sarl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
+#                  "lstm_rl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 ## IMPLEMENTATION VARIABLES - DO NOT CHANGE
-TESTS = ["5_humans","10_humans","15_humans","20_humans","25_humans","35_humans"]
+TESTS = ["5_humans","10_humans","15_humans","20_humans","25_humans"] # 35_humans
 METRICS = ['success_rate','collisions','truncated_eps','time_to_goal','min_speed','avg_speed',
            'max_speed','min_accel.','avg_accel.','max_accel.','min_jerk','avg_jerk','max_jerk',
            'min_dist','avg_dist','space_compliance','path_length','SPL',"return"]

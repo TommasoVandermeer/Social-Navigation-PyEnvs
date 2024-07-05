@@ -17,7 +17,7 @@ def compute_rotational_matrix_parallel(agent_state:np.ndarray):
     returns:
     - rotational_matrix (numpy.ndarray): in the form [[r00,r01],[r10,r11]]
     """
-    return np.array([[math.cos(agent_state[2]), -math.sin(agent_state[2])],[math.sin(agent_state[2]), math.cos(agent_state[2])]], np.float64)
+    return np.array([[np.cos(agent_state[2]), -np.sin(agent_state[2])],[np.sin(agent_state[2]), np.cos(agent_state[2])]], np.float64)
 
 @njit(nogil=True, cache=True)
 def compute_desired_force_parallel(agent_state:np.ndarray, agent_params:np.ndarray):
@@ -276,8 +276,8 @@ def update_humans_parallel(type:int, agents_state:np.ndarray, goals:np.ndarray, 
             updated_state[i,5:7] += (global_forces[i] / updated_state[i,9]) * dt # Body velocity
             updated_state[i,5:7] = bound_two_dim_array_norm(updated_state[i,5:7], updated_state[i,12]) # Bound body velocity
             updated_state[i,7] += (torque_forces[i] / inertias[i]) * dt # Angular velocity
-            rotational_matrix = np.array([[math.cos(updated_state[i,2]), -math.sin(updated_state[i,2])],[math.sin(updated_state[i,2]), math.cos(updated_state[i,2])]], np.float64)
-            updated_state[i,3:5] = two_by_two_matrix_mul_two_dim_array(rotational_matrix, updated_state[i,5:7])
+            rotational_matrix = compute_rotational_matrix_parallel(updated_state[i])
+            updated_state[i,3:5] = two_by_two_matrix_mul_two_dim_array(rotational_matrix, updated_state[i,5:7]) # Linear velocity
         else:
             updated_state[i,3:5] += (global_forces[i] / updated_state[i,9]) * dt # Linear velocity
             updated_state[i,3:5] = bound_two_dim_array_norm(updated_state[i,3:5], updated_state[i,12]) # Bound linear velocity

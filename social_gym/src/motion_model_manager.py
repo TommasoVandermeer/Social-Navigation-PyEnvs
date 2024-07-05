@@ -366,7 +366,7 @@ class MotionModelManager:
                     self.states = update_humans_parallel(self.sfm_type, self.states, self.goals, self.obstacles, self.params, dt, self.safety_space, all_params_equal=self.all_equal_humans, last_is_robot=self.consider_robot)
                     for i, human in enumerate(self.humans): 
                         human.set_state(self.states[i,0:8])
-                        # Update human human goal for state change
+                        # Update human goal for state change
                         if not np.array_equal(np.array(human.goals[0], np.float64), self.states[i,10:12]):
                             goal = human.goals[0]
                             human.goals.remove(goal)
