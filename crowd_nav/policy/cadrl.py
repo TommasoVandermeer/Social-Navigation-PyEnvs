@@ -98,7 +98,7 @@ def propagate_humans_state_with_constant_velocity_model(current_humans_state:np.
     # input: x, y, vx, vy, radius, theta, omega
     # output: x, y, yaw, Vx, Vy, Omega
     n_humans = len(current_humans_state)
-    next_humans_state = np.empty((n_humans, 4+2*int(theta_and_omega_visible)), np.float64)
+    next_humans_state = np.zeros((n_humans, 4+2*int(theta_and_omega_visible)), np.float64)
     for j in prange(n_humans):
         if theta_and_omega_visible: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][5] + current_humans_state[j][6] * dt, current_humans_state[j][2], current_humans_state[j][3], current_humans_state[j][6]], np.float64)
         else: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][2], current_humans_state[j][3]], np.float64)

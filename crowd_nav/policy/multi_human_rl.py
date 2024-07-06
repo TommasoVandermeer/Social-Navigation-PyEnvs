@@ -43,6 +43,10 @@ class MultiHumanRL(CADRL):
                 else: next_humans_state = propagate_humans_state_with_constant_velocity_model(current_humans_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network input and rewards
                 rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
+                # In LSTM-RL humans have to be sorted by decreasing distance to robot
+                if self.name == "LSTM-RL": 
+                    indices = np.flip(np.argsort(rotated_states[:,:,11], axis=1), axis=1)
+                    rotated_states = rotated_states[np.arange(rotated_states.shape[0])[:, None], indices, :]
                 ## Compute Value Network output - BOTTLENECK
                 value_network_outputs = np.zeros((len(rewards),), np.float64) 
                 for ii in range(len(rewards)):
@@ -63,8 +67,9 @@ class MultiHumanRL(CADRL):
                 for action in self.action_space:
                     next_self_state = self.propagate(state.self_state, action)
                     next_human_states, reward = self.env.onestep_lookahead(action, self.time_step)
-                    batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
-                                                for next_human_state in next_human_states], dim=0)
+                    # In LSTM-RL humans have to be sorted by decreasing distance to robot
+                    if self.name == "LSTM-RL": next_human_states = sorted(next_human_states, key=lambda x: np.linalg.norm((next_self_state.px - x.px, next_self_state.py - x.py)), reverse=True)
+                    batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device) for next_human_state in next_human_states], dim=0)
                     rotated_batch_input = self.rotate(batch_next_states, theta_and_omega_visible=self.with_theta_and_omega_visible).unsqueeze(0)
                     if self.with_om:
                         if occupancy_maps is None:

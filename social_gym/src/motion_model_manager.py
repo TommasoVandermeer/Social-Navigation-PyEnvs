@@ -328,6 +328,7 @@ class MotionModelManager:
                 if self.headed:
                     self.humans[i].body_velocity[0] = state[i,3]
                     self.humans[i].body_velocity[1] = state[i,4]
+                    self.headed_agent_update_linear_velocity(self.humans[i])
                 else:
                     self.humans[i].linear_velocity[0] = state[i,3]
                     self.humans[i].linear_velocity[1] = state[i,4]
@@ -336,7 +337,7 @@ class MotionModelManager:
                 if self.orca: self.set_state_orca(i)
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
                 if self.parallel and not self.orca and not self.sm and not self.sf:
-                    if self.headed: self.states[i] = np.array([*state[i,0:3],*self.states[i,3:5],*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
+                    if self.headed: self.states[i] = np.array([*state[i,0:3],*self.humans[i].linear_velocity,*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
                     else: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
                     # Goals update logic
                     if not any(np.array_equal(goal, state[i,6:8]) for goal in self.goals[i]): self.goals[i] = state[i,6:8] # If the goal is not in the list, we insert it at the beginning (used for parallel traffic scenario, where goals list is dynamic)
