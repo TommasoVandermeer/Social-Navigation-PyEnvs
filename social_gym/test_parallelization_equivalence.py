@@ -13,10 +13,6 @@ ONLY_HUMANS_EQUIVALENCE_TEST_PARALLELIZE_HUMANS = True
 QUERY_ENV = False
 SAFETY_SPACE = False
 
-# When using LSTM robot policy without query_env, the simulations are not equivalent (parallel and not parallel)
-# Might be for the fact that the order in which human states are fed to the value network counts, if you process humans
-# in parallel, the order might be different than if you process them sequentially
-
 ROBOT_POLICIES = {0: ["cadrl","robot_models/trained_on_hybrid_scenario/cadrl_on_hsfm_new_guo"],
                   1: ["sarl","robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo"],
                   2: ["lstm_rl","robot_models/trained_on_hybrid_scenario/lstm_rl_on_hsfm_new_guo"],

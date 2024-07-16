@@ -32,19 +32,19 @@ METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT = False # If true, metrics over diff
 METRICS_OVER_DIFFERENT_TRAINING_ENV_AND_SCENARIO = False # If true, metrics over different training env and scenarios are plotted
 METRICS_BOXPLOTS_OVER_DIFFERENT_TRAINING_ENVS = False # If true, boxplots showing performances based on training env are plotted
 METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different testing environments are plotted
-METRICS_OVER_DIFFERENT_POLICIES_PLUS = True # If true, metrics over policies+ are plotted
-METRICS_OVER_DIFFERENT_TRAINING_SCENARIO_POLICIES_PLUS = True # If true, metrics over different training scenarios are plotted considering policies+
+METRICS_OVER_DIFFERENT_POLICIES_PLUS = False # If true, metrics over policies+ are plotted
+METRICS_OVER_DIFFERENT_TRAINING_SCENARIO_POLICIES_PLUS = False # If true, metrics over different training scenarios are plotted considering policies+
 COMPARE_POLICIES_WITH_PLUS_POLICIES = False # If true, policies are compared with policies+
 ### PAPER FIGURES
-METRICS_OVER_DIFFERENT_POLICIES = False # If true, metrics over different scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = False # If true, metrics over different training scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
-METRICS_OVER_BASELINE_POLICIES_AND_SARL = False # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
-METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = False # If true, metrics over different training and testing environments are plotted
-METRICS_CROSS_SCENARIO_SARL = False # If true, metrics over different scenarios are plotted considering only sarl policies
-METRICS_CROSS_TRAIN_ENV_CC = False # If true, metrics over different training environments on CC are plotted
-RATES_CROSS_TRAIN_ENV_CC = False # If true, rates over different training environments on CC are plotted
-RETURN_SARL_HS_OVER_TESTS = False # If true, SARL on HSFM reward over training environments is plotted
+METRICS_OVER_DIFFERENT_POLICIES = True # If true, metrics over different scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = True # If true, metrics over different training scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = True # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
+METRICS_OVER_BASELINE_POLICIES_AND_SARL = True # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
+METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = True # If true, metrics over different training and testing environments are plotted
+METRICS_CROSS_SCENARIO_SARL = True # If true, metrics over different scenarios are plotted considering only sarl policies
+METRICS_CROSS_TRAIN_ENV_CC = True # If true, metrics over different training environments on CC are plotted
+RATES_CROSS_TRAIN_ENV_CC = True # If true, rates over different training environments on CC are plotted
+RETURN_SARL_HS_OVER_TESTS = True # If true, SARL on HSFM reward over training environments is plotted
 PLOT_SARL_HS_TRAJECTORIES = False # If true, SARL on HSFM trajectories are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_CC = False # If true, HSFM humans' trajectories in CC scenario are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_PT = False # If true, HSFM humans' trajectories in PT scenario are plotted
@@ -723,8 +723,8 @@ def plot_curves_over_n_humans_tests(data:list[list[list[np.ndarray]]]):
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
 
-metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics')
-policies_plus_metrics_dir = os.path.join(metrics_dir,'metrics_policies+')
+metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies_query_env')
+policies_plus_metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies+')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
 # Complete data is in the following shape (test, n_humans_test, trials, metrics)
 if os.path.exists(os.path.join(metrics_dir,COMPLETE_METRICS_FILE)):
