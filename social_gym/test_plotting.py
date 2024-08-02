@@ -35,16 +35,19 @@ METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS = False # If true, metrics ov
 METRICS_OVER_DIFFERENT_POLICIES_PLUS = False # If true, metrics over policies+ are plotted
 METRICS_OVER_DIFFERENT_TRAINING_SCENARIO_POLICIES_PLUS = False # If true, metrics over different training scenarios are plotted considering policies+
 COMPARE_POLICIES_WITH_PLUS_POLICIES = False # If true, policies are compared with policies+
+PLOT_POLICIES_POLICIES_PLUS_BENCHMARK = False # If true, metrics over different training scenarios are plotted considering only HSFM train and test env
+PLOT_QUERY_ENV_PROP_STATE_BENCHMARK = False # If true, query env propagate state benchmark is plotted
+PLOT_NEW_VS_OLD_LSTM_RL_BENCHMARK = True # If true, new vs old lstm rl benchmark is plotted
 ### PAPER FIGURES
-METRICS_OVER_DIFFERENT_POLICIES = True # If true, metrics over different scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = True # If true, metrics over different training scenarios are plotted
-METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = True # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
-METRICS_OVER_BASELINE_POLICIES_AND_SARL = True # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
-METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = True # If true, metrics over different training and testing environments are plotted
-METRICS_CROSS_SCENARIO_SARL = True # If true, metrics over different scenarios are plotted considering only sarl policies
-METRICS_CROSS_TRAIN_ENV_CC = True # If true, metrics over different training environments on CC are plotted
-RATES_CROSS_TRAIN_ENV_CC = True # If true, rates over different training environments on CC are plotted
-RETURN_SARL_HS_OVER_TESTS = True # If true, SARL on HSFM reward over training environments is plotted
+METRICS_OVER_DIFFERENT_POLICIES = False # If true, metrics over different scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_SCENARIO = False # If true, metrics over different training scenarios are plotted
+METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT_ONLY_HS = False # If true, metrics over different training environments are plotted considering only Hybrid train scenario 
+METRICS_OVER_BASELINE_POLICIES_AND_SARL = False # If true, metrics over baseline policies and sarl on hybrid scenario are plotted
+METRICS_CROSS_TEST_AND_CROSS_TRAIN_ENVS = False # If true, metrics over different training and testing environments are plotted
+METRICS_CROSS_SCENARIO_SARL = False # If true, metrics over different scenarios are plotted considering only sarl policies
+METRICS_CROSS_TRAIN_ENV_CC = False # If true, metrics over different training environments on CC are plotted
+RATES_CROSS_TRAIN_ENV_CC = False # If true, rates over different training environments on CC are plotted
+RETURN_SARL_HS_OVER_TESTS = False # If true, SARL on HSFM reward over training environments is plotted
 PLOT_SARL_HS_TRAJECTORIES = False # If true, SARL on HSFM trajectories are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_CC = False # If true, HSFM humans' trajectories in CC scenario are plotted
 PLOT_HSFM_HUMANS_TRAJECTORIES_PT = False # If true, HSFM humans' trajectories in PT scenario are plotted
@@ -153,6 +156,11 @@ TEST_ENV_RESULTS_FILES_INDEXES = {"ORCA": [0,3,6,9,12,15,18,21,24,27,30,33], "SF
 RESULTS_FILES_POLICIES_PLUS = ["bp_on_hsfm_new_guo.pkl","ssp_on_hsfm_new_guo.pkl","orca_on_hsfm_new_guo.pkl", "cadrl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl",
                                "sarl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl","lstm_rl_h_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
 ROBOT_POLICIES_RESULTS_FILES_POLICIES_PLUS_INDEXES = {"bp": [0], "ssp": [1], "orca": [2], "cadrl": [3], "sarl": [4], "lstm_rl": [5]}
+RESULTS_FILES_NEW_LSTM_RL = ["lstm_rl_on_orca_on_orca.pkl","lstm_rl_on_orca_on_sfm_guo.pkl","lstm_rl_on_orca_on_hsfm_new_guo.pkl",
+                 "lstm_rl_on_sfm_guo_on_orca.pkl","lstm_rl_on_sfm_guo_on_sfm_guo.pkl","lstm_rl_on_sfm_guo_on_hsfm_new_guo.pkl",
+                 "lstm_rl_on_hsfm_new_guo_on_orca.pkl","lstm_rl_on_hsfm_new_guo_on_sfm_guo.pkl","lstm_rl_on_hsfm_new_guo_on_hsfm_new_guo.pkl"]
+TRAIN_ENV_RESULTS_FILES_NEW_LSTMS_INDEXES = {"ORCA": [0,1,2], "SFM_GUO": [3,4,5], "HSFM_NEW_GUO": [6,7,8]}
+TEST_ENV_RESULTS_FILES_NEW_LSTMS_INDEXES = {"ORCA": [0,3,6], "SFM_GUO": [1,4,7], "HSFM_NEW_GUO": [2,5,8]}
 SCENARIOS = ["CC","PT","HS"]
 SCENARIOS_DISPLAY_NAME = ["Circular crossing","Parallel traffic","Hybrid scenario"]
 NON_TRAINABLE_POLICIES = POLICY_NAMES[0:3]
@@ -290,6 +298,72 @@ def aggregate_non_trainable_policies_data(complete_metrics_files:list[str], metr
         # create the set of all possible test settings
         tp_dims = []
         if 0 not in aggregation_dimensions: tp_dims.append(NON_TRAINABLE_POLICIES)
+        if 3 not in aggregation_dimensions: tp_dims.append(ENVIRONMENTS)
+        if 4 not in aggregation_dimensions: tp_dims.append(SCENARIOS[0:2])
+        if 5 not in aggregation_dimensions: tp_dims.append(TESTS)
+        sets = list(product(*tp_dims))
+        aggregated_tests_data = {}
+        for i in range(n_aggregated_tests):
+            cset = sets[i]
+            aggr_test = {}
+            for d, dim in enumerate(non_aggregation_dimensions): aggr_test[TEST_DIMENSIONS[dim]] = cset[d]
+            # print(cset, aggr_test)
+            for t in range(len(tests_data)):
+                test = tests_data[t]
+                if all([bool(test[TEST_DIMENSIONS[dim]] == aggr_test[TEST_DIMENSIONS[dim]]) for dim in non_aggregation_dimensions]):
+                    if "data" not in aggr_test: aggr_test["data"] = test["data"]
+                    else: aggr_test["data"] = np.concatenate((aggr_test["data"], test["data"]), axis=0)
+            aggregated_tests_data[i] = aggr_test
+        print(f"Aggregation ended. N° trials for each test: {len(aggregated_tests_data[0]['data'])}")
+        return aggregated_tests_data
+
+def aggregate_data_new_lstm_tests(complete_metrics_files:list[str], metrics_dir:str, aggregation_dimensions:list[int]):
+    ### Aggregates only trainable policies data
+    if 0 in aggregation_dimensions: raise ValueError("Error: cannot aggregate new lstms data by policy (it is always lstm_rl)")
+    ### First we create a dictionary containing all the test organized by the aggregation dimensions
+    n_tests = len(complete_metrics_files) * len(RESULTS_FILES_NEW_LSTM_RL) * len(TESTS)
+    tests_data = {}
+    for i, compl_metrics_file in enumerate(complete_metrics_files):
+        with open(os.path.join(metrics_dir,compl_metrics_file), "rb") as f: complete_data_i = pickle.load(f)
+        ## complete_data_i shape: [n_tests, n_humans, n_trials (i.e., 100), n_metrics]
+        assert len(complete_data_i) == len(RESULTS_FILES_NEW_LSTM_RL), f"Error: {compl_metrics_file} does not contain the standard number of tests"
+        train_scenario = compl_metrics_file[0:2]
+        assert train_scenario in SCENARIOS, f"Error: {train_scenario} is not a valid train scenario"
+        test_scenario = compl_metrics_file[6:8]
+        assert test_scenario in SCENARIOS[0:2], f"Error: {test_scenario} is not a valid test scenario"
+        ## loop through tests of each file
+        for t, test in enumerate(complete_data_i):
+            ## now we need to find out the robot policy, train env, and test env
+            results_files_index = RESULTS_FILES_NEW_LSTM_RL.index(RESULTS_FILES_NEW_LSTM_RL[t])
+            # robot policy
+            robot_policy = "lstm_rl"
+            # train env
+            train_env = find_key_containing_a_certain_value_in_dict(TRAIN_ENV_RESULTS_FILES_NEW_LSTMS_INDEXES, results_files_index)
+            # test env
+            test_env = find_key_containing_a_certain_value_in_dict(TEST_ENV_RESULTS_FILES_NEW_LSTMS_INDEXES, results_files_index)
+            ## now we further split by n_humans
+            for h, true_test in enumerate(test):
+                if h < len(TESTS): n_humans = TESTS[h]
+                else: continue
+                tests_data[len(tests_data)] = {"robot_policy": robot_policy, "train_env": train_env, "train_scenario": train_scenario, "test_env": test_env, "test_scenario": test_scenario, "n_humans": n_humans, "data": true_test}
+    assert len(tests_data) == n_tests, f"Error: the number of tests is not correct. Expected {n_tests}, got {len(tests_data)}"
+    ### Now we aggregate the data
+    if len(aggregation_dimensions) == 0: 
+        return tests_data
+    else:
+        print(f"Aggregating test data by {[v for k,v in TEST_DIMENSIONS.items() if k in aggregation_dimensions]}...")
+        ## Let's find the final number of different tests
+        aggregation_tp_divisors = {1: len(ENVIRONMENTS), 2: len(SCENARIOS), 3: len(ENVIRONMENTS), 4: len(SCENARIOS[0:2]), 5: len(TESTS)}
+        trainable_policies_divisor = np.prod([aggregation_tp_divisors[dimension] for dimension in aggregation_dimensions])
+        n_aggregated_tests = int(n_tests / trainable_policies_divisor)
+        print(f"Total number of different tests: {n_tests} - Number of aggregated tests: {n_aggregated_tests}")
+        ## Now we aggregate the data
+        non_aggregation_dimensions = [i for i in range(len(TEST_DIMENSIONS)) if i not in aggregation_dimensions]
+        # create the set of all possible test settings
+        tp_dims = []
+        tp_dims.append(["lstm_rl"])
+        if 1 not in aggregation_dimensions: tp_dims.append(ENVIRONMENTS)
+        if 2 not in aggregation_dimensions: tp_dims.append(SCENARIOS)
         if 3 not in aggregation_dimensions: tp_dims.append(ENVIRONMENTS)
         if 4 not in aggregation_dimensions: tp_dims.append(SCENARIOS[0:2])
         if 5 not in aggregation_dimensions: tp_dims.append(TESTS)
@@ -723,13 +797,98 @@ def plot_curves_over_n_humans_tests(data:list[list[list[np.ndarray]]]):
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
 
+def set_ax_for_usual_metrics_plot(ax):
+    # success_rate
+    ax[0,0].set_xticks([i for i in range(len(TESTS))])
+    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0,0].set_yticks([i/10 for i in range(11)])
+    ax[0,0].set(ylabel="Success rate", ylim=[0,1], xlabel="Number of humans")
+    ax[0,0].grid()
+    # time_to_goal
+    ax[0,1].set_xticks([i for i in range(len(TESTS))])
+    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[0,1].set(ylabel="Time to goal ($s$)", xlabel="Number of humans")
+    ax[0,1].grid()
+    # space_compliance
+    ax[2,0].set_xticks([i for i in range(len(TESTS))])
+    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[2,0].set_yticks([i/10 for i in range(11)])
+    ax[2,0].set(ylabel="Space compliance", ylim=[0,1], xlabel="Number of humans")
+    ax[2,0].grid()
+    # SPL
+    ax[1,1].set_xticks([i for i in range(len(TESTS))])
+    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1,1].set_yticks([i/10 for i in range(11)])
+    ax[1,1].set(ylabel="SPL", ylim=[0,1], xlabel="Number of humans")
+    ax[1,1].grid()
+    # speed
+    ax[1,0].set_xticks([i for i in range(len(TESTS))])
+    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1,0].set(ylabel="Speed ($m/s$)", xlabel="Number of humans")
+    ax[1,0].grid()
+    # acceleration
+    ax[2,1].set_xticks([i for i in range(len(TESTS))])
+    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[2,1].set(ylabel="Acceleration ($m/s^2$)", xlabel="Number of humans")
+    ax[2,1].grid()
+    # jerk
+    ax[3,0].set_xticks([i for i in range(len(TESTS))])
+    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[3,0].set(ylabel="Jerk ($m/s^3$)", xlabel="Number of humans")
+    ax[3,0].grid()
+    # min dist to humans
+    ax[3,1].set_xticks([i for i in range(len(TESTS))])
+    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[3,1].set(ylabel="Min. dist. to humans ($m$)", xlabel="Number of humans")
+    ax[3,1].grid()
+ 
+def plot_usual_metrics(ax, data_to_plot, labels, linecolors, linestyles):
+    if len(data_to_plot.shape) == 3:
+        # success_rate
+        for i in range(len(labels)): ax[0,0].plot(data_to_plot[i,:,0], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # time_to_goal
+        for i in range(len(labels)): ax[0,1].plot(data_to_plot[i,:,1], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # space_compliance
+        for i in range(len(labels)): ax[2,0].plot(data_to_plot[i,:,2], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # SPL
+        for i in range(len(labels)): ax[1,1].plot(data_to_plot[i,:,3], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # speed
+        for i in range(len(labels)): ax[1,0].plot(data_to_plot[i,:,4], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # acceleration
+        for i in range(len(labels)): ax[2,1].plot(data_to_plot[i,:,5], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # jerk
+        for i in range(len(labels)): ax[3,0].plot(data_to_plot[i,:,6], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+        # min dist to humans
+        for i in range(len(labels)): ax[3,1].plot(data_to_plot[i,:,7], label=labels[i], color=linecolors[i], linewidth=2.5, linestyle=linestyles[i])
+    elif len(data_to_plot.shape) == 2:
+        # success_rate
+        ax[0,0].plot(data_to_plot[:,0], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # time_to_goal
+        ax[0,1].plot(data_to_plot[:,1], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # space_compliance
+        ax[2,0].plot(data_to_plot[:,2], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # SPL
+        ax[1,1].plot(data_to_plot[:,3], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # speed
+        ax[1,0].plot(data_to_plot[:,4], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # acceleration
+        ax[2,1].plot(data_to_plot[:,5], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # jerk
+        ax[3,0].plot(data_to_plot[:,6], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+        # min dist to humans
+        ax[3,1].plot(data_to_plot[:,7], label=labels, color=linecolors, linewidth=2.5, linestyle=linestyles)
+
 metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies_query_env')
-policies_plus_metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies+')
+policies_plus_metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies+_query_env')
+metrics_dir_prop_state = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies_prop_state')
+policies_plus_metrics_dir_prop_state = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_policies+_prop_state')
+new_lstm_rl_metrics_dir = os.path.join(os.path.dirname(__file__),'tests','metrics','metrics_new_lstm_rl_query_env')
 file_name = os.path.join(metrics_dir,METRICS_FILE)
 # Complete data is in the following shape (test, n_humans_test, trials, metrics)
 if os.path.exists(os.path.join(metrics_dir,COMPLETE_METRICS_FILE)):
     with open(os.path.join(metrics_dir,COMPLETE_METRICS_FILE), "rb") as f: complete_data = pickle.load(f)
 else: print("Complete metrics file not found. Proceding without it...")
+
 for k, test in enumerate(TESTS):
     ## Load average metrics dataframe
     if os.path.exists(file_name): dataframe = pd.read_excel(file_name, sheet_name=test, index_col=0)
@@ -987,6 +1146,7 @@ for k, test in enumerate(TESTS):
         if k == 0: all_data = [stacked_data.copy()]
         else: all_data.append(stacked_data)
         if k == len(TESTS) - 1: plot_curves_over_n_humans_tests(all_data)
+
 if METRICS_OVER_DIFFERENT_TRAINING_ENVIRONMENT:
     # Extract and aggregate data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,2,3,4], only_sarl=True)
@@ -1288,294 +1448,6 @@ if METRICS_OVER_DIFFERENT_TESTING_ENVIRONMENT_ONLY_HS:
     figure.legend(handles, ENVIRONMENTS_DISPLAY_NAME, bbox_to_anchor=(0.95, 0.5), loc='center', title="Testing \nenviron.")
     # Save figure
     if SAVE_FIGURES: save_figure(figure)
-if METRICS_OVER_DIFFERENT_POLICIES_PLUS:
-    ### Policies+
-    # Extract and aggregate data
-    dataa = aggregate_data_policies_plus_tests(COMPLETE_METRICS_FILE_NAMES, policies_plus_metrics_dir, [2,4])
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
-    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
-    # Compute final data to plot
-    data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
-    for train_policy in TRAINABLE_POLICIES:
-        for n_humans in TESTS:
-            for k, d in dataa.items():
-                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
-                    for m, metric in enumerate(metrics_idxs): data_to_plot[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
-    ### Plot
-    figure, ax = plt.subplots(4,2, figsize=(18,18))
-    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.08, hspace=0.3)
-    # success_rate
-    ax[0,0].set_xticks([i for i in range(len(TESTS))])
-    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,0].set_yticks([i/10 for i in range(11)])
-    ax[0,0].set(ylabel="Success rate", ylim=[0,1], xlabel="Number of humans")
-    ax[0,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[0,0].plot(data_to_plot[i,:,0], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # time_to_goal
-    ax[0,1].set_xticks([i for i in range(len(TESTS))])
-    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,1].set(ylabel="Time to goal ($s$)", xlabel="Number of humans")
-    ax[0,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[0,1].plot(data_to_plot[i,:,1], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # speed
-    ax[1,0].set_xticks([i for i in range(len(TESTS))])
-    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,0].set(ylabel="Speed ($m/s$)", xlabel="Number of humans")
-    ax[1,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[1,0].plot(data_to_plot[i,:,4], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # SPL
-    ax[1,1].set_xticks([i for i in range(len(TESTS))])
-    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,1].set_yticks([i/10 for i in range(11)])
-    ax[1,1].set(ylabel="SPL", ylim=[0,1], xlabel="Number of humans")
-    ax[1,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[1,1].plot(data_to_plot[i,:,3], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # space_compliance
-    ax[2,0].set_xticks([i for i in range(len(TESTS))])
-    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,0].set_yticks([i/10 for i in range(11)])
-    ax[2,0].set(ylabel="Space compliance", ylim=[0,1], xlabel="Number of humans")
-    ax[2,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[2,0].plot(data_to_plot[i,:,2], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # acceleration
-    ax[2,1].set_xticks([i for i in range(len(TESTS))])
-    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,1].set(ylabel="Acceleration ($m/s^2$)", xlabel="Number of humans")
-    ax[2,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[2,1].plot(data_to_plot[i,:,5], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # jerk
-    ax[3,0].set_xticks([i for i in range(len(TESTS))])
-    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,0].set(ylabel="Jerk ($m/s^3$)", xlabel="Number of humans")
-    ax[3,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[3,0].plot(data_to_plot[i,:,6], label=TRAINABLE_POLICIES[i].upper() + "+", color=COLORS[i%10], linewidth=2.5)
-    # min dist to humans
-    ax[3,1].set_xticks([i for i in range(len(TESTS))])
-    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,1].set(ylabel="Min. dist. to humans ($m$)", xlabel="Number of humans")
-    ax[3,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[3,1].plot(data_to_plot[i,:,7], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # legend
-    handles, _ = ax[0,0].get_legend_handles_labels()
-    figure.legend(handles, [p.upper()+"+" for p in TRAINABLE_POLICIES_DISPLAY], bbox_to_anchor=(0.93, 0.5), loc='center', title="Robot \npolicy")
-    # Save figure
-    if SAVE_FIGURES: save_figure(figure, name="policies+_metrics")
-    ### Policies
-    # Extract and aggregate data
-    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [2,4])
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
-    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
-    # Compute final data to plot
-    data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
-    for train_policy in TRAINABLE_POLICIES:
-        for n_humans in TESTS:
-            for k, d in dataa.items():
-                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans) and (d["train_env"] == "HSFM_NEW_GUO") and (d["test_env"] == "HSFM_NEW_GUO"):
-                    for m, metric in enumerate(metrics_idxs): data_to_plot[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
-    ### Plot
-    figure, ax = plt.subplots(4,2, figsize=(18,18))
-    figure.subplots_adjust(right=0.86, top=0.985, bottom=0.05, left=0.08, hspace=0.3)
-    figure.suptitle("Metrics over tests with increasing number of humans (averaged over all test and train environments and scenarios)")
-    # success_rate
-    ax[0,0].set_xticks([i for i in range(len(TESTS))])
-    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,0].set_yticks([i/10 for i in range(11)])
-    ax[0,0].set(ylabel="Success rate", ylim=[0,1], xlabel="Number of humans")
-    ax[0,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[0,0].plot(data_to_plot[i,:,0], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # time_to_goal
-    ax[0,1].set_xticks([i for i in range(len(TESTS))])
-    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,1].set(ylabel="Time to goal ($s$)", xlabel="Number of humans")
-    ax[0,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[0,1].plot(data_to_plot[i,:,1], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # speed
-    ax[1,0].set_xticks([i for i in range(len(TESTS))])
-    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,0].set(ylabel="Speed ($m/s$)", xlabel="Number of humans")
-    ax[1,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[1,0].plot(data_to_plot[i,:,4], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # SPL
-    ax[1,1].set_xticks([i for i in range(len(TESTS))])
-    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,1].set_yticks([i/10 for i in range(11)])
-    ax[1,1].set(ylabel="SPL", ylim=[0,1], xlabel="Number of humans")
-    ax[1,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[1,1].plot(data_to_plot[i,:,3], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # space_compliance
-    ax[2,0].set_xticks([i for i in range(len(TESTS))])
-    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,0].set_yticks([i/10 for i in range(11)])
-    ax[2,0].set(ylabel="Space compliance", ylim=[0,1], xlabel="Number of humans")
-    ax[2,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[2,0].plot(data_to_plot[i,:,2], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # acceleration
-    ax[2,1].set_xticks([i for i in range(len(TESTS))])
-    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,1].set(ylabel="Acceleration ($m/s^2$)", xlabel="Number of humans")
-    ax[2,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[2,1].plot(data_to_plot[i,:,5], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # jerk
-    ax[3,0].set_xticks([i for i in range(len(TESTS))])
-    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,0].set(ylabel="Jerk ($m/s^3$)", xlabel="Number of humans")
-    ax[3,0].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[3,0].plot(data_to_plot[i,:,6], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # min dist to humans
-    ax[3,1].set_xticks([i for i in range(len(TESTS))])
-    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,1].set(ylabel="Min. dist. to humans ($m$)", xlabel="Number of humans")
-    ax[3,1].grid()
-    for i in range(len(TRAINABLE_POLICIES)): ax[3,1].plot(data_to_plot[i,:,7], label=TRAINABLE_POLICIES[i].upper(), color=COLORS[i%10], linewidth=2.5)
-    # legend
-    handles, _ = ax[0,0].get_legend_handles_labels()
-    figure.legend(handles, [p.upper() for p in TRAINABLE_POLICIES_DISPLAY], bbox_to_anchor=(0.93, 0.5), loc='center', title="Robot \npolicy")
-    # Save figure
-    if SAVE_FIGURES: save_figure(figure, name="policies_metrics")
-if METRICS_OVER_DIFFERENT_TRAINING_SCENARIO_POLICIES_PLUS:
-    ### Policies+
-    # Extract and aggregate data
-    dataa = aggregate_data_policies_plus_tests(COMPLETE_METRICS_FILE_NAMES, policies_plus_metrics_dir, [0,4], only_sarl=True)
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
-    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
-    # Compute final data to plot
-    data_to_plot = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
-    for train_scenario in SCENARIOS:
-        for n_humans in TESTS:
-            for k, d in dataa.items():
-                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
-                    for m, metric in enumerate(metrics_idxs): data_to_plot[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
-    ## Plot
-    figure, ax = plt.subplots(4,2, figsize=(18,18))
-    figure.subplots_adjust(right=0.90, top=0.985, bottom=0.05, left=0.08, hspace=0.3)
-    # success_rate
-    ax[0,0].set_xticks([i for i in range(len(TESTS))])
-    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,0].set_yticks([i/10 for i in range(11)])
-    ax[0,0].set(ylabel="Success rate", ylim=[0,1], xlabel="Number of humans")
-    ax[0,0].grid()
-    for i in range(len(SCENARIOS)): ax[0,0].plot(data_to_plot[i,:,0], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # time_to_goal
-    ax[0,1].set_xticks([i for i in range(len(TESTS))])
-    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,1].set(ylabel="Time to goal ($s$)", xlabel="Number of humans")
-    ax[0,1].grid()
-    for i in range(len(SCENARIOS)): ax[0,1].plot(data_to_plot[i,:,1], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # space_compliance
-    ax[2,0].set_xticks([i for i in range(len(TESTS))])
-    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,0].set_yticks([i/10 for i in range(11)])
-    ax[2,0].set(ylabel="Space compliance", ylim=[0,1], xlabel="Number of humans")
-    ax[2,0].grid()
-    for i in range(len(SCENARIOS)): ax[2,0].plot(data_to_plot[i,:,2], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # SPL
-    ax[1,1].set_xticks([i for i in range(len(TESTS))])
-    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,1].set_yticks([i/10 for i in range(11)])
-    ax[1,1].set(ylabel="SPL", ylim=[0,1], xlabel="Number of humans")
-    ax[1,1].grid()
-    for i in range(len(SCENARIOS)): ax[1,1].plot(data_to_plot[i,:,3], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # speed
-    ax[1,0].set_xticks([i for i in range(len(TESTS))])
-    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,0].set(ylabel="Speed ($m/s$)", xlabel="Number of humans")
-    ax[1,0].grid()
-    for i in range(len(SCENARIOS)): ax[1,0].plot(data_to_plot[i,:,4], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # acceleration
-    ax[2,1].set_xticks([i for i in range(len(TESTS))])
-    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,1].set(ylabel="Acceleration ($m/s^2$)", xlabel="Number of humans")
-    ax[2,1].grid()
-    for i in range(len(SCENARIOS)): ax[2,1].plot(data_to_plot[i,:,5], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # jerk
-    ax[3,0].set_xticks([i for i in range(len(TESTS))])
-    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,0].set(ylabel="Jerk ($m/s^3$)", xlabel="Number of humans")
-    ax[3,0].grid()
-    for i in range(len(SCENARIOS)): ax[3,0].plot(data_to_plot[i,:,6], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # min dist to humans
-    ax[3,1].set_xticks([i for i in range(len(TESTS))])
-    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,1].set(ylabel="Min. dist. to humans ($m$)", xlabel="Number of humans")
-    ax[3,1].grid()
-    for i in range(len(SCENARIOS)): ax[3,1].plot(data_to_plot[i,:,7], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # legend
-    handles, _ = ax[0,0].get_legend_handles_labels()
-    figure.legend(handles, SCENARIOS, bbox_to_anchor=(0.95, 0.5), loc='center', title="Training \nscenario \nfor SARL+")
-    # Save figure
-    if SAVE_FIGURES: save_figure(figure, name="training_scenarios_metrics_policies+")
-    ### Policies
-    # Extract and aggregate data
-    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,4], only_sarl=True)
-    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
-    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
-    # Compute final data to plot
-    data_to_plot = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
-    for train_scenario in SCENARIOS:
-        for n_humans in TESTS:
-            for k, d in dataa.items():
-                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans) and (d["train_env"] == "HSFM_NEW_GUO") and (d["test_env"] == "HSFM_NEW_GUO"):
-                    for m, metric in enumerate(metrics_idxs): data_to_plot[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
-    ## Plot
-    figure, ax = plt.subplots(4,2, figsize=(18,18))
-    figure.subplots_adjust(right=0.90, top=0.985, bottom=0.05, left=0.08, hspace=0.3)
-    figure.suptitle("Metrics over SARL tests with increasing number of humans (averaged over all test environments and scenarios, train environment)")
-    # success_rate
-    ax[0,0].set_xticks([i for i in range(len(TESTS))])
-    ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,0].set_yticks([i/10 for i in range(11)])
-    ax[0,0].set(ylabel="Success rate", ylim=[0,1], xlabel="Number of humans")
-    ax[0,0].grid()
-    for i in range(len(SCENARIOS)): ax[0,0].plot(data_to_plot[i,:,0], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # time_to_goal
-    ax[0,1].set_xticks([i for i in range(len(TESTS))])
-    ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,1].set(ylabel="Time to goal ($s$)", xlabel="Number of humans")
-    ax[0,1].grid()
-    for i in range(len(SCENARIOS)): ax[0,1].plot(data_to_plot[i,:,1], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # space_compliance
-    ax[2,0].set_xticks([i for i in range(len(TESTS))])
-    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,0].set_yticks([i/10 for i in range(11)])
-    ax[2,0].set(ylabel="Space compliance", ylim=[0,1], xlabel="Number of humans")
-    ax[2,0].grid()
-    for i in range(len(SCENARIOS)): ax[2,0].plot(data_to_plot[i,:,2], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # SPL
-    ax[1,1].set_xticks([i for i in range(len(TESTS))])
-    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,1].set_yticks([i/10 for i in range(11)])
-    ax[1,1].set(ylabel="SPL", ylim=[0,1], xlabel="Number of humans")
-    ax[1,1].grid()
-    for i in range(len(SCENARIOS)): ax[1,1].plot(data_to_plot[i,:,3], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # speed
-    ax[1,0].set_xticks([i for i in range(len(TESTS))])
-    ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,0].set(ylabel="Speed ($m/s$)", xlabel="Number of humans")
-    ax[1,0].grid()
-    for i in range(len(SCENARIOS)): ax[1,0].plot(data_to_plot[i,:,4], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # acceleration
-    ax[2,1].set_xticks([i for i in range(len(TESTS))])
-    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,1].set(ylabel="Acceleration ($m/s^2$)", xlabel="Number of humans")
-    ax[2,1].grid()
-    for i in range(len(SCENARIOS)): ax[2,1].plot(data_to_plot[i,:,5], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # jerk
-    ax[3,0].set_xticks([i for i in range(len(TESTS))])
-    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,0].set(ylabel="Jerk ($m/s^3$)", xlabel="Number of humans")
-    ax[3,0].grid()
-    for i in range(len(SCENARIOS)): ax[3,0].plot(data_to_plot[i,:,6], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # min dist to humans
-    ax[3,1].set_xticks([i for i in range(len(TESTS))])
-    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,1].set(ylabel="Min. dist. to humans ($m$)", xlabel="Number of humans")
-    ax[3,1].grid()
-    for i in range(len(SCENARIOS)): ax[3,1].plot(data_to_plot[i,:,7], label=SCENARIOS[i], color=COLORS[i%10+6], linewidth=2.5)
-    # legend
-    handles, _ = ax[0,0].get_legend_handles_labels()
-    figure.legend(handles, SCENARIOS, bbox_to_anchor=(0.95, 0.5), loc='center', title="Training \nscenario \nfor SARL")
-    # Save figure
-    if SAVE_FIGURES: save_figure(figure, name="training_scenarios_metrics")
 if COMPARE_POLICIES_WITH_PLUS_POLICIES:
     # Extract and aggregate trainable policies data
     dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,4], only_sarl=True)
@@ -1664,6 +1536,188 @@ if COMPARE_POLICIES_WITH_PLUS_POLICIES:
     figure.legend(handles, legend, bbox_to_anchor=(0.89, 0.5), loc='center', title="Robot policy")
     # Save figure
     if SAVE_FIGURES: save_figure(figure, name="sarl_vs_sarl+")
+if PLOT_POLICIES_POLICIES_PLUS_BENCHMARK:
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    ## POLICIES BENCHMARK
+    # QUERY_ENV extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [2,4])
+    data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans) and (d["train_env"] == "HSFM_NEW_GUO") and (d["test_env"] == "HSFM_NEW_GUO"):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # PROP_STATE extract and aggregate data
+    dataa = aggregate_data_policies_plus_tests(COMPLETE_METRICS_FILE_NAMES, policies_plus_metrics_dir, [2,4])
+    data_to_plot_policies_plus = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_policies_plus[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Plot
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, data_to_plot, [t.upper() for t in TRAINABLE_POLICIES_DISPLAY], COLORS[0:3], ["solid","solid","solid"])
+    plot_usual_metrics(ax, data_to_plot_policies_plus, [t.upper() + "+" for t in TRAINABLE_POLICIES_DISPLAY], COLORS[0:3], ["dashed","dashed","dashed"])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Robot \npolicy\n(only HSFM)")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="policies_vs_policies+")
+
+    ## TRAINING SCEANRIO BENCHMARK
+    # POLICIES extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,3,4], only_sarl=True)
+    data_to_plot = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_scenario in SCENARIOS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # POLICIES+ extract and aggregate data
+    dataa = aggregate_data_policies_plus_tests(COMPLETE_METRICS_FILE_NAMES, policies_plus_metrics_dir, [0,4])
+    data_to_plot_policies_plus = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_scenario in SCENARIOS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_policies_plus[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])]) # Plot
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, data_to_plot, [t.upper() for t in SCENARIOS], COLORS[6:9], ["solid","solid","solid"])
+    plot_usual_metrics(ax, data_to_plot_policies_plus, [t.upper() + "+" for t in SCENARIOS], COLORS[6:9], ["dashed","dashed","dashed"])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Training \nscenario \nfor SARL\n(only HSFM)")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="policies_vs_policies+_2")
+if PLOT_QUERY_ENV_PROP_STATE_BENCHMARK:
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    ## POLICIES BENCHMARK
+    # QUERY_ENV extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4])
+    data_to_plot = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # PROP_STATE extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir_prop_state, [1,2,3,4])
+    data_to_plot_prop_state = np.zeros((len(TRAINABLE_POLICIES),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_policy in TRAINABLE_POLICIES:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["robot_policy"] == train_policy) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_prop_state[TRAINABLE_POLICIES.index(train_policy),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Plot
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, data_to_plot, [t.upper() + "-QE" for t in TRAINABLE_POLICIES_DISPLAY], COLORS[0:3], ["solid","solid","solid"])
+    plot_usual_metrics(ax, data_to_plot_prop_state, [t.upper() + "-PS" for t in TRAINABLE_POLICIES_DISPLAY], COLORS[0:3], ["dotted","dotted","dotted"])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Robot \npolicy")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="query_env_vs_prop_state")
+
+    ## TRAINING SCEANRIO BENCHMARK
+    # QUERY_ENV extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,1,3,4], only_sarl=True)
+    data_to_plot = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_scenario in SCENARIOS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # PROP_STATE extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir_prop_state, [0,1,3,4], only_sarl=True)
+    data_to_plot_prop_state = np.zeros((len(SCENARIOS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_scenario in SCENARIOS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_scenario"] == train_scenario) and (d["n_humans"] == n_humans):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_prop_state[SCENARIOS.index(train_scenario),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    # Plot
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, data_to_plot, [t.upper() + "-QE" for t in SCENARIOS], COLORS[6:9], ["solid","solid","solid"])
+    plot_usual_metrics(ax, data_to_plot_prop_state, [t.upper() + "-PS" for t in SCENARIOS], COLORS[6:9], ["dotted","dotted","dotted"])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Training \nscenario \nfor SARL")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="query_env_vs_prop_state_2")
+
+    ## TRAINING ENV BENCHMARK
+    # QUERY_ENV extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [0,3,4], only_sarl=True)
+    data_to_plot = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot[ENVIRONMENTS.index(train_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])    
+    # PROP_STATE extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir_prop_state, [0,3,4], only_sarl=True)
+    data_to_plot_prop_state = np.zeros((len(ENVIRONMENTS),len(TESTS),len(metrics_idxs)), np.float64)
+    for train_env in ENVIRONMENTS:
+        for n_humans in TESTS:
+            for k, d in dataa.items():
+                if (d["train_env"] == train_env) and (d["n_humans"] == n_humans) and (d["train_scenario"] == SCENARIOS[2]):
+                    for m, metric in enumerate(metrics_idxs): data_to_plot_prop_state[ENVIRONMENTS.index(train_env),TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])    
+    # Plot
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, data_to_plot, [t.upper() + "-QE" for t in ENVIRONMENTS_DISPLAY_NAME], COLORS[3:6], ["solid","solid","solid"])
+    plot_usual_metrics(ax, data_to_plot_prop_state, [t.upper() + "-PS" for t in ENVIRONMENTS_DISPLAY_NAME], COLORS[3:6], ["dotted","dotted","dotted"])
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Training \nenviron. \nfor \nSARL-HS")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="query_env_vs_prop_state_3")
+if PLOT_NEW_VS_OLD_LSTM_RL_BENCHMARK:
+    ## OLD LSTM_RL
+    # Extract and aggregate data
+    dataa = aggregate_data(COMPLETE_METRICS_FILE_NAMES, metrics_dir, [1,2,3,4])
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Compute final data to plot
+    old_data_to_plot = np.zeros((len(TESTS),len(metrics_idxs)), np.float64)
+    for n_humans in TESTS:
+        for k, d in dataa.items():
+            if (d["robot_policy"] == "lstm_rl") and (d["n_humans"] == n_humans):
+                for m, metric in enumerate(metrics_idxs): old_data_to_plot[TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## NEW LSTM_RL
+    dataa = aggregate_data_new_lstm_tests(COMPLETE_METRICS_FILE_NAMES, new_lstm_rl_metrics_dir, [1,2,3,4])
+    metrics_names = ["success_rate","time_to_goal","space_compliance","SPL","avg_speed","avg_accel.","avg_jerk","min_dist"]
+    metrics_idxs = [METRICS.index(metric) for metric in metrics_names]
+    # Compute final data to plot
+    new_data_to_plot = np.zeros((len(TESTS),len(metrics_idxs)), np.float64)
+    for n_humans in TESTS:
+        for k, d in dataa.items():
+            if (d["robot_policy"] == "lstm_rl") and (d["n_humans"] == n_humans):
+                for m, metric in enumerate(metrics_idxs): new_data_to_plot[TESTS.index(n_humans),m] = np.mean(d["data"][:,metric][~np.isnan(d["data"][:,metric])])
+    ## PLOT
+    figure, ax = plt.subplots(4,2, figsize=(18,18))
+    figure.subplots_adjust(right=0.80, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    set_ax_for_usual_metrics_plot(ax)
+    plot_usual_metrics(ax, old_data_to_plot, [t.upper() + "-OLD" for t in TRAINABLE_POLICIES_DISPLAY][2], COLORS[2], "solid")
+    plot_usual_metrics(ax, new_data_to_plot, [t.upper() + "-NEW" for t in TRAINABLE_POLICIES_DISPLAY][2], COLORS[2], "dashed")
+    # legend
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    figure.legend(handles, labels, bbox_to_anchor=(0.90, 0.5), loc='center', title="Robot \npolicy")
+    # Save figure
+    if SAVE_FIGURES: save_figure(figure, name="old_lstm_vs_new_lstm")
+
 ### PAPER FIGURES
 if METRICS_OVER_DIFFERENT_POLICIES:
     # Extract and aggregate data
@@ -2340,96 +2394,52 @@ if RATES_CROSS_TRAIN_ENV_CC:
                     rate_data_to_plot[i,j,k,m] = data_to_plot[i,j,k,m] / data_to_plot[i,i,k,m]
     ## Plot
     colorsss = ["gold","lime","dodgerblue","purple","red","cyan"]
-    figure, ax = plt.subplots(4,2, figsize=(18,18))
-    figure.subplots_adjust(right=0.78, top=0.985, bottom=0.05, left=0.08, hspace=0.3, wspace=0.3)
+    figure, ax = plt.subplots(2,2, figsize=(18,12))
+    figure.subplots_adjust(right=0.78, top=0.985, bottom=0.07, left=0.08, hspace=0.3, wspace=0.3)
     figure.suptitle("Metrics of SARL-HS policies cross env")
-    # success_rate
+    # space_compliance
     ax[0,0].set_xticks([i for i in range(len(TESTS))])
     ax[0,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,0].set(ylabel="Success rate", ylim=[0,np.max(rate_data_to_plot[:,:,:,0])], xlabel="Number of humans")
+    ax[0,0].set(ylabel="Space compliance", ylim=[0,np.max(rate_data_to_plot[:,:,:,2])], xlabel="Number of humans")
     ax[0,0].grid()
     count = 0
     for i in range(len(ENVIRONMENTS)): 
         for j in range(len(ENVIRONMENTS)):
-            if i != j: 
-                ax[0,0].plot(rate_data_to_plot[i,j,:,0], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
-                count += 1
-    # time_to_goal
+            if i != j:
+                  ax[0,0].plot(rate_data_to_plot[i,j,:,2], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  count += 1
+    # acceleration
     ax[0,1].set_xticks([i for i in range(len(TESTS))])
     ax[0,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[0,1].set(ylabel="Time to goal", ylim=[0,np.max(rate_data_to_plot[:,:,:,1])], xlabel="Number of humans")
+    ax[0,1].set(ylabel="Acceleration", ylim=[0,np.max(rate_data_to_plot[:,:,:,5])], xlabel="Number of humans")
     ax[0,1].grid()
     count = 0
     for i in range(len(ENVIRONMENTS)): 
         for j in range(len(ENVIRONMENTS)):
             if i != j:
-                  ax[0,1].plot(rate_data_to_plot[i,j,:,1], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  ax[0,1].plot(rate_data_to_plot[i,j,:,5], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
                   count += 1
-    # space_compliance
-    ax[2,0].set_xticks([i for i in range(len(TESTS))])
-    ax[2,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,0].set(ylabel="Space compliance", ylim=[0,np.max(rate_data_to_plot[:,:,:,2])], xlabel="Number of humans")
-    ax[2,0].grid()
-    count = 0
-    for i in range(len(ENVIRONMENTS)): 
-        for j in range(len(ENVIRONMENTS)):
-            if i != j:
-                  ax[2,0].plot(rate_data_to_plot[i,j,:,2], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
-                  count += 1
-    # SPL
-    ax[1,1].set_xticks([i for i in range(len(TESTS))])
-    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,1].set(ylabel="SPL", ylim=[0,np.max(rate_data_to_plot[:,:,:,3])], xlabel="Number of humans")
-    ax[1,1].grid()
-    count = 0
-    for i in range(len(ENVIRONMENTS)): 
-        for j in range(len(ENVIRONMENTS)):
-            if i != j:
-                  ax[1,1].plot(rate_data_to_plot[i,j,:,3], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
-                  count += 1
-    # speed
+    # jerk
     ax[1,0].set_xticks([i for i in range(len(TESTS))])
     ax[1,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[1,0].set(ylabel="Speed", ylim=[0,np.max(rate_data_to_plot[:,:,:,4])], xlabel="Number of humans")
+    ax[1,0].set(ylabel="Jerk", ylim=[0,np.max(rate_data_to_plot[:,:,:,6])], xlabel="Number of humans")
     ax[1,0].grid()
     count = 0
     for i in range(len(ENVIRONMENTS)): 
         for j in range(len(ENVIRONMENTS)):
             if i != j:
-                  ax[1,0].plot(rate_data_to_plot[i,j,:,4], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
-                  count += 1
-    # acceleration
-    ax[2,1].set_xticks([i for i in range(len(TESTS))])
-    ax[2,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[2,1].set(ylabel="Acceleration", ylim=[0,np.max(rate_data_to_plot[:,:,:,5])], xlabel="Number of humans")
-    ax[2,1].grid()
-    count = 0
-    for i in range(len(ENVIRONMENTS)): 
-        for j in range(len(ENVIRONMENTS)):
-            if i != j:
-                  ax[2,1].plot(rate_data_to_plot[i,j,:,5], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
-                  count += 1
-    # jerk
-    ax[3,0].set_xticks([i for i in range(len(TESTS))])
-    ax[3,0].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,0].set(ylabel="Jerk", ylim=[0,np.max(rate_data_to_plot[:,:,:,6])], xlabel="Number of humans")
-    ax[3,0].grid()
-    count = 0
-    for i in range(len(ENVIRONMENTS)): 
-        for j in range(len(ENVIRONMENTS)):
-            if i != j:
-                  ax[3,0].plot(rate_data_to_plot[i,j,:,6], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  ax[1,0].plot(rate_data_to_plot[i,j,:,6], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
                   count += 1
     # min dist to humans
-    ax[3,1].set_xticks([i for i in range(len(TESTS))])
-    ax[3,1].set_xticklabels(TESTS_DISPLAY_NAME)
-    ax[3,1].set(ylabel="Min. dist. to humans", ylim=[0,np.max(rate_data_to_plot[:,:,:,7])], xlabel="Number of humans")
-    ax[3,1].grid()
+    ax[1,1].set_xticks([i for i in range(len(TESTS))])
+    ax[1,1].set_xticklabels(TESTS_DISPLAY_NAME)
+    ax[1,1].set(ylabel="Min. dist. to humans", ylim=[0,np.max(rate_data_to_plot[:,:,:,7])], xlabel="Number of humans")
+    ax[1,1].grid()
     count = 0
     for i in range(len(ENVIRONMENTS)): 
         for j in range(len(ENVIRONMENTS)):
             if i != j:
-                  ax[3,1].plot(rate_data_to_plot[i,j,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
+                  ax[1,1].plot(rate_data_to_plot[i,j,:,7], label=ENVIRONMENTS_DISPLAY_NAME[i]+"-on-"+ENVIRONMENTS_DISPLAY_NAME[j], color=colorsss[count], linewidth=2.5)
                   count += 1
     # legend
     handles, labels = ax[0,0].get_legend_handles_labels()
@@ -2552,7 +2562,7 @@ if PLOT_SARL_HS_TRAJECTORIES:
     plt.rcParams['font.size'] = 25
     r_policies = ["sarl","sarl"]
     r_model_dirs = ["robot_models/trained_on_hybrid_scenario/sarl_on_sfm_guo", "robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo"]
-    h_models = ["hsfm_new_guo","sfm_guo","orca"]
+    h_models = ["hsfm_new_guo","sfm_guo"]
     for human_model in h_models:
         figureee, axs = plt.subplots(1, len(r_policies), figsize=(20,10))
         figureee.tight_layout()

@@ -12,6 +12,7 @@ HUMANS_RADIUS = 0.3
 ROBOT_PREF_SPEED = 1.0
 HUMANS_PREF_SPEED = 1.0
 WITH_THETA_AND_OMEGA_VISIBLE = True
+QUERY_ENV = True
 ### IMPLEMENTATION VARIABLES, DO NOT CHANGE
 ENV_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/env.config')
 POLICY_CONFIG_DIR = os.path.join(os.path.dirname(__file__),'configs/policy.config')
@@ -62,6 +63,7 @@ def write_env_config_file(human_policy:str, scenario:str, time_limit=TIME_LIMIT,
 
 def write_policy_config_file():
     t_and_omega_visible = "true" if WITH_THETA_AND_OMEGA_VISIBLE else "false"
+    query_env = "true" if QUERY_ENV else "false"
     with open(POLICY_CONFIG_DIR, "w") as f:
         f.write("[rl] \n" +
                 "gamma = 0.9 \n" +
@@ -78,7 +80,7 @@ def write_policy_config_file():
                 "speed_samples = 5 \n" +
                 "rotation_samples = 16 \n" +
                 "sampling = exponential \n" +
-                "query_env = true \n" +
+                "query_env = " + query_env + "\n" +
                 "\n" + 
                 "\n" + 
                 "[cadrl] \n" +
