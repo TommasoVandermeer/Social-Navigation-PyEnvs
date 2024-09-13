@@ -12,6 +12,9 @@ from utils.explorer import Explorer
 from policy.policy_factory import policy_factory
 from social_gym.src.robot_agent import RobotAgent
 
+import warnings
+warnings.filterwarnings('ignore')
+
 def main(env_config_dir, policy_name, policy_config_dir, train_config_dir, output_dir, weights, resume, gpu, debug):
     ## Configure paths
     make_new_dir = True

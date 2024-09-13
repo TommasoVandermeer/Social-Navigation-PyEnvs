@@ -6,7 +6,6 @@ from social_gym.src.social_momentum import *
 from social_gym.src.forces_parallel import update_humans_parallel
 from scipy.integrate import solve_ivp
 import rvo2
-import socialforce
 import numpy as np
 
 N_GENERAL_STATES = 8
@@ -250,12 +249,6 @@ class MotionModelManager:
             self.n_actions = 20
             self.actions_angles = [((2*math.pi) / self.n_actions) * i for i in range(self.n_actions)]
             for human in self.humans: human.action_set = [np.array([math.cos(angle), math.sin(angle)], dtype=np.float64) * human.desired_speed for angle in self.actions_angles]
-        elif self.motion_model_title == "socialforce": 
-            # raise NotImplementedError("The model is currently being implemented and will be available soon.")
-            self.sf = True; self.headed = False; self.orca = False; self.include_mass = False
-            initial_state = np.array([[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans], dtype=np.float64)
-            if self.consider_robot: initial_state = np.append(initial_state, [[self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]], axis = 0)
-            self.sf_sim = socialforce.Simulator(initial_state, delta_t=0.25, v0 = 10, sigma = 0.3)
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if self.motion_model_title in SFMS: 
             for human in self.humans: human.set_parameters(motion_model_title)
@@ -409,18 +402,6 @@ class MotionModelManager:
             for i, human in enumerate(self.humans):
                 human.position += human.linear_velocity * dt
                 human.linear_velocity = actions[i] 
-        elif not self.orca and not self.sm and self.sf: ## CROWDNAV SOCIALFORCE
-            if self.consider_robot: self.sf_sim.state[len(self.humans), :6] = [self.robot.position[0], self.robot.position[1], self.robot.linear_velocity[0], self.robot.linear_velocity[1], self.robot.goals[0][0], self.robot.goals[0][1]]
-            self.sf_sim.delta_t = dt
-            self.sf_sim.step()
-            for i, human in enumerate(self.humans):
-                human.linear_velocity[0] = self.sf_sim.state[i, 2]
-                human.linear_velocity[1] = self.sf_sim.state[i, 3]
-                human.position[0] = self.sf_sim.state[i, 0]
-                human.position[1] = self.sf_sim.state[i, 1]
-                self.update_goals(human)
-                self.sf_sim.state[i, 4] = human.goals[0][0]
-                self.sf_sim.state[i, 5] = human.goals[0][1]
         else: raise ValueError("Motion model for umans not correctly set")
         ### Post-update changes
         if post_update:

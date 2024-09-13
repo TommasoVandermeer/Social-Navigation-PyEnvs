@@ -393,9 +393,21 @@ class SocialNavSim:
         pygame.display.update()
 
     def update(self):
+        ############################
+        # self.n_updates += 1
+        # if self.insert_robot: self.control_robot()
+        # self.motion_model_manager.update_humans(self.sim_t, SAMPLING_TIME)
+        # self.update_times()
+        ############################
         self.n_updates += 1
-        if self.insert_robot: self.control_robot()
+        if self.insert_robot: 
+            robot_state = self.robot.get_safe_state()
+            self.control_robot()
+            new_robot_state = self.robot.get_safe_state()
+            self.robot.set_state(robot_state)
         self.motion_model_manager.update_humans(self.sim_t, SAMPLING_TIME)
+        if self.insert_robot:
+            self.robot.set_state(new_robot_state)
         self.update_times()
 
     def update_times(self):

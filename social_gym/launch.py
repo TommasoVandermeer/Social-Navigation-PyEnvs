@@ -4,11 +4,12 @@ import numpy as np
 import time
 from social_gym.social_nav_sim import SocialNavSim
 from custom_config.config_example import data
-import matplotlib.pyplot as plt
 # from custom_config.config_corridor import data
+import matplotlib.pyplot as plt
 
-## Motion models: sfm_roboticsupo, sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
-## hsfm_new, hsfm_new_guo, hsfm_new_moussaid, orca, social_momentum, socialforce (Crowdnav SFM)
+
+## Motion models: sfm_helbing, sfm_guo, sfm_moussaid, hsfm_farina, hsfm_guo, hsfm_moussaid, 
+## hsfm_new, hsfm_new_guo, hsfm_new_moussaid, orca
 
 ### SIMULATOR INITIALIZATION
 ## Create instance of simulator and load paramas from config file
@@ -18,7 +19,7 @@ np.random.seed(0)
 social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "circle_radius": 7, "n_actors": 10, "randomize_human_positions": True, "randomize_human_attributes": False},
-                          scenario="circular_crossing", parallelize_robot = True, parallelize_humans = True)
+                          scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
 # social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
 #                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
@@ -32,7 +33,7 @@ social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
 social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/trained_on_hybrid_scenario/sarl_on_hsfm_new_guo'), il=False)
+social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo'), il=False)
 ## The RL robot policies query the environment to compute next humans state by default, to propagate the observed velocity set query_env to False
 social_nav.robot.policy.query_env = True
 ## Set robot policy - CrowdNav non trainable policy
