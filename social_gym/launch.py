@@ -21,6 +21,7 @@ social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "
                                          "circle_radius": 7, "n_actors": 10, "randomize_human_positions": True, "randomize_human_attributes": False},
                           scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
+# np.random.seed(0)
 # social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
 #                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
 #                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 5, "randomize_human_attributes": False},
