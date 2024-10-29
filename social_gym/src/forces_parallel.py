@@ -65,7 +65,7 @@ def compute_social_force_parallel(type:int, idx:int, agents_state:np.ndarray, ag
         nij = difference / distance
         real_distance = rij - distance
         if type < 2:
-            tij = np.array([-nij[1],nij[0]])
+            tij = np.array([-nij[1],nij[0]], dtype=PRECISION)
             delta_vij = two_dim_dot_product(agents_state[j][3:5] - state[3:5],tij)
             if type == 0: social_force[j] = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + agent_params[11]  * max(0.0,real_distance) * delta_vij * tij
             elif type == 1: social_force[j] = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + (agent_params[5] * math.exp((real_distance) / agent_params[7]) + agent_params[11]  * max(0.0,real_distance) * delta_vij) * tij
@@ -112,7 +112,7 @@ def compute_all_social_force_parallel(type:int, agents_state:np.ndarray, agent_p
             nij = difference / distance
             real_distance = rij - distance
             if type < 2:
-                tij = np.array([-nij[1],nij[0]])
+                tij = np.array([-nij[1],nij[0]], dtype=PRECISION)
                 delta_vij = two_dim_dot_product(agents_state[j][3:5] - agents_state[i][3:5],tij)
                 if type == 0: pairwise_social_force = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + agent_params[11]  * max(0.0,real_distance) * delta_vij * tij 
                 elif type == 1: pairwise_social_force = (agent_params[1] * math.exp((real_distance) / agent_params[3]) + agent_params[10] * max(0.0,real_distance)) * nij + (agent_params[5] * math.exp((real_distance) / agent_params[7]) + agent_params[11]  * max(0.0,real_distance) * delta_vij) * tij
