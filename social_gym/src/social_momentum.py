@@ -2,6 +2,7 @@ import math
 import numpy as np
 from social_gym.src.agent import Agent
 from social_gym.src.robot_agent import RobotAgent
+from social_gym.src.utils import PRECISION
 
 REACTIVE_AGENTS_ANGLE_BOUNDS = math.pi
 LAMBDA = 0.11

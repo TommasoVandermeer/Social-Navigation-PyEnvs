@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from social_gym.src.human_agent import HumanAgent
+from social_gym.src.utils import PRECISION
 
 class LaserSensor:
     """
@@ -45,7 +46,7 @@ class LaserSensor:
         t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denominator
         u = - ((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denominator
         if 0 < t < 1 and u > 0: 
-            intersection_point = np.array([x1 + t * (x2 - x1), y1 + t * (y2 - y1)], dtype=np.float64)
+            intersection_point = np.array([x1 + t * (x2 - x1), y1 + t * (y2 - y1)], dtype=PRECISION)
             return np.min([np.linalg.norm(self.position - intersection_point),self.max_distance])
         else: return self.max_distance
 
@@ -55,7 +56,7 @@ class LaserSensor:
         measurements = []
         for angle in angles:
             measurement = self.max_distance
-            direction = np.array([math.cos(angle), math.sin(angle)], dtype=np.float64)
+            direction = np.array([math.cos(angle), math.sin(angle)], dtype=PRECISION)
             for human in humans: 
                 raycast = self.sphere_ray_intersect(direction, human.position, human.radius)
                 if raycast < measurement: measurement = raycast

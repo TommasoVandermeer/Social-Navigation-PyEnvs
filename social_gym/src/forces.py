@@ -3,7 +3,7 @@ import numpy as np
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.agent import Agent
 from social_gym.src.robot_agent import RobotAgent
-from social_gym.src.utils import bound_angle
+from social_gym.src.utils import bound_angle, PRECISION
 from social_gym.src.motion_model_manager import Group
 
 def compute_desired_force(agent:Agent):
@@ -12,7 +12,7 @@ def compute_desired_force(agent:Agent):
     if ((agent.goals) and (distance > agent.radius)):
         desired_direction = difference / distance
         agent.desired_force = agent.mass * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
-    else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
+    else: desired_direction = np.array([0.0,0.0], dtype=PRECISION)
     return desired_direction
 
 def compute_desired_force_roboticsupo(agent:Agent):
@@ -21,28 +21,28 @@ def compute_desired_force_roboticsupo(agent:Agent):
     if ((agent.goals) and (distance > agent.radius)):
         desired_direction = difference / distance
         agent.desired_force = agent.goal_weight * (desired_direction * agent.desired_speed - agent.linear_velocity) / agent.relaxation_time
-    else: desired_direction = np.array([0.0,0.0], dtype=np.float64)
+    else: desired_direction = np.array([0.0,0.0], dtype=PRECISION)
     return desired_direction
 
 def compute_obstacle_force_helbing(agent:Agent):
-    agent.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
+    agent.obstacle_force = np.array([0.0,0.0], dtype=PRECISION)
     for obstacle in agent.obstacles:
         difference = agent.position - obstacle
         distance = np.linalg.norm(difference)
         n_iw = difference / distance
-        t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
+        t_iw = np.array([-n_iw[1],n_iw[0]], dtype=PRECISION)
         delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
         real_distance = agent.radius + agent.safety_space - distance
         agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw) + agent.k1 * max(0,real_distance)) * n_iw - agent.k2 * max(0,real_distance) * delta_v_iw * t_iw
     if (agent.obstacles): agent.obstacle_force /= len(agent.obstacles)
 
 def compute_obstacle_force_guo(agent:Agent):
-    agent.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
+    agent.obstacle_force = np.array([0.0,0.0], dtype=PRECISION)
     for obstacle in agent.obstacles:
         difference = agent.position - obstacle
         distance = np.linalg.norm(difference)
         n_iw = difference / distance
-        t_iw = np.array([-n_iw[1],n_iw[0]], dtype=np.float64)
+        t_iw = np.array([-n_iw[1],n_iw[0]], dtype=PRECISION)
         real_distance = agent.radius + agent.safety_space - distance
         delta_v_iw = - np.dot(agent.linear_velocity, t_iw)
         ## GUO with compression and friction modified to account for the direction of the sliding force through delta_viw
@@ -53,7 +53,7 @@ def compute_obstacle_force_guo(agent:Agent):
         # agent.obstacle_force += (agent.Aw * math.exp((real_distance) / agent.Bw)) * n_iw + (agent.Cw * math.exp((real_distance) / agent.Dw)) * t_iw 
 
 def compute_obstacle_force_roboticsupo(agent:Agent):
-    agent.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
+    agent.obstacle_force = np.array([0.0,0.0], dtype=PRECISION)
     for obstacle in agent.obstacles:
         min_diff = np.array(agent.position) - obstacle
         distance = np.linalg.norm(min_diff) - agent.radius - agent.safety_space
@@ -83,11 +83,11 @@ def compute_pairwise_social_force(type:int, agent1:Agent, agent2:Agent):
     n_ij = difference / distance
     real_distance = r_ij - distance
     if type == 0: # Helbing Social Force
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         delta_v_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
         pairwise_social_force = (agent1.Ai * math.exp((real_distance) / agent1.Bi) + agent1.k1 * max(0,real_distance)) * n_ij + agent1.k2 * max(0,real_distance) * delta_v_ij * t_ij
     elif type == 1: # Guo Social Force
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         ## GUO with compression and friction
         delta_v_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
         pairwise_social_force = (agent1.Ai * math.exp((real_distance) / agent1.Bi) + agent1.k1 * max(0,real_distance)) * n_ij + (agent1.Ci * math.exp((real_distance) / agent1.Di) + agent1.k2 * max(0,real_distance) * delta_v_ij) * t_ij
@@ -99,10 +99,10 @@ def compute_pairwise_social_force(type:int, agent1:Agent, agent2:Agent):
         i_ij = (interaction_vector) / interaction_norm
         theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi) #+ 0.00000001) # Add the bias to obtain a symethric behaviour (everyone has a preferred direction)
         k_ij = np.sign(theta_ij)
-        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
+        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=PRECISION)
         F_ij = agent1.gamma * interaction_norm
         ## MOUSSAID with compression and friction (in n_ij, t_ij)
-        # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         # delta_v_ij_t_ij = np.dot(agent2.linear_velocity - agent1.linear_velocity, t_ij)
         # pairwise_social_force = - (agent1.Ei * math.exp(-distance/F_ij) * (math.exp(-(agent1.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(agent1.ns * F_ij * theta_ij)**2) * h_ij) - agent1.k1 * max(0,real_distance) * n_ij - agent1.k2  * max(0,real_distance) * delta_v_ij_t_ij * t_ij)
         ## MOUSSAID with compression and friction (in i_ij, h_ij)
@@ -141,7 +141,7 @@ def compute_all_social_forces(type:int, agents:list[HumanAgent], robot:RobotAgen
     """
     entities = agents.copy()
     if consider_robot: entities.append(robot)
-    for agent in agents: agent.social_force = np.array([0,0], dtype=np.float64)
+    for agent in agents: agent.social_force = np.array([0,0], dtype=PRECISION)
     for i, agent in enumerate(entities):
         if i == len(agents): continue # Skip because we don't care about the robot repulsive forces
         for j, other_agent in enumerate(entities):
@@ -153,7 +153,7 @@ def compute_all_social_forces(type:int, agents:list[HumanAgent], robot:RobotAgen
 def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     if index <  len(agents): target_agent = agents[index]
     else: target_agent = robot
-    target_agent.social_force = np.array([0.0,0.0], dtype=np.float64)
+    target_agent.social_force = np.array([0.0,0.0], dtype=PRECISION)
     entities = agents.copy()
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
@@ -162,7 +162,7 @@ def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:Robot
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
         real_distance = r_ij - distance
         target_agent.social_force += (target_agent.Ai * math.exp((real_distance) / target_agent.Bi) + target_agent.k1 * max(0,real_distance)) * n_ij + target_agent.k2  * max(0,real_distance) * delta_v_ij * t_ij
@@ -170,7 +170,7 @@ def compute_social_force_helbing(index:int, agents:list[HumanAgent], robot:Robot
 def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     if index <  len(agents): target_agent = agents[index]
     else: target_agent = robot
-    target_agent.social_force = np.array([0.0,0.0], dtype=np.float64)
+    target_agent.social_force = np.array([0.0,0.0], dtype=PRECISION)
     entities = agents.copy()
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
@@ -179,7 +179,7 @@ def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgen
         difference = target_agent.position - entities[i].position
         distance = np.linalg.norm(difference)
         n_ij = difference / distance
-        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         real_distance = r_ij - distance
         ## GUO with compression and friction
         delta_v_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
@@ -190,7 +190,7 @@ def compute_social_force_guo(index:int, agents:list[HumanAgent], robot:RobotAgen
 def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     if index <  len(agents): target_agent = agents[index]
     else: target_agent = robot
-    target_agent.social_force = np.array([0.0,0.0], dtype=np.float64)
+    target_agent.social_force = np.array([0.0,0.0], dtype=PRECISION)
     entities = agents.copy()
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
@@ -203,12 +203,12 @@ def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:Robo
         i_ij = (interaction_vector) / interaction_norm
         theta_ij = bound_angle(np.arctan2(n_ij[1],n_ij[0]) - np.arctan2(i_ij[1],i_ij[0]) + math.pi) #+ 0.00000001) # Add the bias to obtain a symethric behaviour (everyone has a preferred direction)
         k_ij = np.sign(theta_ij)
-        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=np.float64)
+        h_ij = np.array([-i_ij[1], i_ij[0]], dtype=PRECISION)
         F_ij = target_agent.gamma * interaction_norm
         r_ij = target_agent.radius + target_agent.safety_space + entities[i].radius + entities[i].safety_space
         real_distance = r_ij - distance
         ## MOUSSAID with compression and friction (in n_ij, t_ij)
-        # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=np.float64)
+        # t_ij = np.array([-n_ij[1],n_ij[0]], dtype=PRECISION)
         # delta_v_ij_t_ij = np.dot(entities[i].linear_velocity - target_agent.linear_velocity, t_ij)
         # target_agent.social_force -= target_agent.Ei * math.exp(-distance/F_ij) * (math.exp(-(target_agent.ns1 * F_ij * theta_ij)**2) * i_ij + k_ij * math.exp(-(target_agent.ns * F_ij * theta_ij)**2) * h_ij) - target_agent.k1 * max(0,real_distance) * n_ij - target_agent.k2  * max(0,real_distance) * delta_v_ij_t_ij * t_ij
         ## MOUSSAID with compression and friction (in i_ij, h_ij)
@@ -220,7 +220,7 @@ def compute_social_force_moussaid(index:int, agents:list[HumanAgent], robot:Robo
 def compute_social_force_roboticsupo(index:int, agents:list[HumanAgent], robot:RobotAgent, consider_robot:bool):
     if index <  len(agents): target_agent = agents[index]
     else: target_agent = robot
-    target_agent.social_force = np.array([0.0,0.0], dtype=np.float64)
+    target_agent.social_force = np.array([0.0,0.0], dtype=PRECISION)
     entities = agents.copy()
     if consider_robot: entities.append(robot)
     for i in range(len(entities)):
@@ -241,7 +241,7 @@ def compute_social_force_roboticsupo(index:int, agents:list[HumanAgent], robot:R
 
 def compute_group_force_dummy(index:int, agents:list[HumanAgent], desired_direction:np.array, groups:dict):
     # target_agent = agents[index]
-    # target_agent.group_force = np.array([0.0,0.0], dtype= np.float64)
+    # target_agent.group_force = np.array([0.0,0.0], dtype= PRECISION)
     pass
 
 def compute_group_force_roboticsupo(index:int, agents:list[HumanAgent], desired_direction:np.array, groups:dict):

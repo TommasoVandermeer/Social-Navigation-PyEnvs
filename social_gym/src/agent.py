@@ -2,10 +2,11 @@ import pygame
 import math
 import numpy as np
 from crowd_nav.utils.state import ObservableState, FullState, ObservableStateHeaded
+from social_gym.src.utils import PRECISION
 
 class Agent():
     def __init__(self, position:list[float], yaw:float, color:tuple, radius:float, real_size:float, display_ratio:float, mass=80, desired_speed=1):
-        self.position = np.array(position, dtype=np.float64)
+        self.position = np.array(position, dtype=PRECISION)
         self.yaw = yaw
         self.color = color
         self.real_size = real_size
@@ -15,19 +16,19 @@ class Agent():
         self.obstacles = []
         self.mass = mass
         self.desired_speed = desired_speed
-        self.linear_velocity = np.array([0.0,0.0],dtype=np.float64)
-        self.body_velocity = np.array([0.0,0.0],dtype=np.float64)
+        self.linear_velocity = np.array([0.0,0.0],dtype=PRECISION)
+        self.body_velocity = np.array([0.0,0.0],dtype=PRECISION)
         self.angular_velocity = 0.0
         self.headed = False
         self.orca = False
-        self.desired_force = np.array([0.0,0.0], dtype=np.float64)
-        self.obstacle_force = np.array([0.0,0.0], dtype=np.float64)
-        self.social_force = np.array([0.0,0.0], dtype=np.float64)
-        self.group_force = np.array([0.0,0.0], dtype=np.float64)
-        self.global_force = np.array([0.0,0.0], dtype=np.float64)
+        self.desired_force = np.array([0.0,0.0], dtype=PRECISION)
+        self.obstacle_force = np.array([0.0,0.0], dtype=PRECISION)
+        self.social_force = np.array([0.0,0.0], dtype=PRECISION)
+        self.group_force = np.array([0.0,0.0], dtype=PRECISION)
+        self.global_force = np.array([0.0,0.0], dtype=PRECISION)
         self.torque_force = 0.0
         self.inertia = 0.5 * self.mass * self.radius * self.radius
-        self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=np.float64)
+        self.rotational_matrix = np.array([[0.0,0.0],[0.0,0.0]],dtype=PRECISION)
         self.k_theta = 0.0
         self.k_omega = 0.0
         # These are initialized in the children classes
@@ -73,7 +74,7 @@ class Agent():
         return self.rect
     
     def compute_rotational_matrix(self):
-        self.rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=np.float64)
+        self.rotational_matrix = np.array([[np.cos(self.yaw), -np.sin(self.yaw)],[np.sin(self.yaw), np.cos(self.yaw)]], dtype=PRECISION)
 
     def set_parameters(self, model:str):
         if (model == 'sfm_roboticsupo'):
@@ -254,7 +255,7 @@ class Agent():
 
     def get_safe_state(self):
         return np.array([*np.copy(self.position),self.yaw,*np.copy(self.linear_velocity),*np.copy(self.body_velocity),self.angular_velocity,
-                         self.radius,self.mass,*self.goals[0],self.desired_speed], np.float64)
+                         self.radius,self.mass,*self.goals[0],self.desired_speed], PRECISION)
     
     def set_state(self, pose_and_velocity:np.ndarray):
         # [px,py,theta,vx,vy,bvx,bvy,omega]
@@ -266,7 +267,7 @@ class Agent():
 
     def get_parameters(self, model:str):
         # Params array should be of the form: [relax_t,Ai,Aw,Bi,Bw,Ci,Cw,Di,Dw,Ei,k1,k2,a_lambda,gamma,ns,ns1,ko,kd,alpha,k_lambda] (length = 20)
-        params = np.zeros((20,), np.float64)
+        params = np.zeros((20,), PRECISION)
         if (model == 'sfm_helbing'):
             params[0] = self.relaxation_time
             params[1] = self.Ai

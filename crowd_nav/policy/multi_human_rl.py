@@ -3,6 +3,7 @@ import numpy as np
 from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.policy.cadrl import CADRL, compute_rotated_states_and_reward, compute_action_value, propagate_humans_state_with_constant_velocity_model
 
+from social_gym.src.utils import PRECISION
 
 class MultiHumanRL(CADRL):
     def __init__(self):
@@ -32,9 +33,9 @@ class MultiHumanRL(CADRL):
             if self.parallelize:
                 r = state.self_state
                 h = state.human_states
-                current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], np.float64))
-                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], PRECISION))
+                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], PRECISION))
+                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], PRECISION))
                 ## Compute next human state querying env (not assuming constant velocity)
                 if self.query_env: 
                     if self.with_theta_and_omega_visible: next_humans_state = self.env.motion_model_manager.get_next_human_observable_states(self.time_step, theta_and_omega_visible=True)[:,:6]
@@ -48,7 +49,7 @@ class MultiHumanRL(CADRL):
                     indices = np.flip(np.argsort(rotated_states[:,:,11], axis=1), axis=1)
                     rotated_states = rotated_states[np.arange(rotated_states.shape[0])[:, None], indices, :]
                 ## Compute Value Network output - BOTTLENECK
-                value_network_outputs = np.zeros((len(rewards),), np.float64) 
+                value_network_outputs = np.zeros((len(rewards),), PRECISION) 
                 for ii in range(len(rewards)):
                     batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13+2*int(self.with_theta_and_omega_visible))).unsqueeze(0)
                     # batch_next_states = torch.cat([torch.Tensor([rotated_state]).to(self.device) for rotated_state in rotated_states[ii]], dim=0)

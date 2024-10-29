@@ -1,5 +1,6 @@
 import pygame
 import numpy as np
+from social_gym.src.utils import PRECISION
 
 BIG_INT = 10000
 
@@ -13,7 +14,7 @@ class Obstacle(pygame.sprite.Sprite):
         self.ratio = game.display_to_real_ratio
         self.real_size = game.real_size
 
-        self.vertices = np.array(vertices, dtype=np.float64)
+        self.vertices = np.array(vertices, dtype=PRECISION)
         self.segments = {}
         self.coordinates = []
 
@@ -51,10 +52,10 @@ class Obstacle(pygame.sprite.Sprite):
     
     def get_closest_point(self, point:np.array):
         min_distance = 10000
-        closest_point = np.array([0.0,0.0], dtype=np.float64)
+        closest_point = np.array([0.0,0.0], dtype=PRECISION)
         for key in self.segments:
-            a = np.array(min(self.segments[key][0],self.segments[key][1]), dtype=np.float64)
-            b = np.array(max(self.segments[key][0],self.segments[key][1]), dtype=np.float64)
+            a = np.array(min(self.segments[key][0],self.segments[key][1]), dtype=PRECISION)
+            b = np.array(max(self.segments[key][0],self.segments[key][1]), dtype=PRECISION)
             t = (np.dot(point - a, b - a)) / (np.linalg.norm(b - a) ** 2)
             t_star = min(max(0, t), 1)
             h = a + t_star * (b - a)

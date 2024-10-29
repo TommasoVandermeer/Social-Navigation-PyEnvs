@@ -7,7 +7,7 @@ from crowd_nav.policy_no_train.policy import Policy
 from crowd_nav.utils.action import ActionRot, ActionXY
 from crowd_nav.utils.state import ObservableState, FullState
 from numba import njit, prange
-from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_dist
+from social_gym.src.utils import two_dim_norm, jitted_point_to_segment_dist, PRECISION
 import math
 
 @njit(nogil=True, cache=True)
@@ -18,7 +18,7 @@ def transform_state_to_agent_centric(state:np.ndarray, theta_and_omega_visible=F
     ## Theta and omega of human VISIBLE
     # Input state is in the form: [px,py,vx,vy,r,gx,gy,vd,theta,px1,py1,vx1,vy1,r1,theta1,omega1] (16)
     # Output state is in the form: [dg,v_pref,theta,radius,vx,vy,px1,py1,vx1,vy1,radius1,da,radius_sum,theta1,omega1] (15)
-    transformed_state = np.zeros((13+2*int(theta_and_omega_visible),), np.float64)
+    transformed_state = np.zeros((13+2*int(theta_and_omega_visible),), PRECISION)
     rot = math.atan2(state[6] - state[1], state[5] - state[0]) 
     transformed_state[0] = two_dim_norm(state[5:7] - state[0:2]) # dg
     transformed_state[1] = state[7] # vpref
@@ -39,7 +39,7 @@ def transform_state_to_agent_centric(state:np.ndarray, theta_and_omega_visible=F
     return transformed_state
 
 @njit(nogil=True, parallel=True, cache=True)
-def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:np.float64, theta_and_omega_visible=False):
+def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state:np.ndarray, current_humans_state:np.ndarray, current_robot_state:np.ndarray, dt:PRECISION, theta_and_omega_visible=False):
     ### Theta and omega NOT visible
     ## Humans states are in the form: [px,py,vx,vy,r]
     ## Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
@@ -48,8 +48,8 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
     ## Robot state is in the form: [px,py,vx,vy,r,gx,gy,vd]
     n_actions = len(action_space)
     n_humans = len(current_humans_state)
-    rewards = np.empty((n_actions,), np.float64)
-    rotated_states = np.empty((n_actions, n_humans, 13+2*int(theta_and_omega_visible)), np.float64)
+    rewards = np.empty((n_actions,), PRECISION)
+    rotated_states = np.empty((n_actions, n_humans, 13+2*int(theta_and_omega_visible)), PRECISION)
     for ii in prange(n_actions):
         ## Compute next robot position
         next_robot_position = current_robot_state[0:2] + action_space[ii] * dt
@@ -73,24 +73,24 @@ def compute_rotated_states_and_reward(action_space:np.ndarray, next_humans_state
         elif dmin < 0.2 and not collision: rewards[ii] = (dmin - 0.2) * 0.5 * dt
         else: rewards[ii] = 0
         ## Compute rotated state
-        next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8], 0.0], np.float64) # WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
+        next_robot_state = np.array([*next_robot_position, *action_space[ii], *current_robot_state[4:8], 0.0], PRECISION) # WARNING: 0.0 is theta of the robot, needs to be changed if use unicycle
         for j in prange(n_humans):
             # Transform state to be compatible with the Value Network input
-            if theta_and_omega_visible: next_human_state = np.array([*next_humans_state[j][0:2],*next_humans_state[j][3:5],current_humans_state[j][4],next_humans_state[j][2],next_humans_state[j][5]], dtype=np.float64)
+            if theta_and_omega_visible: next_human_state = np.array([*next_humans_state[j][0:2],*next_humans_state[j][3:5],current_humans_state[j][4],next_humans_state[j][2],next_humans_state[j][5]], dtype=PRECISION)
             else: next_human_state = np.append(next_humans_state[j], current_humans_state[j][4])  
             state = np.concatenate((next_robot_state, next_human_state))
             rotated_states[ii,j] = transform_state_to_agent_centric(state, theta_and_omega_visible=theta_and_omega_visible)
     return rotated_states, rewards
 
 @njit(nogil=True, parallel=True, cache=True)
-def compute_action_value(rewards:np.ndarray, value_network_min_outputs:np.ndarray, dt:np.float64, gamma:np.float64, vpref:np.float64):
+def compute_action_value(rewards:np.ndarray, value_network_min_outputs:np.ndarray, dt:PRECISION, gamma:PRECISION, vpref:PRECISION):
     n_actions = len(rewards)
-    action_values = np.empty((n_actions,), np.float64)
+    action_values = np.empty((n_actions,), PRECISION)
     for ii in prange(n_actions): action_values[ii] = rewards[ii] + pow(gamma, dt * vpref) * value_network_min_outputs[ii]
     return action_values
 
 @njit(nogil=True, parallel=True, cache=True)
-def propagate_humans_state_with_constant_velocity_model(current_humans_state:np.ndarray, dt:np.float64, theta_and_omega_visible=False):
+def propagate_humans_state_with_constant_velocity_model(current_humans_state:np.ndarray, dt:PRECISION, theta_and_omega_visible=False):
     ### Theta and omega NOT visible
     # input: x, y, vx, vy, radius
     # output: x, y, Vx, Vy
@@ -98,10 +98,10 @@ def propagate_humans_state_with_constant_velocity_model(current_humans_state:np.
     # input: x, y, vx, vy, radius, theta, omega
     # output: x, y, yaw, Vx, Vy, Omega
     n_humans = len(current_humans_state)
-    next_humans_state = np.zeros((n_humans, 4+2*int(theta_and_omega_visible)), np.float64)
+    next_humans_state = np.zeros((n_humans, 4+2*int(theta_and_omega_visible)), PRECISION)
     for j in prange(n_humans):
-        if theta_and_omega_visible: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][5] + current_humans_state[j][6] * dt, current_humans_state[j][2], current_humans_state[j][3], current_humans_state[j][6]], np.float64)
-        else: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][2], current_humans_state[j][3]], np.float64)
+        if theta_and_omega_visible: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][5] + current_humans_state[j][6] * dt, current_humans_state[j][2], current_humans_state[j][3], current_humans_state[j][6]], PRECISION)
+        else: next_humans_state[j] = np.array([current_humans_state[j][0] + current_humans_state[j][2] * dt, current_humans_state[j][1] + current_humans_state[j][3] * dt, current_humans_state[j][2], current_humans_state[j][3]], PRECISION)
     return next_humans_state
 
 def mlp(input_dim, mlp_dims, last_relu=False):
@@ -190,12 +190,12 @@ class CADRL(Policy):
             rotations = np.linspace(-np.pi / 4, np.pi / 4, self.rotation_samples)
 
         action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
-        self.action_space_ndarray = np.empty((self.speed_samples * self.rotation_samples + 1,2), np.float64)
-        self.action_space_ndarray[0] = np.array([0, 0], np.float64)
+        self.action_space_ndarray = np.empty((self.speed_samples * self.rotation_samples + 1,2), PRECISION)
+        self.action_space_ndarray[0] = np.array([0, 0], PRECISION)
         ii = 1
         for rotation, speed in itertools.product(rotations, speeds):
             # Array for parallelization
-            self.action_space_ndarray[ii] = np.array([speed * np.cos(rotation), speed * np.sin(rotation)], np.float64)
+            self.action_space_ndarray[ii] = np.array([speed * np.cos(rotation), speed * np.sin(rotation)], PRECISION)
             # Standard array of actions
             if holonomic: action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
             else: action_space.append(ActionRot(speed, rotation))
@@ -250,9 +250,9 @@ class CADRL(Policy):
             if self.parallelize:
                 r = state.self_state
                 h = state.human_states
-                current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], np.float64))
-                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], np.float64))
-                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], np.float64))
+                current_robot_state = np.copy(np.array([r.px,r.py,r.vx,r.vy,r.radius,r.gx,r.gy,r.v_pref,r.theta], PRECISION))
+                if self.with_theta_and_omega_visible: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius,hi.theta,hi.omega] for hi in h], PRECISION))
+                else: current_humans_state = np.copy(np.array([[hi.px,hi.py,hi.vx,hi.vy,hi.radius] for hi in h], PRECISION))
                 ## Compute next human state querying env (not assuming constant velocity)
                 if self.query_env: 
                     if self.with_theta_and_omega_visible: next_humans_state = self.env.motion_model_manager.get_next_human_observable_states(self.time_step, theta_and_omega_visible=True)[:,:6]
@@ -262,7 +262,7 @@ class CADRL(Policy):
                 ## Compute Value Network input and rewards
                 rotated_states, rewards = compute_rotated_states_and_reward(self.action_space_ndarray, next_humans_state, current_humans_state, current_robot_state, self.time_step, theta_and_omega_visible=self.with_theta_and_omega_visible)
                 ## Compute Value Network output - BOTTLENECK
-                value_network_min_outputs = np.zeros((len(rewards),), np.float64) 
+                value_network_min_outputs = np.zeros((len(rewards),), PRECISION) 
                 for ii in range(len(rewards)):
                     batch_next_states = torch.Tensor(rotated_states[ii]).to(self.device).reshape((len(rotated_states[ii]),13+2*int(self.with_theta_and_omega_visible)))
                     outputs = self.model(batch_next_states)  

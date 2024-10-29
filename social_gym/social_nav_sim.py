@@ -5,7 +5,7 @@ from social_gym.src.motion_model_manager import MotionModelManager, N_GENERAL_ST
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.obstacle import Obstacle
-from social_gym.src.utils import round_time, bound_angle, point_to_segment_dist, is_multiple
+from social_gym.src.utils import round_time, bound_angle, point_to_segment_dist, is_multiple, PRECISION
 from crowd_nav.policy.policy_factory import policy_factory
 import torch
 import configparser
@@ -209,7 +209,7 @@ class SocialNavSim:
         randomize_human_attributes = kwargs["randomize_human_attributes"] if "randomize_human_attributes" in kwargs else False
         rand = kwargs["randomize_human_positions"] if "randomize_human_positions" in kwargs else False
         # Generate humans initial condition
-        center = np.array([0,0],dtype=np.float64) # [self.real_size/2,self.real_size/2]
+        center = np.array([0,0],dtype=PRECISION) # [self.real_size/2,self.real_size/2]
         humans = {}
         humans_des_speed = []
         humans_radius = []
@@ -247,13 +247,13 @@ class SocialNavSim:
                 for i in range(n_actors):
                     while True:
                         angle = np.random.random() * np.pi * 2
-                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=np.float64)
-                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=np.float64)
+                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=PRECISION)
+                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=PRECISION)
                         collide = False 
                         for j in range(len(humans_pos)):
                             min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
-                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=np.float64)
-                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=np.float64)
+                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
+                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=PRECISION)
                             if np.linalg.norm(pos - other_human_pos) < min_dist or np.linalg.norm(pos - other_human_goal) < min_dist:
                                 collide = True
                                 break
@@ -270,18 +270,18 @@ class SocialNavSim:
                 for i in range(n_actors):
                     while True:
                         angle = np.random.random() * np.pi * 2
-                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=np.float64)
-                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=np.float64)
+                        pos_noise = np.array([(np.random.random() - 0.5) * humans_des_speed[i], (np.random.random() - 0.5) * humans_des_speed[i]], dtype=PRECISION)
+                        pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=PRECISION)
                         collide = False 
                         for j in range(len(humans_pos)):
                             min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
-                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=np.float64)
-                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=np.float64)
+                            other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
+                            other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=PRECISION)
                             if np.linalg.norm(pos - other_human_pos) < min_dist or np.linalg.norm(pos - other_human_goal) < min_dist:
                                 collide = True
                                 break
-                        robot_pos = np.array([center[0], center[1]-radius], dtype=np.float64)
-                        robot_goal = np.array([center[0], center[1]+radius], dtype=np.float64)
+                        robot_pos = np.array([center[0], center[1]-radius], dtype=PRECISION)
+                        robot_goal = np.array([center[0], center[1]+radius], dtype=PRECISION)
                         if np.linalg.norm(pos - robot_pos) < humans_radius[i] + robot_r + 0.2 or np.linalg.norm(pos - robot_goal) < humans_radius[i] + robot_r + 0.2:
                             collide = True
                         if not collide: 
@@ -333,15 +333,15 @@ class SocialNavSim:
                 # b = traffic_length - humans_radius[i]
                 a = -(traffic_length/2 ) + humans_radius[i]
                 b = traffic_length/2 - humans_radius[i]
-                pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=np.float64)
-                # pos = np.array([b - ((b - a) * np.random.random()) / 8, (np.random.random() - 0.5) * traffic_height], dtype=np.float64) # Agents much closer to b boundary
+                pos = np.array([(b - a) * np.random.random() + a, (np.random.random() - 0.5) * traffic_height], dtype=PRECISION)
+                # pos = np.array([b - ((b - a) * np.random.random()) / 8, (np.random.random() - 0.5) * traffic_height], dtype=PRECISION) # Agents much closer to b boundary
                 collide = False
                 for j in range(len(humans_pos)):
                     other_human_pos = humans_pos[j]
                     if np.linalg.norm(pos - other_human_pos) - humans_radius[i] - humans_radius[j] - 0.1 < 0: # This is  discomfort distance
                         collide = True 
                         break
-                if insert_robot and np.linalg.norm(pos - np.array(robot["pos"], np.float64)) - humans_radius[i] - robot["radius"] - 0.1 < 0: # This is  discomfort distance
+                if insert_robot and np.linalg.norm(pos - np.array(robot["pos"], PRECISION)) - humans_radius[i] - robot["radius"] - 0.1 < 0: # This is  discomfort distance
                     collide = True
                 if not collide:
                     humans_pos.append(pos)
@@ -472,10 +472,10 @@ class SocialNavSim:
 
     def run_live(self):
         self.active = True
-        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
-        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
-        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=np.float64)
-        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=np.float64)
+        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=PRECISION)
+        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=PRECISION)
+        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=PRECISION)
+        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=PRECISION)
         while self.active:
             if not self.paused:
                 self.update()
@@ -494,10 +494,10 @@ class SocialNavSim:
                     # Reset
                     if pygame.key.get_pressed()[pygame.K_r]:
                         self.reset_sim()
-                        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=np.float64)
-                        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=np.float64)
-                        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=np.float64)
-                        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=np.float64)
+                        if self.motion_model_manager.headed: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= True)], dtype=PRECISION)
+                        else: self.human_states = np.array([self.motion_model_manager.get_human_states(include_goal=True, headed= False)], dtype=PRECISION)
+                        if self.insert_robot and self.robot.headed: self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=True)], dtype=PRECISION)
+                        elif self.insert_robot and not(self.robot.headed): self.robot_states = np.array([self.motion_model_manager.get_robot_state(headed=False)], dtype=PRECISION)
                     # Speed up (or Resume)
                     if pygame.key.get_pressed()[pygame.K_s]:
                         self.paused_time += round_time((pygame.time.get_ticks() / 1000) - self.last_pause_start)
@@ -599,8 +599,8 @@ class SocialNavSim:
         # Check if the time_step to save states is a multiple of the environment sampling time
         if not is_multiple(save_states_time_step, SAMPLING_TIME): raise ValueError(f"Time step to save states must be a multiple of environment sampling time: {SAMPLING_TIME}")
         # Variables where to save the states
-        human_states = np.array([self.motion_model_manager.get_human_states()], dtype=np.float64)
-        if self.insert_robot: robot_states = np.array([self.motion_model_manager.get_robot_state()], dtype=np.float64)
+        human_states = np.array([self.motion_model_manager.get_human_states()], dtype=PRECISION)
+        if self.insert_robot: robot_states = np.array([self.motion_model_manager.get_robot_state()], dtype=PRECISION)
         # Additional infos
         if stop_when_collision_or_goal and not additional_info: raise ValueError("Cannot stop the episode if you don't compute additional info")
         collision = False
@@ -641,8 +641,8 @@ class SocialNavSim:
     def run_multiple_models_test(self, final_time=40, models=MOTION_MODELS, plot_sample_time=3, two_integrations=False):
         n_updates = int(final_time / SAMPLING_TIME)
         if not two_integrations:
-            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
-            test_times = np.empty((len(models),), dtype=np.float64)
+            self.human_states = np.empty((len(models),n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=PRECISION)
+            test_times = np.empty((len(models),), dtype=PRECISION)
             for i in range(len(models)):
                 self.reset_sim()
                 self.motion_model_manager.set_human_motion_model(models[i])
@@ -655,8 +655,8 @@ class SocialNavSim:
                 # ax.set(xlabel='X',ylabel='Y',title=f'{integration_title} | Elapsed time = {test_times[i]}',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
                 self.plot_agents_position_with_sample(ax,self.human_states[i],plot_sample_time,models[i])
         else:
-            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
-            test_times = np.empty((len(models),2), dtype=np.float64)
+            self.human_states = np.empty((len(models),2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=PRECISION)
+            test_times = np.empty((len(models),2), dtype=PRECISION)
             for i in range(len(models)):
                 self.reset_sim()
                 self.motion_model_manager.set_human_motion_model(models[i])
@@ -678,7 +678,7 @@ class SocialNavSim:
 
     def run_integration_test(self, final_time=40):
         n_updates = int(final_time / SAMPLING_TIME)
-        self.human_states = np.empty((2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=np.float64)
+        self.human_states = np.empty((2,n_updates+1,len(self.humans),N_GENERAL_STATES), dtype=PRECISION)
         ## Euler
         self.motion_model_manager.runge_kutta = False
         self.human_states[0], euler_time = self.run_single_test(n_updates)
@@ -745,7 +745,7 @@ class SocialNavSim:
                 num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
                 ax.text(states[k,0],states[k,1], f"{num}", color="black", va="center", ha="center", size=size, zorder=1, weight='bold')
                 if plot_goals:
-                    goals = np.array(self.robot.goals, dtype=np.float64).copy()
+                    goals = np.array(self.robot.goals, dtype=PRECISION).copy()
                     for k in range(len(goals)):
                         if goals[k,0] == states[0,0] and goals[k,1] == states[0,1]: 
                             goals = np.delete(goals, k, 0)
@@ -765,7 +765,7 @@ class SocialNavSim:
                     num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
                     ax.text(states[k,j,0],states[k,j,1], f"{num}", color=COLORS[color_idx], va="center", ha="center", size=size, zorder=1, weight='bold')
                 if plot_goals:
-                    goals = np.array(self.humans[j].goals, dtype=np.float64).copy()
+                    goals = np.array(self.humans[j].goals, dtype=PRECISION).copy()
                     for k in range(len(goals)):
                         if goals[k,0] == states[0,j,0] and goals[k,1] == states[0,j,1]: 
                             goals = np.delete(goals, k, 0)

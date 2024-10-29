@@ -3,7 +3,8 @@ import math
 import numpy as np
 import time
 from social_gym.social_nav_sim import SocialNavSim
-from custom_config.config_example import data
+# from custom_config.config_example import data
+from custom_config.config_socialjym_cc import data
 # from custom_config.config_corridor import data
 import matplotlib.pyplot as plt
 
@@ -15,28 +16,28 @@ import matplotlib.pyplot as plt
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-np.random.seed(0)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
-                                         "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-                                         "circle_radius": 7, "n_actors": 10, "randomize_human_positions": True, "randomize_human_attributes": False},
-                          scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
+# np.random.seed(1000)
+# social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": "hsfm_new_guo", "headless": True,
+#                                          "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
+#                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
+#                           scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
-# np.random.seed(0)
-# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
-#                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-#                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 5, "randomize_human_attributes": False},
-#                           scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = False)
+np.random.seed(1000)
+social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": "hsfm_new_guo", "headless": True,
+                                         "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
+                                         "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
+                          scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = False)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
 TIME_STEP = 1/100
 social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
-social_nav.set_robot_time_step(1/4)
+# social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/sarl_on_hsfm_new_guo'), il=False)
+# social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/HS/cadrl_on_sfm_guo'), il=False)
 ## The RL robot policies query the environment to compute next humans state by default, to propagate the observed velocity set query_env to False
-social_nav.robot.policy.query_env = True
+# social_nav.robot.policy.query_env = False
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
@@ -51,7 +52,7 @@ social_nav.robot.policy.query_env = True
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
 ## Can be paused (SPACE), resetted (R), rewinded (Z) fast and speeded up (S), hide/show stats (H), origin view (O)
-social_nav.run_live()
+# social_nav.run_live()
 ## Run only k steps at max speed
 # social_nav.run_k_steps(1000, save_states_time_step=TIME_STEP)
 ## Run fixed time simulation of humans and robot and plot trajectories
@@ -70,6 +71,15 @@ social_nav.run_live()
 # SIMULATION_SECONDS = 50
 # human_states, robot_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
 # social_nav.run_from_precomputed_states(human_states, robot_poses=robot_states)
+## Run from previously computed states (controlled speed) - Euler only humans
+SIMULATION_SECONDS = 25
+human_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
+# social_nav.run_from_precomputed_states(human_states)
+
+### PLOT TRAJECTORY
+figure, ax = plt.subplots(figsize=(10,10))
+social_nav.plot_humans_and_robot_trajectories(ax, human_states, plot_sample_time=3)
+plt.show()
 
 ### POST-SIMULATION UTILS
 ## Save and load states

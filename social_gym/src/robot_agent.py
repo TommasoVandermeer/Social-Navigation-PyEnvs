@@ -1,7 +1,7 @@
 import pygame
 import math
 from social_gym.src.agent import Agent
-from social_gym.src.utils import bound_angle
+from social_gym.src.utils import bound_angle, PRECISION
 from social_gym.src.sensors import LaserSensor
 from social_gym.src.actuators import DifferentialDrive
 import numpy as np
@@ -14,7 +14,7 @@ KEYS_VELOCITY_CHANGE = {"up": np.array([1.20,1.20]), "down": np.array([-1.20,-1.
 
 class RobotAgent(Agent):
     def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.3, goals=list(), mass=80, desired_speed=1):
-        super().__init__(np.array(pos, dtype=np.float64), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio, mass=mass, desired_speed=desired_speed)
+        super().__init__(np.array(pos, dtype=PRECISION), yaw, (255,0,0), radius, game.real_size, game.display_to_real_ratio, mass=mass, desired_speed=desired_speed)
 
         self.goals = goals
         self.collisions = 0 # Unused
@@ -55,10 +55,10 @@ class RobotAgent(Agent):
         self.laser_surface.fill((0,0,0,0))
         self.laser_surface_rect = self.laser_surface.get_rect(center = tuple([self.position[0] * self.ratio, (self.real_size - self.position[1]) * self.ratio]))
         for k, v in self.laser_data.items():
-            end_position = np.empty((2,), dtype=np.float64)
+            end_position = np.empty((2,), dtype=PRECISION)
             end_position[0] = self.laser_start_position[0] + (v + self.radius) * math.cos(k)
             end_position[1] = self.laser_start_position[1] + (v + self.radius) * math.sin(k)
-            end_display_position = np.empty((2,), dtype=np.float64)
+            end_display_position = np.empty((2,), dtype=PRECISION)
             end_display_position[0] = end_position[0] * self.ratio
             end_display_position[1] = (self.laser.max_distance * 2 - end_position[1]) * self.ratio
             pygame.draw.line(self.laser_surface, (255,0,0,100), tuple(self.laser_start_display_position), tuple(end_display_position), 2)
@@ -69,8 +69,8 @@ class RobotAgent(Agent):
         # For rendering
         self.laser_render = render
         self.laser_surface = pygame.Surface((self.laser.max_distance * self.ratio * 2, self.laser.max_distance * self.ratio * 2), pygame.SRCALPHA)
-        self.laser_start_display_position = np.array([self.laser_surface.get_size()[0] / 2, self.laser_surface.get_size()[1] / 2], dtype=np.float64)
-        self.laser_start_position = np.empty((2,), dtype=np.float64)
+        self.laser_start_display_position = np.array([self.laser_surface.get_size()[0] / 2, self.laser_surface.get_size()[1] / 2], dtype=PRECISION)
+        self.laser_start_position = np.empty((2,), dtype=PRECISION)
         self.laser_start_position[0] = self.laser_start_display_position[0] / self.ratio
         self.laser_start_position[1] = -(self.laser_start_display_position[1] / self.ratio) + self.laser.max_distance * 2
 

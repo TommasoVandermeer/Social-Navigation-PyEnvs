@@ -2,6 +2,8 @@ import math
 import numpy as np
 from numba import njit
 
+PRECISION = np.float32
+
 def bound_angle(angle):
     two_pi = 2 * math.pi
     if angle >= two_pi: angle %= two_pi # Wrap angle in [-360°,360°]
@@ -24,14 +26,14 @@ def point_to_segment_dist(x1, y1, x2, y2, x3, y3):
     """
     px = x2 - x1
     py = y2 - y1
-    if px == 0 and py == 0: return two_dim_norm(np.array([x3-x1, y3-y1], np.float64))
+    if px == 0 and py == 0: return two_dim_norm(np.array([x3-x1, y3-y1], PRECISION))
     u = ((x3 - x1) * px + (y3 - y1) * py) / (px * px + py * py)
     if u > 1: u = 1
     elif u < 0: u = 0
     # (x, y) is the closest point to (x3, y3) on the line segment
     x = x1 + u * px
     y = y1 + u * py
-    return two_dim_norm(np.array([x - x3, y-y3], np.float64))
+    return two_dim_norm(np.array([x - x3, y-y3], PRECISION))
 
 def is_multiple(number, dividend, tolerance=1e-7):
     mod = number % dividend
@@ -47,10 +49,10 @@ def two_dim_dot_product(array1:np.ndarray, array2:np.ndarray):
 
 @njit(nogil=True, cache=True)
 def two_by_two_matrix_mul_two_dim_array(matrix:np.ndarray, array:np.ndarray):
-    return np.array([matrix[0,0] * array[0] + matrix[0,1] * array[1], matrix[1,0] * array[0] + matrix[1,1] * array[1]], np.float64)
+    return np.array([matrix[0,0] * array[0] + matrix[0,1] * array[1], matrix[1,0] * array[0] + matrix[1,1] * array[1]], PRECISION)
 
 @njit(nogil=True, cache=True)
-def bound_two_dim_array_norm(array:np.ndarray, limit:np.float64):
+def bound_two_dim_array_norm(array:np.ndarray, limit:PRECISION):
     array_norm = two_dim_norm(array)
     if array_norm > limit: array = (array / array_norm) * limit
     return array

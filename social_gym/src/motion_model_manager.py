@@ -1,4 +1,4 @@
-from social_gym.src.utils import bound_angle
+from social_gym.src.utils import bound_angle, PRECISION
 from social_gym.src.human_agent import HumanAgent
 from social_gym.src.robot_agent import RobotAgent
 from social_gym.src.agent import Agent
@@ -19,7 +19,7 @@ SFMS = ["sfm_helbing","sfm_guo","sfm_moussaid",
 class Group:
     def __init__(self):
         self.group_agents = []
-        self.center = np.array([0.0,0.0],dtype=np.float64)
+        self.center = np.array([0.0,0.0],dtype=PRECISION)
 
     def append_agent(self, agent:int):
         self.group_agents.append(agent)
@@ -125,7 +125,7 @@ class MotionModelManager:
     def update_goals_orca(self, agent_idx:int, robot_sim=False, robot=False):
         if not robot:
             if self.update_targets: self.update_goals(self.humans[agent_idx])
-            goal_position = np.array(self.humans[agent_idx].goals[0], dtype=np.float64)
+            goal_position = np.array(self.humans[agent_idx].goals[0], dtype=PRECISION)
             difference = goal_position - self.humans[agent_idx].position
             norm = np.linalg.norm(difference)
             agent_pref_speed = difference / norm if norm > self.humans[agent_idx].desired_speed else difference
@@ -133,7 +133,7 @@ class MotionModelManager:
             else: self.robot_sim.setAgentPrefVelocity(self.robot_sim_agents[agent_idx], (agent_pref_speed[0], agent_pref_speed[1]))
         else:
             if self.update_targets: self.update_goals(self.robot) # Pay attention to this
-            goal_position = np.array(self.robot.goals[0], dtype=np.float64)
+            goal_position = np.array(self.robot.goals[0], dtype=PRECISION)
             difference = goal_position - self.robot.position
             norm = np.linalg.norm(difference)
             robot_pref_speed = difference / norm if norm > self.robot.desired_speed else difference
@@ -248,31 +248,31 @@ class MotionModelManager:
             self.sm = True; self.headed = False; self.orca = False; self.include_mass = False
             self.n_actions = 20
             self.actions_angles = [((2*math.pi) / self.n_actions) * i for i in range(self.n_actions)]
-            for human in self.humans: human.action_set = [np.array([math.cos(angle), math.sin(angle)], dtype=np.float64) * human.desired_speed for angle in self.actions_angles]
+            for human in self.humans: human.action_set = [np.array([math.cos(angle), math.sin(angle)], dtype=PRECISION) * human.desired_speed for angle in self.actions_angles]
         else: raise Exception(f"The human motion model '{self.motion_model_title}' does not exist")
         if self.motion_model_title in SFMS: 
             for human in self.humans: human.set_parameters(motion_model_title)
             if self.parallel:
                 self.sfm_type = SFMS.index(motion_model_title)
-                self.safety_space = np.zeros(len(self.humans)+int(self.consider_robot), np.float64)
-                self.states = np.array([human.get_safe_state() for human in self.humans], np.float64)
+                self.safety_space = np.zeros(len(self.humans)+int(self.consider_robot), PRECISION)
+                self.states = np.array([human.get_safe_state() for human in self.humans], PRECISION)
                 if self.consider_robot: self.states = np.append(self.states, [self.robot.get_safe_state()], axis = 0)
-                self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], np.float64)
+                self.params = np.array([human.get_parameters(motion_model_title) for human in self.humans], PRECISION)
                 # Transform goals and obstacles in np.ndarray
                 max_n_goals = np.max([len(human.goals) for human in self.humans])
-                self.goals = np.empty((len(self.humans),max_n_goals,2), np.float64)
+                self.goals = np.empty((len(self.humans),max_n_goals,2), PRECISION)
                 self.goals[:,:,:] = np.NaN
                 for i, human in enumerate(self.humans):
                     for j, goal in enumerate(human.goals):
-                        self.goals[i,j] = np.array(goal.copy(), np.float64)
+                        self.goals[i,j] = np.array(goal.copy(), PRECISION)
                 if len(self.walls) > 0:
                     max_n_segments = np.max([len(obs.segments) for obs in self.walls])
-                    self.obstacles = np.empty((len(self.walls),max_n_segments,2,2), np.float64)
+                    self.obstacles = np.empty((len(self.walls),max_n_segments,2,2), PRECISION)
                     self.obstacles[:,:,:,:] = np.NaN
                     for i, obs in enumerate(self.walls):
                         for j, segment in obs.segments.items():
-                            self.obstacles[i,j,0] = np.array([segment[0][0], segment[0][1]], np.float64)
-                            self.obstacles[i,j,1] = np.array([segment[1][0], segment[1][1]], np.float64)
+                            self.obstacles[i,j,0] = np.array([segment[0][0], segment[0][1]], PRECISION)
+                            self.obstacles[i,j,1] = np.array([segment[1][0], segment[1][1]], PRECISION)
                 else: self.obstacles = None  
             # Check wether all agents parameters are equal, because if so, computation can be fastened
             self.all_equal_humans = True
@@ -286,28 +286,28 @@ class MotionModelManager:
         if include_goal:
             if headed:
                 # State: [x, y, yaw, BVx, BVy, Omega, Gx, Gy] - Pose (x,y,yaw), Body velocity (body_linear_x,body_linear_y,angular), and Goal (goal_x, goal_y)
-                state = np.empty([len(self.humans),N_GENERAL_STATES],dtype=np.float64)
+                state = np.empty([len(self.humans),N_GENERAL_STATES],dtype=PRECISION)
                 for i in range(len(self.humans)):
-                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].body_velocity[0],self.humans[i].body_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=np.float64)
+                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].body_velocity[0],self.humans[i].body_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=PRECISION)
                     state[i] = human_state
             else:
                 # State: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] - Pose (x,y,yaw), Velocity (linear_x,linear_y,angular), and Goal (goal_x, goal_y)
-                state = np.empty([len(self.humans),N_GENERAL_STATES],dtype=np.float64)
+                state = np.empty([len(self.humans),N_GENERAL_STATES],dtype=PRECISION)
                 for i in range(len(self.humans)):
-                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=np.float64)
+                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1],self.humans[i].angular_velocity,self.humans[i].goals[0][0],self.humans[i].goals[0][1]], dtype=PRECISION)
                     state[i] = human_state
         else:
             if headed:
                 # State: [x, y, yaw, BVx, BVy, Omega] - Pose (x,y,yaw) and Velocity (body_linear_x,body_linear_y,angular)
-                state = np.empty([len(self.humans),N_HEADED_STATES],dtype=np.float64)
+                state = np.empty([len(self.humans),N_HEADED_STATES],dtype=PRECISION)
                 for i in range(len(self.humans)):
-                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].body_velocity[0],self.humans[i].body_velocity[1],self.humans[i].angular_velocity], dtype=np.float64)
+                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].yaw,self.humans[i].body_velocity[0],self.humans[i].body_velocity[1],self.humans[i].angular_velocity], dtype=PRECISION)
                     state[i] = human_state
             else:
                 # State: [x, y, Vx, Vy] - Position (x,y) and Velocity (linear_x,linear_y)
-                state = np.empty([len(self.humans),N_NOT_HEADED_STATES],dtype=np.float64)
+                state = np.empty([len(self.humans),N_NOT_HEADED_STATES],dtype=PRECISION)
                 for i in range(len(self.humans)):
-                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1]], dtype=np.float64)
+                    human_state = np.array([self.humans[i].position[0],self.humans[i].position[1],self.humans[i].linear_velocity[0],self.humans[i].linear_velocity[1]], dtype=PRECISION)
                     state[i] = human_state
         return state
 
@@ -330,8 +330,8 @@ class MotionModelManager:
                 if self.orca: self.set_state_orca(i)
                 if self.sf: self.sf_sim.state[:len(self.humans), :6] = [[human.position[0], human.position[1], human.linear_velocity[0], human.linear_velocity[1], human.goals[0][0], human.goals[0][1]] for human in self.humans]
                 if self.parallel and not self.orca and not self.sm and not self.sf:
-                    if self.headed: self.states[i] = np.array([*state[i,0:3],*self.humans[i].linear_velocity,*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
-                    else: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], np.float64)
+                    if self.headed: self.states[i] = np.array([*state[i,0:3],*self.humans[i].linear_velocity,*state[i,3:6],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], PRECISION)
+                    else: self.states[i] = np.array([*state[i,0:3],*state[i,3:5],*self.states[i,5:7],state[i,5],*self.states[i,8:10],*state[i,6:8],self.states[i,-1]], PRECISION)
                     # Goals update logic
                     if not any(np.array_equal(goal, state[i,6:8]) for goal in self.goals[i]): self.goals[i] = state[i,6:8] # If the goal is not in the list, we insert it at the beginning (used for parallel traffic scenario, where goals list is dynamic)
                     else:
@@ -361,7 +361,7 @@ class MotionModelManager:
                     for i, human in enumerate(self.humans): 
                         human.set_state(self.states[i,0:8])
                         # Update human goal for state change
-                        if not np.array_equal(np.array(human.goals[0], np.float64), self.states[i,10:12]):
+                        if not np.array_equal(np.array(human.goals[0], PRECISION), self.states[i,10:12]):
                             goal = human.goals[0]
                             human.goals.remove(goal)
                             human.goals.append(goal)
@@ -418,8 +418,8 @@ class MotionModelManager:
                         human.set_goals([[human.goals[0][0], human.position[1]]])
                         if self.parallel:
                             self.states[iindex, 0:2] = np.copy(human.position)
-                            self.states[iindex, 6:8] = np.array(human.goals[0], np.float64)
-                            self.goals[iindex] = np.array(human.goals, np.float64)                      
+                            self.states[iindex, 6:8] = np.array(human.goals[0], PRECISION)
+                            self.goals[iindex] = np.array(human.goals, PRECISION)                      
 
     def compute_single_human_forces(self, agent_idx:int, human:HumanAgent, groups:dict, social_force=True):
         desired_direction = compute_desired_force(human)
@@ -459,11 +459,11 @@ class MotionModelManager:
             for i, human in enumerate(self.humans): self.compute_single_human_forces(i, human, groups, social_force=True)
 
     def complete_rk45_simulation(self, t:float, dt:float, final_time:float):
-        evaluation_times = np.arange(t,final_time,dt, dtype=np.float64)
+        evaluation_times = np.arange(t,final_time,dt, dtype=PRECISION)
         if self.headed: 
             current_state = np.reshape(self.get_human_states(include_goal=False, headed=True), (len(self.humans) * N_HEADED_STATES,))
             solution = solve_ivp(self.f_rk45_headed, (t, t+final_time), current_state, method='RK45', t_eval=evaluation_times)
-            human_states = np.empty((len(evaluation_times),len(self.humans),N_HEADED_STATES), dtype=np.float64)
+            human_states = np.empty((len(evaluation_times),len(self.humans),N_HEADED_STATES), dtype=PRECISION)
             for i in range(len(solution.y[0])):
                 for j in range(len(self.humans)):
                     human_states[i,j,0] = solution.y[j*N_HEADED_STATES][i]
@@ -475,7 +475,7 @@ class MotionModelManager:
         else:
             current_state = np.reshape(self.get_human_states(include_goal=False, headed=False), (len(self.humans) * N_NOT_HEADED_STATES,))
             solution = solve_ivp(self.f_rk45_not_headed, (t, t+final_time), current_state, method='RK45', t_eval=evaluation_times)
-            human_states = np.empty((len(evaluation_times),len(self.humans),N_NOT_HEADED_STATES), dtype=np.float64)
+            human_states = np.empty((len(evaluation_times),len(self.humans),N_NOT_HEADED_STATES), dtype=PRECISION)
             for i in range(len(solution.y[0])):
                 for j in range(len(self.humans)):
                     human_states[i,j,0] = solution.y[j*N_NOT_HEADED_STATES][i]
@@ -487,7 +487,7 @@ class MotionModelManager:
     def f_rk45_headed(self, t, y):
         for i in range(len(self.humans)): self.set_new_headed_state_from_rk45_solution(self.humans[i], y[(i*N_HEADED_STATES):(i*N_HEADED_STATES+N_HEADED_STATES)])
         self.compute_forces()
-        ydot = np.empty((len(self.humans) * N_HEADED_STATES,), dtype=np.float64)
+        ydot = np.empty((len(self.humans) * N_HEADED_STATES,), dtype=PRECISION)
         for i in range(len(self.humans)):
             ydot[i*N_HEADED_STATES] = np.dot(self.humans[i].rotational_matrix[0,:], self.humans[i].body_velocity)
             ydot[i*N_HEADED_STATES+1] = np.dot(self.humans[i].rotational_matrix[1,:], self.humans[i].body_velocity)
@@ -500,7 +500,7 @@ class MotionModelManager:
     def f_rk45_not_headed(self, t, y):
         for i in range(len(self.humans)): self.set_new_not_headed_state_from_rk45_solution(self.humans[i], y[(i*N_NOT_HEADED_STATES):(i*N_NOT_HEADED_STATES+N_NOT_HEADED_STATES)])
         self.compute_forces()
-        ydot = np.empty((len(self.humans) * N_NOT_HEADED_STATES,), dtype=np.float64)
+        ydot = np.empty((len(self.humans) * N_NOT_HEADED_STATES,), dtype=PRECISION)
         if self.include_mass:
             for i in range(len(self.humans)):
                 ydot[i*N_NOT_HEADED_STATES] = self.humans[i].linear_velocity[0]
@@ -521,17 +521,17 @@ class MotionModelManager:
         if include_goal:
             if headed:
                 # State: [x, y, yaw, BVx, BVy, Omega, Gx, Gy] - Pose (x,y,yaw), Body velocity (body_linear_x,body_linear_y,angular), and Goal (goal_x, goal_y)
-                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.body_velocity[0],self.robot.body_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=np.float64)
+                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.body_velocity[0],self.robot.body_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=PRECISION)
             else:
                 # State: [x, y, yaw, Vx, Vy, Omega, Gx, Gy] - Pose (x,y,yaw), Velocity (linear_x,linear_y,angular), and Goal (goal_x, goal_y)
-                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.linear_velocity[0],self.robot.linear_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=np.float64)
+                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.linear_velocity[0],self.robot.linear_velocity[1],self.robot.angular_velocity,self.robot.goals[0][0],self.robot.goals[0][1]], dtype=PRECISION)
         else:
             if headed:
                 # State: [x, y, yaw, BVx, BVy, Omega] - Pose (x,y,yaw) and Velocity (body_linear_x,body_linear_y,angular)
-                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.body_velocity[0],self.robot.body_velocity[1],self.robot.angular_velocity], dtype=np.float64)
+                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.yaw,self.robot.body_velocity[0],self.robot.body_velocity[1],self.robot.angular_velocity], dtype=PRECISION)
             else:
                 # State: [x, y, Vx, Vy] - Position (x,y) and Velocity (linear_x,linear_y)
-                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.linear_velocity[0],self.robot.linear_velocity[1]], dtype=np.float64)
+                state = np.array([self.robot.position[0],self.robot.position[1],self.robot.linear_velocity[0],self.robot.linear_velocity[1]], dtype=PRECISION)
         return state
 
     def set_robot_state(self, state:np.array):
@@ -661,7 +661,7 @@ class MotionModelManager:
     def f_rk45_robot_headed(self, t, y):
         self.set_new_headed_state_from_rk45_solution(self.robot, y)
         self.compute_robot_forces()
-        ydot = np.empty((N_HEADED_STATES,), dtype=np.float64)
+        ydot = np.empty((N_HEADED_STATES,), dtype=PRECISION)
         ydot[0] = np.dot(self.robot.rotational_matrix[0,:], self.robot.body_velocity)
         ydot[1] = np.dot(self.robot.rotational_matrix[1,:], self.robot.body_velocity)
         ydot[2] = self.robot.angular_velocity
@@ -673,7 +673,7 @@ class MotionModelManager:
     def f_rk45_robot_not_headed(self, t, y):
         self.set_new_not_headed_state_from_rk45_solution(self.robot, y)
         self.compute_robot_forces()
-        ydot = np.empty((N_NOT_HEADED_STATES,), dtype=np.float64)
+        ydot = np.empty((N_NOT_HEADED_STATES,), dtype=PRECISION)
         if self.robot_include_mass:
             ydot[0] = self.robot.linear_velocity[0]
             ydot[1] = self.robot.linear_velocity[1]
