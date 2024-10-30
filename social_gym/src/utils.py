@@ -2,7 +2,7 @@ import math
 import numpy as np
 from numba import njit
 
-PRECISION = np.float32
+PRECISION = np.float64
 
 def bound_angle(angle):
     two_pi = 2 * math.pi
