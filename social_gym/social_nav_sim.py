@@ -721,10 +721,10 @@ class SocialNavSim:
             # figure.suptitle(f'Human agents\' position over simulation | T = {final_time} | dt = {round(SAMPLING_TIME, 4)} | Model = {self.motion_model}')
         self.plot_humans_and_robot_trajectories(ax, human_states, robot_states, plot_sample_time=plot_sample_time, show=show)
 
-    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3, show=True, plot_goals=True):
+    def plot_humans_and_robot_trajectories(self, ax, human_states, robot_states=None, plot_sample_time=3, show=True, plot_goals=True, dt_between_states=SAMPLING_TIME):
         ax.set(xlabel='X',ylabel='Y',xlim=[0,REAL_SIZE],ylim=[0,REAL_SIZE])
-        self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model, plot_goals=plot_goals)
-        if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True, plot_goals=plot_goals)
+        self.plot_agents_position_with_sample(ax,human_states,plot_sample_time,self.motion_model, plot_goals=plot_goals, dt_between_states=dt_between_states)
+        if self.insert_robot: self.plot_agents_position_with_sample(ax,robot_states,plot_sample_time,self.motion_model, is_robot=True, plot_goals=plot_goals, dt_between_states=dt_between_states)
         if not self.headless: pygame.quit(); self.pygame_init = False
         if show: plt.show()
 
@@ -732,17 +732,17 @@ class SocialNavSim:
         for i in range(len(self.walls)):
                 ax.fill(self.walls.sprites()[i].vertices[:,0], self.walls.sprites()[i].vertices[:,1], facecolor='black', edgecolor='black')
 
-    def plot_agents_position_with_sample(self, ax, states, plot_sample_time:float, model:str, is_robot=False, plot_goals=True):
+    def plot_agents_position_with_sample(self, ax, states, plot_sample_time:float, model:str, is_robot=False, plot_goals=True, dt_between_states=SAMPLING_TIME):
         ax.axis('equal')
         self.print_walls_on_plot(ax)
         if is_robot:
             color = "red"
             ax.plot(states[:,0],states[:,1], color=color, linewidth=0.5, zorder=0)
-            for k in range(0,len(states),int(plot_sample_time / SAMPLING_TIME)):
+            for k in range(0,len(states),int(plot_sample_time / dt_between_states)):
                 circle = plt.Circle((states[k,0],states[k,1]),self.robot.radius, edgecolor="black", facecolor=color, fill=True, zorder=1)
                 ax.add_patch(circle)
-                size = 15 if (k*SAMPLING_TIME).is_integer() else 10
-                num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
+                size = 15 if (k*dt_between_states).is_integer() else 10
+                num = int(k*dt_between_states) if (k*dt_between_states).is_integer() else (k*dt_between_states)
                 ax.text(states[k,0],states[k,1], f"{num}", color="black", va="center", ha="center", size=size, zorder=1, weight='bold')
                 if plot_goals:
                     goals = np.array(self.robot.goals, dtype=PRECISION).copy()
@@ -755,14 +755,14 @@ class SocialNavSim:
             for j in range(len(self.humans)):
                 color_idx = j % len(COLORS)
                 ax.plot(states[:,j,0],states[:,j,1], color=COLORS[color_idx], linewidth=0.5, zorder=0)
-                for k in range(0,len(states),int(plot_sample_time / SAMPLING_TIME)):
+                for k in range(0,len(states),int(plot_sample_time / dt_between_states)):
                     if "hsfm" in model:
                         head = plt.Circle((states[k,j,0] + math.cos(states[k,j,2]) * self.humans[j].radius, states[k,j,1] + math.sin(states[k,j,2]) * self.humans[j].radius), 0.1, color=COLORS[color_idx], zorder=1)
                         ax.add_patch(head)
                     circle = plt.Circle((states[k,j,0],states[k,j,1]),self.humans[j].radius, edgecolor=COLORS[color_idx], facecolor="white", fill=True, zorder=1)
                     ax.add_patch(circle)
-                    size = 15 if (k*SAMPLING_TIME).is_integer() else 10
-                    num = int(k*SAMPLING_TIME) if (k*SAMPLING_TIME).is_integer() else (k*SAMPLING_TIME)
+                    size = 15 if (k*dt_between_states).is_integer() else 10
+                    num = int(k*dt_between_states) if (k*dt_between_states).is_integer() else (k*dt_between_states)
                     ax.text(states[k,j,0],states[k,j,1], f"{num}", color=COLORS[color_idx], va="center", ha="center", size=size, zorder=1, weight='bold')
                 if plot_goals:
                     goals = np.array(self.humans[j].goals, dtype=PRECISION).copy()
