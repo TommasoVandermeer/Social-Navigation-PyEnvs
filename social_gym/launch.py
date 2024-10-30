@@ -26,7 +26,7 @@ np.random.seed(1000)
 social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": "hsfm_new_guo", "headless": True,
                                          "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
-                          scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = False)
+                          scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***

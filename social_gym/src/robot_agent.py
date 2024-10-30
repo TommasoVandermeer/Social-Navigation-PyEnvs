@@ -10,7 +10,7 @@ from crowd_nav.utils.state import JointState
 from crowd_nav.utils.action import ActionXY, ActionRot
 from crowd_nav.policy_no_train.policy_factory import policy_factory
 
-KEYS_VELOCITY_CHANGE = {"up": np.array([1.20,1.20]), "down": np.array([-1.20,-1.20]), "left": np.array([-1.20,0.00]), "right": np.array([0.00,-1.20])}
+KEYS_VELOCITY_CHANGE = {"up": np.array([1.20,1.20], dtype=PRECISION), "down": np.array([-1.20,-1.20], dtype=PRECISION), "left": np.array([-1.20,0.00], dtype=PRECISION), "right": np.array([0.00,-1.20], dtype=PRECISION)}
 
 class RobotAgent(Agent):
     def __init__(self, game, pos=[7.5,7.5], yaw=0.0, radius=0.3, goals=list(), mass=80, desired_speed=1):
@@ -116,10 +116,10 @@ class RobotAgent(Agent):
     def compute_position(self, action, delta_t):
         self.check_validity(action)
         if self.kinematics == 'holonomic':
-            act = np.array([action.vx, action.vy])
+            act = np.array([action.vx, action.vy], dtype=PRECISION)
             position = self.position + act * delta_t
         else:
-            act = np.array([np.cos(self.yaw + action.r) * action.v, np.sin(self.yaw + action.r) * action.v])
+            act = np.array([np.cos(self.yaw + action.r) * action.v, np.sin(self.yaw + action.r) * action.v], dtype=PRECISION)
             position = self.position + act * delta_t
         return position
 
@@ -130,10 +130,10 @@ class RobotAgent(Agent):
         self.check_validity(action)
         self.position = self.compute_position(action, delta_t)
         if self.kinematics == 'holonomic':
-            self.linear_velocity = np.array([action.vx, action.vy])
+            self.linear_velocity = np.array([action.vx, action.vy], dtype=PRECISION)
         else:
             self.yaw = (self.yaw + action.r) % (2 * np.pi)
-            self.linear_velocity = np.array([np.cos(self.yaw) * action.v, np.sin(self.yaw) * action.v])
+            self.linear_velocity = np.array([np.cos(self.yaw) * action.v, np.sin(self.yaw) * action.v], dtype=PRECISION)
 
     def act(self, ob):
         if self.policy is None: raise AttributeError('Policy attribute has to be set!')

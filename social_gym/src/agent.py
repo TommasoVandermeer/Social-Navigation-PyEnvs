@@ -39,7 +39,7 @@ class Agent():
         self.visible = None
 
     def get_goal_position(self):
-        return np.array([self.goals[0][0], self.goals[0][1]])
+        return np.array([self.goals[0][0], self.goals[0][1]], dtype=PRECISION)
     
     def get_position(self):
         return self.position
