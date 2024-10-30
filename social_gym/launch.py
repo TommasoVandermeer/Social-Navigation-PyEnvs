@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 #                           scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
 np.random.seed(1000)
-social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": "hsfm_new_guo", "headless": True,
-                                         "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": True,
+                                         "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
                           scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
 
@@ -33,11 +33,11 @@ social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": 
 TIME_STEP = 1/100
 social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
-# social_nav.set_robot_time_step(1/4)
+social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-# social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/HS/cadrl_on_sfm_guo'), il=False)
+social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/HS/cadrl_on_sfm_guo'), il=False)
 ## The RL robot policies query the environment to compute next humans state by default, to propagate the observed velocity set query_env to False
-# social_nav.robot.policy.query_env = False
+social_nav.robot.policy.query_env = False
 ## Set robot policy - CrowdNav non trainable policy
 # social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
@@ -76,7 +76,7 @@ SIMULATION_SECONDS = 25
 human_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
 # social_nav.run_from_precomputed_states(human_states)
 
-### PLOT TRAJECTORY
+### PLOT TRAJECTORY 
 figure, ax = plt.subplots(figsize=(10,10))
 social_nav.plot_humans_and_robot_trajectories(ax, human_states, plot_sample_time=3)
 plt.show()
