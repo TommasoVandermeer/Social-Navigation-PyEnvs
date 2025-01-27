@@ -47,6 +47,7 @@ class SocialNavSim:
         if scenario == "custom_config": self.config_data = config_data
         elif scenario == "circular_crossing": self.config_data = self.generate_circular_crossing_setting(**config_data)
         elif scenario == "parallel_traffic": self.config_data = self.generate_parallel_traffic_scenario(**config_data)
+        elif scenario == "circular_crossing_with_static_obstacles": self.config_data = self.generate_circular_crossing_with_static_obstacles(**config_data)
         else: raise Exception(f"Scenario '{scenario}' does not exist")
 
         self.reset_sim(restart_gui=True)
@@ -357,6 +358,75 @@ class SocialNavSim:
         ## Set parallel traffic humans respawn
         self.parallel_traffic_humans_respawn = True
         self.respawn_bounds = ((traffic_length / 2), (traffic_height / 2))
+        self.config_data = data
+        return data
+
+    def generate_circular_crossing_with_static_obstacles(self, **kwargs):
+        ## Get input data
+        insert_robot = kwargs["insert_robot"] if "insert_robot" in kwargs else False
+        model = kwargs["human_policy"] if "human_policy" in kwargs else "sfm_guo"
+        headless = kwargs["headless"] if "headless" in kwargs else False
+        runge_kutta = kwargs["runge_kutta"] if "runge_kutta" in kwargs else False
+        robot_visible = kwargs["robot_visible"] if "robot_visible" in kwargs else False
+        robot_r = kwargs["robot_radius"] if "robot_radius" in kwargs else 0.3
+        radius = kwargs["circle_radius"] if "circle_radius" in kwargs else 7
+        n_actors = kwargs["n_actors"] if "n_actors" in kwargs else 10
+        # Generate humans initial condition
+        assert radius > 5, "Radius must be greater than 5 for this scenario"
+        inner_circle_radius = radius - 3
+        center = np.array([0,0],dtype=PRECISION) # [self.real_size/2,self.real_size/2]
+        humans = {}
+        humans_des_speed = []
+        humans_radius = []
+        for i in range(n_actors):
+            if i < (n_actors / 2) - 0.5: 
+                humans_des_speed.append(0.0)
+                humans_radius.append(1 + (np.random.random()-1) * 0.2)
+            else: 
+                humans_des_speed.append(1.0)
+                humans_radius.append(0.3)
+        humans_pos = []
+        robot_pos = np.array([center[0], center[1]-radius], dtype=PRECISION)
+        robot_goal = np.array([center[0], center[1]+radius], dtype=PRECISION)
+        for i in range(n_actors):
+            while True:
+                if i < (n_actors / 2) - 0.5:
+                    angle = (np.pi / int(n_actors / 2)) * (-0.5 + 2 * i + (np.random.random() - 0.5) * 0.5)
+                    pos_noise = np.array([(np.random.random() - 0.5) * 0.1, (np.random.random() - 0.5) * 0.1], dtype=PRECISION)
+                    pos = np.array([center[0] + inner_circle_radius * np.cos(angle) + pos_noise[0], center[1] + inner_circle_radius * np.sin(angle) + pos_noise[1]], dtype=PRECISION)
+                else:
+                    angle = (np.pi / int(n_actors / 2)) * (0.5 + 2 * i + (np.random.random() - 0.5) * 0.5)
+                    pos_noise = np.array([(np.random.random() - 0.5) * 0.7, (np.random.random() - 0.5) * 0.7], dtype=PRECISION)
+                    pos = np.array([center[0] + radius * np.cos(angle) + pos_noise[0], center[1] + radius * np.sin(angle) + pos_noise[1]], dtype=PRECISION)
+                collide = False 
+                for j in range(len(humans_pos)):
+                    min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
+                    other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
+                    if j < (n_actors / 2) - 0.5: 
+                        other_human_goal = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
+                    else:
+                        other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=PRECISION)
+                    if np.linalg.norm(pos - other_human_pos) < min_dist or np.linalg.norm(pos - other_human_goal) < min_dist:
+                        collide = True
+                        break
+                if np.linalg.norm(pos - robot_pos) < humans_radius[i] + robot_r + 0.2 or np.linalg.norm(pos - robot_goal) < humans_radius[i] + robot_r + 0.2:
+                    collide = True
+                if not collide: 
+                    humans_pos.append([pos[0], pos[1]])
+                    if i < (n_actors / 2) - 0.5: 
+                        human_goals = [[pos[0], pos[1]], [pos[0], pos[1]]]
+                    else:
+                        human_goals = [[center[0] * 2 - pos[0], center[1] * 2 - pos[1]], [pos[0], pos[1]]]
+                    humans[i] = {"pos": [pos[0], pos[1]],
+                                "yaw": bound_angle(math.pi + angle),
+                                "goals": human_goals,
+                                "des_speed": humans_des_speed[i],
+                                "radius": humans_radius[i]}
+                    break
+        if insert_robot: 
+            robot = {"pos": [center[0], center[1]-radius], "yaw": math.pi / 2, "radius": robot_r, "goals": [[center[0], center[1]+radius],[center[0],center[1]-radius]]}
+            data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": robot_visible, "grid": True, "walls": [], "humans": humans, "robot": robot}
+        else: data = {"motion_model": model, "headless": headless, "runge_kutta": runge_kutta, "robot_visible": False, "grid": True, "walls": [], "humans": humans}
         self.config_data = data
         return data
 

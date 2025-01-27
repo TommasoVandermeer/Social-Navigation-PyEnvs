@@ -22,11 +22,17 @@ import matplotlib.pyplot as plt
 #                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
 #                           scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
 ## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
-np.random.seed(1000)
-social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": True,
+# np.random.seed(1000)
+# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": True,
+#                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
+#                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
+#                           scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
+## Circular crossing with static obstacles - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
+np.random.seed(1001)
+social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-                                         "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
-                          scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
+                                         "circle_radius": 7, "n_actors": 6, "randomize_human_positions": True, "randomize_human_attributes": False},
+                          scenario="circular_crossing_with_static_obstacles", parallelize_robot = False, parallelize_humans = False)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
@@ -47,12 +53,12 @@ social_nav.robot.policy.query_env = False
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-# social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
+social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
 ## Can be paused (SPACE), resetted (R), rewinded (Z) fast and speeded up (S), hide/show stats (H), origin view (O)
-# social_nav.run_live()
+social_nav.run_live()
 ## Run only k steps at max speed
 # social_nav.run_k_steps(1000, save_states_time_step=TIME_STEP)
 ## Run fixed time simulation of humans and robot and plot trajectories
@@ -72,14 +78,14 @@ social_nav.robot.policy.query_env = False
 # human_states, robot_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
 # social_nav.run_from_precomputed_states(human_states, robot_poses=robot_states)
 ## Run from previously computed states (controlled speed) - Euler only humans
-SIMULATION_SECONDS = 25
-human_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
+# SIMULATION_SECONDS = 25
+# human_states = social_nav.run_k_steps(int(SIMULATION_SECONDS/TIME_STEP), save_states_time_step=TIME_STEP)
 # social_nav.run_from_precomputed_states(human_states)
 
 ### PLOT TRAJECTORY 
-figure, ax = plt.subplots(figsize=(10,10))
-social_nav.plot_humans_and_robot_trajectories(ax, human_states, plot_sample_time=3)
-plt.show()
+# figure, ax = plt.subplots(figsize=(10,10))
+# social_nav.plot_humans_and_robot_trajectories(ax, human_states, plot_sample_time=3)
+# plt.show()
 
 ### POST-SIMULATION UTILS
 ## Save and load states

@@ -147,6 +147,11 @@ class SocialNavGym(gym.Env, SocialNavSim):
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
                                                                 traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = human_num, 
                                                                 randomize_human_attributes = self.randomize_attributes)
+                    elif self.train_val_sim == 'circular_crossing_with_static_obstacles':
+                        self.generate_circular_crossing_with_static_obstacles(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = human_num, randomize_human_positions = True,
+                                                                randomize_human_attributes = self.randomize_attributes)
                     elif self.train_val_sim == 'hybrid_scenario':
                         scenario = np.random.choice(['circle_crossing', 'parallel_traffic'])
                         np.random.seed(counter_offset[phase] + self.case_counter[phase])
@@ -170,6 +175,11 @@ class SocialNavGym(gym.Env, SocialNavSim):
                         self.generate_parallel_traffic_scenario(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
                                                                 runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
                                                                 traffic_length = self.traffic_length, traffic_height = self.traffic_height, n_actors = self.human_num, 
+                                                                randomize_human_attributes = self.randomize_attributes)
+                    elif self.test_sim == 'circular_crossing_with_static_obstacles':
+                        self.generate_circular_crossing_with_static_obstacles(insert_robot = True, human_policy = self.human_policy, headless = HEADLESS,
+                                                                runge_kutta = False, robot_visible = self.robot.visible, robot_radius = self.robot_radius,
+                                                                circle_radius = self.circle_radius, n_actors = self.human_num, randomize_human_positions = True,
                                                                 randomize_human_attributes = self.randomize_attributes)
                     elif self.test_sim == 'hybrid_scenario':
                         scenario = np.random.choice(['circle_crossing', 'parallel_traffic'])
