@@ -19,6 +19,10 @@ class HumanAgent(Agent):
         self.font = pygame.font.Font(os.path.join(os.path.dirname(__file__),'..','fonts/Roboto-Black.ttf'),int(0.25 * self.ratio))
         self.label = self.font.render(f"{label}", False, (0,0,0))
 
+        # Only used for static humans in circular corssing with static obstacles
+        self.outer_circle = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.outer_circle, (0,0,0), (display_radius, display_radius), display_radius)
+
         self.image = pygame.Surface((display_radius * 2, display_radius * 2), pygame.SRCALPHA)
         pygame.draw.circle(self.image, (255,255,255), (display_radius, display_radius), display_radius)
         pygame.draw.circle(self.image, self.color, (display_radius, display_radius), display_radius, int(0.05 * self.ratio))

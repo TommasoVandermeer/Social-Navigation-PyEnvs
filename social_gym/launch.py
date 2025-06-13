@@ -16,23 +16,23 @@ import matplotlib.pyplot as plt
 ## Create instance of simulator and load paramas from config file
 # social_nav = SocialNavSim(data)
 ## Circular crossing - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-# np.random.seed(1000)
-# social_nav = SocialNavSim(config_data = {"insert_robot": False, "human_policy": "hsfm_new_guo", "headless": True,
-#                                          "runge_kutta": False, "robot_visible": False, "robot_radius": 0.3,
-#                                          "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
-#                           scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
-## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
-# np.random.seed(1000)
-# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": True,
-#                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-#                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 15, "randomize_human_attributes": False},
-#                           scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
-## Circular crossing with static obstacles - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
-np.random.seed(1001)
+np.random.seed(1002)
 social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
-                                         "circle_radius": 7, "n_actors": 6, "randomize_human_positions": True, "randomize_human_attributes": False},
-                          scenario="circular_crossing_with_static_obstacles", parallelize_robot = False, parallelize_humans = False)
+                                         "circle_radius": 7, "n_actors": 5, "randomize_human_positions": True, "randomize_human_attributes": False},
+                          scenario="circular_crossing", parallelize_robot = False, parallelize_humans = False)
+## Parallel traffic scenario - config_data: {radius, n_actors, motion_model, headless, runge_kutta, insert_robot, traffic_length, traffic_height, randomize_human_attributes, robot_visible}
+# np.random.seed(1000)
+# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "orca", "headless": False,
+#                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
+#                                          "traffic_length": 14, "traffic_height": 3, "n_actors": 10, "randomize_human_attributes": False},
+#                           scenario = "parallel_traffic", parallelize_robot = False, parallelize_humans = True)
+## Circular crossing with static obstacles - config_data: {radius, n_actors, randomize_human_positions, motion_model, headless, runge_kutta, insert_robot, circle_radius, randomize_human_attributes, robot_visible}
+# np.random.seed(1002)
+# social_nav = SocialNavSim(config_data = {"insert_robot": True, "human_policy": "hsfm_new_guo", "headless": False,
+#                                          "runge_kutta": False, "robot_visible": True, "robot_radius": 0.3,
+#                                          "circle_radius": 7, "n_actors": 8, "randomize_human_positions": True, "randomize_human_attributes": False},
+#                           scenario="circular_crossing_with_static_obstacles", parallelize_robot = False, parallelize_humans = False)
 
 ### SIMULATION UTILS
 ## Set environment sampling time (default is 1/60) *** WARNING: Express in fraction ***
@@ -41,19 +41,19 @@ social_nav.set_time_step(TIME_STEP)
 ## Set robot sampling time (inverse of its update frequency) (default is 1/4) *** WARNING: Express in fraction ***
 social_nav.set_robot_time_step(1/4)
 ## Set robot policy - CrowdNav trainable policy
-social_nav.set_robot_policy(policy_name="cadrl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/HS/cadrl_on_sfm_guo'), il=False)
+social_nav.set_robot_policy(policy_name="sarl", crowdnav_policy=True, model_dir=os.path.join(os.path.dirname(__file__),'robot_models/CC/sarl_on_hsfm_new_guo'), il=False)
 ## The RL robot policies query the environment to compute next humans state by default, to propagate the observed velocity set query_env to False
-social_nav.robot.policy.query_env = False
+# social_nav.robot.policy.query_env = False
 ## Set robot policy - CrowdNav non trainable policy
-# social_nav.set_robot_policy(policy_name="ssp", crowdnav_policy=True)
+# social_nav.set_robot_policy(policy_name="bp", crowdnav_policy=True)
 ## Set robot policy - SocialNav non trainable policy
-# social_nav.set_robot_policy(policy_name="hsfm_new_guo", runge_kutta=False)
+# social_nav.set_robot_policy(policy_name="orca", runge_kutta=False)
 ## Set a safety space both for robot and humans
 # social_nav.motion_model_manager.set_safety_space(0.15)
 ## Change robot radius
 # social_nav.robot.set_radius_and_update_graphics(0.2)
 ## Add a laser sensor to the robot
-social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
+# social_nav.robot.add_laser_sensor(math.pi, 61, 5, uncertainty=0.01, render=True)
 
 ### SIMULATOR RUN
 ## Infinite loop interactive live run (controlled speed)
