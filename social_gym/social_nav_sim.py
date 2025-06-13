@@ -379,9 +379,9 @@ class SocialNavSim:
         humans_des_speed = []
         humans_radius = []
         for i in range(n_actors):
-            if i < (n_actors / 2) - 0.5: 
+            if i < 3: 
                 humans_des_speed.append(0.0)
-                humans_radius.append(1 + (np.random.random()-1) * 0.2)
+                humans_radius.append(1 + (np.random.random()-1) * 0.4)
             else: 
                 humans_des_speed.append(1.0)
                 humans_radius.append(0.3)
@@ -390,7 +390,7 @@ class SocialNavSim:
         robot_goal = np.array([center[0], center[1]+radius], dtype=PRECISION)
         for i in range(n_actors):
             while True:
-                if i < (n_actors / 2) - 0.5:
+                if i < 3:
                     angle = (np.pi / int(n_actors / 2)) * (-0.5 + 2 * i + (np.random.random() - 0.5) * 0.5)
                     pos_noise = np.array([(np.random.random() - 0.5) * 0.1, (np.random.random() - 0.5) * 0.1], dtype=PRECISION)
                     pos = np.array([center[0] + inner_circle_radius * np.cos(angle) + pos_noise[0], center[1] + inner_circle_radius * np.sin(angle) + pos_noise[1]], dtype=PRECISION)
@@ -402,7 +402,7 @@ class SocialNavSim:
                 for j in range(len(humans_pos)):
                     min_dist = humans_radius[i] + humans_radius[j] + 0.2 # This last element is kind of a discomfort distance
                     other_human_pos = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
-                    if j < (n_actors / 2) - 0.5: 
+                    if j < 3: 
                         other_human_goal = np.array([humans_pos[j][0],humans_pos[j][1]], dtype=PRECISION)
                     else:
                         other_human_goal = np.array([-humans_pos[j][0] + 2 * center[0],-humans_pos[j][1] + 2 * center[0]], dtype=PRECISION)
@@ -413,7 +413,7 @@ class SocialNavSim:
                     collide = True
                 if not collide: 
                     humans_pos.append([pos[0], pos[1]])
-                    if i < (n_actors / 2) - 0.5: 
+                    if i < 3: 
                         human_goals = [[pos[0], pos[1]], [pos[0], pos[1]]]
                     else:
                         human_goals = [[center[0] * 2 - pos[0], center[1] * 2 - pos[1]], [pos[0], pos[1]]]
@@ -437,7 +437,18 @@ class SocialNavSim:
         # Change based on scroll and zoom
         if self.grid: self.display.blit(self.grid_surface, (SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[0], SCROLL_BOUNDS[0] * self.display_to_window_ratio - self.display_scroll[1]))
         for wall in self.walls.sprites(): wall.render(self.display, self.display_scroll)
-        for human in self.humans: human.update(); human.render(self.display, self.display_scroll)
+        # for human in self.humans: human.update(); human.render(self.display, self.display_scroll)
+        for i, human in enumerate(self.humans):
+            if self.mode != 'circular_crossing_with_static_obstacles':
+                human.update()
+                human.render(self.display, self.display_scroll)
+            else:
+                if i < 3: 
+                    self.display.blit(human.outer_circle, (human.rect.x - self.display_scroll[0], human.rect.y - self.display_scroll[1]))
+                else:
+                    human.update()
+                    human.render(self.display, self.display_scroll)
+            
         if self.insert_robot: self.robot.update(); self.robot.render(self.display, self.display_scroll)
         pygame.transform.scale(self.display, (WINDOW_SIZE, WINDOW_SIZE), self.screen)
 

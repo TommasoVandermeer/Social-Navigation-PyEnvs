@@ -25,6 +25,41 @@ The simulator also implements a laser sensor and a differential drive robot, whi
 
 ![social-nav-overview-2](.images/social-nav-overview-2.gif)
 
+## Simulation videos: a comparative study of human motion models in reinforcement learning algorithms for social robot navigation
+
+### Human motion models
+ORCA|SFM|HSFM
+:-:|:-:|:-:
+![social-nav-overview-1](.images/A_CC-ORCA.gif) |![social-nav-overview-1](.images/A_CC-SFM.gif)|![social-nav-overview-1](.images/A_CC-HSFM.gif) 
+
+### Baselines
+BP|SSP|ORCA
+:-:|:-:|:-:
+![social-nav-overview-1](.images/B_BP_on_PT-ORCA.gif) |![social-nav-overview-1](.images/B_SSP_on_PT-ORCA.gif)|![social-nav-overview-1](.images/B_ORCA_on_PT-ORCA.gif) 
+
+### Comparing policies
+CADRL-HS-HSFM|LSTM-RL-HS-HSFM|SARL-HS-HSFM
+:-:|:-:|:-:
+![social-nav-overview-1](.images/E_CADRL-HS-HSFM_on_CC-HSFM.gif) |![social-nav-overview-1](.images/E_LSTM-HS-HSFM_on_CC-HSFM.gif)|![social-nav-overview-1](.images/E_SARL-HS-HSFM_on_CC-HSFM.gif) 
+
+### Comparing scenarios
+SARL-CC-HSFM|SARL-PT-HSFM|SARL-HS-HSFM
+:-:|:-:|:-:
+![social-nav-overview-1](.images/F_SARL-CC-HSFM_on_CC-HSFM.gif) |![social-nav-overview-1](.images/F_SARL-PT-HSFM_on_CC-HSFM.gif)|![social-nav-overview-1](.images/F_SARL-HS-HSFM_on_CC-HSFM.gif) 
+
+### Comparing human motion models for training and testing
+SARL-HS-ORCA|SARL-HS-SFM|SARL-HS-HSFM
+:-:|:-:|:-:
+![social-nav-overview-1](.images/C_SARL-HS-ORCA_on_CC-HSFM.gif) |![social-nav-overview-1](.images/C_SARL-HS-SFM_on_CC-HSFM.gif)|![social-nav-overview-1](.images/C_SARL-HS-HSFM_on_CC-HSFM.gif) 
+
+### Case study: evaluatiing scenarios with obstacles
+SARL-CC-HSFM|
+:-:
+![social-nav-overview-1](.images/D_SARL-HS-HSFM_on_CCSO-HSFM.gif)|
+
+### Cite this paper
+TBD
+
 ## References
 <ul>
     <li id="crowdnav">[1] <a href="https://github.com/ChanganVR/RelationalGraphLearning">CrowdNav</a>.</li>
