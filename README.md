@@ -17,15 +17,24 @@ The CrowdNav module [[1]](#crowdnav) includes the following reinforcement learni
 - Long-short term memory RL (LSTM-RL) [[9]](#lstmrl)
 - Social Attentive RL (SARL) [[10]](#sarl)
 
-The simulator is built upon [Pygame](https://www.pygame.org/) in order to provide a functional visualization tool and [OpenAI Gym](https://gymnasium.farama.org/), which defines the standard API for RL environments.
+The simulator is built upon [Pygame](https://www.pygame.org/) in order to provide a functional visualization tool and [OpenAI Gym](https://gymnasium.farama.org/), which defines the standard API for RL environments. It also implements a laser sensor and a differential drive robot, which allow users to develop sensor-based algorithms.
 
-![social-nav-overview-1](.images/social-nav-overview-1.gif) 
-
-The simulator also implements a laser sensor and a differential drive robot, which allow users to develop sensor-based algorithms.
-
-![social-nav-overview-2](.images/social-nav-overview-2.gif)
+&nbsp;|&nbsp;|
+:-:|:-:|
+![social-nav-overview-1](.images/social-nav-overview-1.gif)|![social-nav-overview-2](.images/social-nav-overview-2.gif)
 
 ## Simulation videos: a comparative study of human motion models in reinforcement learning algorithms for social robot navigation
+
+### Cite this paper
+If this repository or paper turns out to be useful for your research, please cite our paper:
+```bibtex
+@article{van2025comparative,
+  title={A Comparative Study of Human Motion Models in Reinforcement Learning Algorithms for Social Robot Navigation},
+  author={Van Der Meer, Tommaso and Garulli, Andrea and Giannitrapani, Antonio and Quartullo, Renato},
+  journal={arXiv preprint arXiv:2503.15127},
+  year={2025}
+}
+```
 
 ### Human motion models
 ORCA|SFM|HSFM
@@ -52,13 +61,10 @@ SARL-HS-ORCA|SARL-HS-SFM|SARL-HS-HSFM
 :-:|:-:|:-:
 ![social-nav-overview-1](.images/C_SARL-HS-ORCA_on_CC-HSFM.gif) |![social-nav-overview-1](.images/C_SARL-HS-SFM_on_CC-HSFM.gif)|![social-nav-overview-1](.images/C_SARL-HS-HSFM_on_CC-HSFM.gif) 
 
-### Case study: evaluatiing scenarios with obstacles
+### Case study: evaluating scenarios with obstacles
 SARL-CC-HSFM|
 :-:
-![social-nav-overview-1](.images/D_SARL-HS-HSFM_on_CCSO-HSFM.gif)|
-
-### Cite this paper
-TBD
+<img src=".images/D_SARL-HS-HSFM_on_CCSO-HSFM.gif" alt="SARL-CC-HSFM_with_static_obstacles" width="400"/>
 
 ## References
 <ul>
