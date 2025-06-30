@@ -28,11 +28,19 @@ The simulator is built upon [Pygame](https://www.pygame.org/) in order to provid
 ### Cite this paper
 If this repository or paper turns out to be useful for your research, please cite our paper:
 ```bibtex
-@article{van2025comparative,
-  title={A Comparative Study of Human Motion Models in Reinforcement Learning Algorithms for Social Robot Navigation},
-  author={Van Der Meer, Tommaso and Garulli, Andrea and Giannitrapani, Antonio and Quartullo, Renato},
-  journal={arXiv preprint arXiv:2503.15127},
-  year={2025}
+@article{10.1145/3746463,
+author = {Van Der Meer, Tommaso and Garulli, Andrea and Giannitrapani, Antonio and Quartullo, Renato},
+title = {A Comparative Study of Human Motion Models in Reinforcement Learning Algorithms for Social Robot Navigation},
+year = {2025},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3746463},
+doi = {10.1145/3746463},
+abstract = {Social robot navigation is an evolving research field that aims to find efficient strategies to safely navigate dynamic environments populated by humans. A critical challenge in this domain is the accurate modeling of human motion, which directly impacts the design and evaluation of navigation algorithms. This paper presents a comparative study of two popular categories of human motion models used in social robot navigation, namely velocity-based models and force-based models. A system-theoretic representation of both model types is presented, which highlights their common feedback structure, although with different state variables. Several navigation policies based on reinforcement learning are trained and tested in various simulated environments involving pedestrian crowds modeled with these approaches. A comparative study is conducted to assess performance across multiple factors, including human motion model, navigation policy, scenario complexity and crowd density. The results highlight advantages and challenges of different approaches to modeling human behavior, as well as their role during training and testing of learning-based navigation policies. The findings offer valuable insights and guidelines for selecting appropriate human motion models when designing socially-aware robot navigation systems.},
+note = {Just Accepted},
+journal = {J. Hum.-Robot Interact.},
+month = jun,
+keywords = {Human Motion Models, Social Robot Navigation, Multi-Agent Systems, Motion Planning}
 }
 ```
 
@@ -63,8 +71,8 @@ SARL-HS-ORCA|SARL-HS-SFM|SARL-HS-HSFM
 
 ### Case study: evaluating scenarios with obstacles
 SARL-CC-HSFM|
-:-:
-<img src=".images/D_SARL-HS-HSFM_on_CCSO-HSFM.gif" alt="SARL-CC-HSFM_with_static_obstacles" width="400"/>
+:-:|
+<img src=".images/D_SARL-HS-HSFM_on_CCSO-HSFM.gif" alt="SARL-CC-HSFM_with_static_obstacles" width="400"/>|
 
 ## References
 <ul>
